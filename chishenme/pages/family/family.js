@@ -7,7 +7,7 @@
  * 三种视图，靠 data 里的几个开关切换：
  *   1. cloud=false  → 云开发还没配，给出配置指路
  *   2. fam=null     → 还没进房间，显示「创建 / 加入」两个 tab
- *   3. fam 有值     → 显示房间码、成员、我的称呼、退出
+ *   3. fam 有值     → 显示房间码、成员、我的称呼；普通成员能退出，房主能解散
  *
  * 被分享进来的链接形如 /pages/family/family?room=ABC234，
  * onLoad 直接读 room 并预览房间名，家人点一下「加入」就完事。
@@ -51,7 +51,17 @@ Page({
   },
 
   onShow: function () {
+    var self = this
     this.setData({ cloud: app.isCloud(), fam: app.family() })
+
+    // 回到这一页时跟服务端对一次账。
+    // 房主解散房间之后，其他成员本机还留着旧房间的缓存 ——
+    // 只有重新拉一次才会消失，否则他们会一直看到一个已经不存在的房间。
+    if (app.isCloud()) {
+      app.refreshFamily().then(function () {
+        self.setData({ fam: app.family() })
+      }).catch(function () { /* 没网就先用缓存，不要因此清掉房间 */ })
+    }
   },
 
   /* ---------------- 邀请链接 ---------------- */
@@ -208,6 +218,56 @@ Page({
           self.setData({ fam: null, jCode: '', jPre: null })
           wx.showToast({ title: '已退出', icon: 'none' })
         }).catch(function (e) {
+          wx.showToast({ title: app.errText(e), icon: 'none' })
+        })
+      }
+    })
+  },
+
+  /**
+   * 解散房间（房主）。
+   *
+   * 这是全项目唯一一个**不可逆**的操作：房间码作废、所有人的菜单一起没，
+   * 而且家里其他人纯粹是被动的 —— 他们什么都没点，房间就没了。
+   * 所以挡两道：第一道把后果说清楚，第二道才真的删。
+   * 只弹一次的话，很容易被顺手点掉。
+   */
+  doDissolve: function () {
+    var self = this
+    var fam = this.data.fam
+    // 非房主连弹窗都不弹：这个按钮本来就不该出现在他眼前
+    if (!fam || !fam.isOwner) return
+
+    wx.showModal({
+      title: '解散「' + (fam.name || '这个房间') + '」',
+      content: '房间码 ' + fam.code + ' 会作废，家里其他人下次打开就不在这个房间了，今天的菜单也会一起删掉。',
+      confirmText: '继续',
+      cancelText: '算了',
+      success: function (res) {
+        if (!res.confirm) return
+        self.confirmDissolve()
+      }
+    })
+  },
+
+  /** 第二道确认：到这里才会真的调云函数 */
+  confirmDissolve: function () {
+    var self = this
+    wx.showModal({
+      title: '真的要解散吗',
+      content: '这一步没有办法撤销，房间也找不回来了。',
+      confirmText: '解散',
+      cancelText: '再想想',
+      confirmColor: '#D9483B',
+      success: function (res) {
+        if (!res.confirm) return
+        wx.showLoading({ title: '正在解散…', mask: true })
+        app.dissolveFamily().then(function () {
+          wx.hideLoading()
+          self.setData({ fam: null, jCode: '', jPre: null, inviteCode: '', inviteName: '' })
+          wx.showToast({ title: '房间已解散', icon: 'none' })
+        }).catch(function (e) {
+          wx.hideLoading()
           wx.showToast({ title: app.errText(e), icon: 'none' })
         })
       }

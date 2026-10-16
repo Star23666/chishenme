@@ -23,6 +23,8 @@ global.wx = {
   removeStorageSync: function (k) { delete store[k] },
   showToast: function () {},
   showModal: function () {},
+  showLoading: function () {},
+  hideLoading: function () {},
   switchTab: function () {},
   setClipboardData: function () {}
 }
@@ -444,6 +446,8 @@ ok('家庭页有 onInput', typeof pageObjs.family.onInput === 'function')
 ok('家庭页能创建房间', typeof pageObjs.family.doCreate === 'function')
 ok('家庭页能加入房间', typeof pageObjs.family.doJoin === 'function')
 ok('家庭页能退出房间', typeof pageObjs.family.doLeave === 'function')
+ok('家庭页能解散房间（房主专属）', typeof pageObjs.family.doDissolve === 'function')
+ok('解散有第二道确认，不是一弹就删', typeof pageObjs.family.confirmDissolve === 'function')
 ok('家庭页能改称呼', typeof pageObjs.family.doRename === 'function')
 ok('家庭页支持转发邀请', typeof pageObjs.family.onShareAppMessage === 'function')
 eq('家庭页初始未进房间', pageObjs.family.data.fam, null)
@@ -482,6 +486,84 @@ ok('填了昵称后点击也不抛异常', syncErr2 === null, syncErr2 ? String(
 eq('点击后立刻进入 busy 状态（先给反馈，不等网络）', pageCtx.data.busy, true)
 
 global.wx.showToast = origToast
+
+/* ============ I2. 解散房间：拦两道，别让它顺手被点掉 ============ */
+/*
+ * 「解散房间」是这个项目里唯一一个**不可逆**的操作：
+ * 房间码作废、所有人的菜单一起没，而且家里其他人是被动的 ——
+ * 他们什么都没点，房间就没了。
+ * 所以它必须弹两次：第一次说清后果，第二次才真的删。
+ * 下面验证这个拦截真的生效，而不是只写在注释里。
+ */
+;(function () {
+  var lastModal = null
+  var origModal = global.wx.showModal
+
+  function ctxWith(isOwner, extra) {
+    var c = {
+      data: { fam: { code: 'ABC234', name: '老王家', isOwner: isOwner } },
+      setData: function (p) { for (var k in p) this.data[k] = p[k] }
+    }
+    for (var k in (extra || {})) c[k] = extra[k]
+    return c
+  }
+
+  // 1) 非房主：连弹窗都不该弹（按钮本来就不该出现在他眼前）
+  var modalCount = 0
+  global.wx.showModal = function (o) { modalCount++; lastModal = o }
+  var guestErr = null
+  try {
+    pageObjs.family.doDissolve.call(ctxWith(false))
+  } catch (e) {
+    guestErr = e
+  }
+  ok('非房主点解散不抛异常（本地就拦下了）', guestErr === null, guestErr ? String(guestErr.message) : '')
+  eq('非房主点解散：一个弹窗都不弹', modalCount, 0)
+
+  // 2) 房主：第一道弹窗出现，文案要带房间码和后果
+  modalCount = 0
+  var confirmed = 0
+  pageObjs.family.doDissolve.call(ctxWith(true, { confirmDissolve: function () { confirmed++ } }))
+  eq('房主点解散会弹第一道确认框', modalCount, 1)
+  ok('第一道确认框里带了房间码（防止连错的是哪个房间都不知道）',
+    !!(lastModal && String(lastModal.content).indexOf('ABC234') >= 0),
+    lastModal ? String(lastModal.content) : '(没有弹窗)')
+  eq('第一道确认框的按钮是「继续 / 算了」，不是顺手就能点的「确定」',
+    lastModal ? (lastModal.confirmText + ' / ' + lastModal.cancelText) : '', '继续 / 算了')
+  eq('只是弹了框，还没真的开始删', confirmed, 0)
+
+  // 3) 第一道点「算了」→ 什么都不发生
+  global.wx.showModal = function (o) { lastModal = o; if (o && o.success) o.success({ confirm: false }) }
+  confirmed = 0
+  pageObjs.family.doDissolve.call(ctxWith(true, { confirmDissolve: function () { confirmed++ } }))
+  eq('第一道点「算了」就停下，不进入第二道', confirmed, 0)
+
+  // 4) 第一道点「继续」→ 进入第二道
+  global.wx.showModal = function (o) { lastModal = o; if (o && o.success) o.success({ confirm: true }) }
+  confirmed = 0
+  pageObjs.family.doDissolve.call(ctxWith(true, { confirmDissolve: function () { confirmed++ } }))
+  eq('第一道点「继续」才进入第二道', confirmed, 1)
+
+  // 5) 第二道点「再想想」→ 一个请求都不发
+  var dissolveCalls = 0
+  var origDissolve = app.dissolveFamily
+  app.dissolveFamily = function () { dissolveCalls++; return Promise.resolve(true) }
+  global.wx.showModal = function (o) { lastModal = o; if (o && o.success) o.success({ confirm: false }) }
+  pageObjs.family.confirmDissolve.call(ctxWith(true))
+  eq('第二道点「再想想」：一个请求都不发', dissolveCalls, 0)
+  eq('第二道用的是「解散 / 再想想」，两个都不是顺手点的按钮',
+    lastModal ? (lastModal.confirmText + ' / ' + lastModal.cancelText) : '', '解散 / 再想想')
+  eq('第二道把确认按钮标成红色（破坏性操作要看得出来）',
+    lastModal ? lastModal.confirmColor : '', '#D9483B')
+
+  // 6) 第二道点「解散」→ 这才真的调云函数
+  global.wx.showModal = function (o) { lastModal = o; if (o && o.success) o.success({ confirm: true }) }
+  pageObjs.family.confirmDissolve.call(ctxWith(true))
+  eq('第二道点「解散」才真的发请求', dissolveCalls, 1)
+
+  app.dissolveFamily = origDissolve
+  global.wx.showModal = origModal
+})()
 
 /* ==================== J. 脏数据容错 ==================== */
 
@@ -544,7 +626,7 @@ S('M. 错误提示翻译（云端模式的第一道体验关）')
 var cases = [
   ['CLOUD_DISABLED', '还没配置云开发'],
   ['NO_FAMILY', '你还没加入家庭'],
-  ['NOT_OWNER', '只有建房间的人能做这个'],
+  ['NOT_OWNER', '只有房主能做这个'],
   ['errCode: -501000 | FunctionName parameter could not be found', '云函数还没部署'],
   ['cloud init error: { errMsg: "invalid scope" }', '云环境刚开通'],
   ['errCode: -501007 | env not exists', '环境 ID 填错了'],

@@ -453,14 +453,21 @@ var missKeys = needKeys.filter(function (k) { return configSrc.indexOf(k) < 0 })
 ok('config.js 导出了 ' + needKeys.length + ' 个配置项', missKeys.length === 0, missKeys.join(', '))
 
 // G3. envId 只能出现在 config.js，不能散落各处
+/*
+ * ★ 只看**非空**的赋值。
+ *   仓库里还有一个 config.example.js（模板，CLOUD_ENV 留空），
+ *   它写的是 `CLOUD_ENV: ''` —— 那是给人抄的空白模板，不是泄漏。
+ *   但示例文件是**会进仓库**的，所以它同样在检查范围内：
+ *   谁要是把真环境 ID 填进模板里，这里立刻报出来。
+ */
 var envSpread = []
 for (var g3 = 0; g3 < allJs.length; g3++) {
   var rel4 = path.relative(APP_DIR, allJs[g3]).replace(/\\/g, '/')
   if (rel4 === 'config.js') continue
   var src4 = stripJsComments(fs.readFileSync(allJs[g3], 'utf8'))
-  if (/CLOUD_ENV\s*[:=]\s*['"]/.test(src4)) envSpread.push(rel4)
+  if (/CLOUD_ENV\s*[:=]\s*['"][^'"]+['"]/.test(src4)) envSpread.push(rel4)
 }
-ok('环境 ID 只在 config.js 里定义一次', envSpread.length === 0, envSpread.join(', '))
+ok('环境 ID 只在 config.js 里定义一次（模板文件里只允许留空）', envSpread.length === 0, envSpread.join(', '))
 
 // G4. 客户端和云函数必须用同一套 UTC+8 算法，否则晚上 8 点后两边对"今天"的理解不一致
 var fmtSrc = read(path.join(APP_DIR, 'utils', 'format.js')) || ''
@@ -504,6 +511,38 @@ console.log('    （云函数里前端暂未调用的 action：' + (unused.join(
 var mustPush = ['addDish', 'setQty', 'setNote', 'clearMenu']
 var missPush = mustPush.filter(function (a) { return !calledActions[a] })
 ok('加菜/改份数/改备注/清空 四个写操作都会同步到云端', missPush.length === 0, missPush.join(', '))
+
+// G7. 解散房间（唯一的不可逆操作）的两条硬约束
+/*
+ * ① 房主校验必须在云函数里。客户端那个「是房主才显示解散按钮」只是界面上的
+ *    方便，改一行 wxml 就绕过去了 —— 真正拦得住的地方只有服务端。
+ * ② 先删菜单，再删家庭。菜单只按 familyCode 归类，房间码是找到它们的唯一线索；
+ *    顺序反过来的话，万一删菜单失败，那批菜单就成了谁也清不掉的孤儿数据。
+ */
+ok('云函数里有 dissolveFamily 这个 action', !!cfActions.dissolveFamily)
+
+var dsIdx = cfNoComment.indexOf('async function dissolveFamily')
+var dsBody = dsIdx >= 0 ? cfNoComment.slice(dsIdx, dsIdx + 700) : ''
+ok('能找到 dissolveFamily 的函数体', dsIdx >= 0)
+ok('解散在服务端校验了房主，不是只靠界面藏按钮',
+  /owner\s*!==\s*openid/.test(dsBody), dsBody.slice(0, 90))
+ok('解散时先删菜单再删家庭（顺序反了会留下清不掉的孤儿菜单）',
+  dsBody.indexOf('MENU') >= 0 && dsBody.indexOf('FAM') >= 0 &&
+  dsBody.indexOf('MENU') < dsBody.indexOf('FAM'))
+
+// G8. 房主解散之后，其他成员的手机必须能自己发现「房间没了」
+/*
+ * 解散是房主单方面的动作，其他成员什么都没做，他们的手机里还缓存着
+ * 那个已经不存在的房间。不主动对账的话，他们会一直点一个报错的菜单，
+ * 而且完全不知道房间已经没了 —— 这类「静默失效」最难排查。
+ */
+ok('拉菜单撞上 NO_FAMILY 时会顺手清掉本机的家庭缓存',
+  /NO_FAMILY/.test(appSrc) && /setFamily\(null\)/.test(appSrc))
+
+var onShowAt = famSrc.indexOf('onShow')
+var famOnShow = onShowAt >= 0 ? famSrc.slice(onShowAt, onShowAt + 700) : ''
+ok('家庭页 onShow 会跟服务端对一次账（否则解散了家人那边还显示旧房间）',
+  famOnShow.indexOf('refreshFamily') >= 0, famOnShow.slice(0, 80))
 
 /* ---------------- 汇总 ---------------- */
 

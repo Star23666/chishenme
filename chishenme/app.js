@@ -154,6 +154,19 @@ App({
     })
   },
 
+  /**
+   * 解散整个家庭（只有房主能做）。
+   * 服务端把家庭和菜单都删干净之后，本机也必须跟着清 ——
+   * 否则这台手机还留着一个已经不存在的房间，下次点菜会一路撞 NO_FAMILY。
+   */
+  dissolveFamily: function () {
+    var self = this
+    return cloud.call('dissolveFamily').then(function () {
+      self.setFamily(null)
+      return true
+    })
+  },
+
   renameSelf: function (nickname) {
     var self = this
     return cloud.call('renameSelf', { nickname: nickname || '' }).then(function (fam) {
@@ -309,7 +322,11 @@ App({
       self._syncBadge()
       self._notify()
       return true
-    }).catch(function () {
+    }).catch(function (e) {
+      // 房主把房间解散了 —— 其他成员迟早会撞上 NO_FAMILY。
+      // 这时必须把本机的家庭缓存一起清掉，否则这台手机还会一直显示一个
+      // 已经不存在的房间：点菜一路报错，用户根本不知道发生了什么。
+      if (e && e.message === 'NO_FAMILY') self.setFamily(null)
       return false
     })
   },

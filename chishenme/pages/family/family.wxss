@@ -377,3 +377,12 @@
   color: var(--c-danger);
   padding: 20rpx 0;
 }
+
+/* 解散房间：不可逆，而且家里其他人什么都没点就被牵连。
+   所以让它比旁边那个「退出房间」（纯文字链接）多一层实体，
+   分量上的差别靠**有没有底色**，不靠加粗放大。 */
+.btn-danger {
+  background: var(--c-danger-tint);
+  border-radius: var(--r-pill);
+  font-weight: 600;
+}

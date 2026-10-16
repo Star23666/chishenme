@@ -218,6 +218,27 @@ async function leaveFamily(openid) {
   return ok(null)
 }
 
+/**
+ * 解散房间：把家庭连菜单一起删掉，只有房主能做。
+ *
+ * ★ 删除顺序不能反：先删菜单，再删家庭。
+ *   家庭记录里存着房间码，是找这批菜单的唯一线索（菜单只按 familyCode 归类）。
+ *   先删家庭的话，万一删菜单失败，那批菜单就变成谁也定位不到的孤儿数据 ——
+ *   没人能再清掉它们，只能一直躺在库里。
+ *
+ * ★ 房主校验必须放在服务端。客户端那个「房主才显示解散按钮」只是界面上的
+ *   方便，改个 wxml 就绕过去了；这里返回 NOT_OWNER 才是真正拦得住的地方。
+ */
+async function dissolveFamily(openid) {
+  const fam = await findMyFamily(openid)
+  if (!fam) return ok(null)          // 已经不在任何房间，当作已经解散，不报错
+  if (fam.owner !== openid) throw new Error('NOT_OWNER')
+
+  await db.collection(MENU).where({ familyCode: fam.code }).remove()
+  await db.collection(FAM).doc(fam._id).remove()
+  return ok(null)
+}
+
 async function renameSelf(openid, p) {
   const fam = await requireFamily(openid)
   const nickname = clean(p.nickname, NICK_MAX)
@@ -390,6 +411,7 @@ exports.main = async (event) => {
       case 'joinFamily': return await joinFamily(openid, p)
       case 'peekFamily': return await peekFamily(openid, p)
       case 'leaveFamily': return await leaveFamily(openid)
+      case 'dissolveFamily': return await dissolveFamily(openid)
       case 'renameSelf': return await renameSelf(openid, p)
       case 'myFamily': {
         const fam = await findMyFamily(openid)

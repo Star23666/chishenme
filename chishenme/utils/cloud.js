@@ -90,7 +90,7 @@ function friendly(err) {
   // 我们自己抛的（app.js / 云函数约定）
   if (m === 'CLOUD_DISABLED') return '还没配置云开发'
   if (m === 'NO_FAMILY') return '你还没加入家庭'
-  if (m === 'NOT_OWNER') return '只有建房间的人能做这个'
+  if (m === 'NOT_OWNER') return '只有房主能做这个'
 
   // 云函数还没部署（-501000）—— 开通云开发后最常见的一步
   if (m.indexOf('-501000') >= 0 ||

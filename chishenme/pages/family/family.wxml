@@ -104,8 +104,17 @@
 
     <view class="card pad ops2">
       <view class="btn-primary" bindtap="goMenu">去看今天的菜单</view>
-      <view class="btn-ghost" bindtap="doLeave">退出这个房间</view>
-      <view class="hint" wx:if="{{fam.isOwner}}">你是房主，退出前需要先把房间交给别人（或干脆不再用这个房间）。</view>
+
+      <!-- 房主不能「退出」：他一走这个房间就没人管了。
+           所以这里两个按钮互斥 —— 房主永远看不到那个注定失败的「退出」。 -->
+      <block wx:if="{{fam.isOwner}}">
+        <view class="btn-ghost btn-danger" bindtap="doDissolve">解散这个房间</view>
+        <view class="hint">你是房主，不能单独退出（房间会没人管）。要结束的话就解散房间——房间码会作废，家里其他人的菜单也一起清空，所以会问你两次。</view>
+      </block>
+      <block wx:else>
+        <view class="btn-ghost" bindtap="doLeave">退出这个房间</view>
+        <view class="hint">退出后你就看不到家里点的菜了，房间码还在，随时能再进来。</view>
+      </block>
     </view>
 
     <view class="safe-bottom"></view>

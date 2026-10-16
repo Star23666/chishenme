@@ -434,6 +434,70 @@ async function run() {
     eq('没在家庭里时退出也不报错', leaveAgain.ok, true)
   }
 
+  /* ---------- C2. 解散房间：房主专属，且必须连菜单一起清 ---------- */
+  S('C2. 解散房间（房主专属）')
+  {
+    resetStore()
+    var created = await call('boss', 'createFamily', { name: '要解散的家', nickname: '爸爸' })
+    var code = created.data.code
+    await call('guest', 'joinFamily', { code: code, nickname: '妈妈' })
+    await call('boss', 'addDish', { dishId: 'hongshaorou' })
+    await call('guest', 'addDish', { dishId: 'gongbaojiding' })
+    eq('解散前库里有 2 条菜单', col('csm_menus').length, 2)
+
+    // ① 普通成员不能解散 —— 这是服务端挡下来的，不是靠界面藏按钮
+    var byGuest = await call('guest', 'dissolveFamily', {})
+    eq('普通成员不能解散房间', byGuest.ok, false)
+    eq('返回的是 NOT_OWNER（前端据此翻译成人话）', byGuest.msg, 'NOT_OWNER')
+    eq('被拒之后房间还在', col('csm_families').length, 1)
+    eq('被拒之后菜单一条没少', col('csm_menus').length, 2)
+    eq('被拒之后成员也还在房间里', (await call('guest', 'myFamily', {})).data.memberCount, 2)
+
+    // ② 房间外的人点解散：什么也不该发生，但也不算错
+    var byOutsider = await call('outsider', 'dissolveFamily', {})
+    eq('房间外的人点解散不报错', byOutsider.ok, true)
+    eq('房间外的人解散后房间仍在', col('csm_families').length, 1)
+    eq('房间外的人解散后菜单仍在', col('csm_menus').length, 2)
+
+    // ③ 房主解散：家庭和菜单一起没
+    var byOwner = await call('boss', 'dissolveFamily', {})
+    eq('房主能解散房间', byOwner.ok, true)
+    eq('解散后家庭记录被删掉', col('csm_families').length, 0)
+    eq('解散后菜单一起清干净（不留孤儿数据）', col('csm_menus').length, 0)
+
+    // ④ 解散后每个人都不再属于任何房间（家人是被动退出的）
+    eq('房主自己也不在房间里了', (await call('boss', 'myFamily', {})).data, null)
+    eq('其他成员也自动退出了', (await call('guest', 'myFamily', {})).data, null)
+
+    // ⑤ 幂等：网络重试再点一次不能炸
+    var again = await call('boss', 'dissolveFamily', {})
+    eq('重复解散不报错（幂等，网络重试安全）', again.ok, true)
+
+    // ⑥ 原来的房间码彻底查不到
+    var peek = await call('boss', 'peekFamily', { code: code })
+    eq('解散后原房间码查不到了', peek.ok, false)
+    ok('提示语是「没找到这个房间」', /没找到/.test(peek.msg || ''), peek.msg)
+  }
+
+  /* ---------- C3. 解散只删自己家，不能误伤别人 ---------- */
+  S('C3. 解散的作用范围')
+  {
+    resetStore()
+    var a = await call('a_owner', 'createFamily', { name: 'A 家', nickname: '甲' })
+    var b = await call('b_owner', 'createFamily', { name: 'B 家', nickname: '乙' })
+    await call('a_owner', 'addDish', { dishId: 'hongshaorou' })
+    await call('b_owner', 'addDish', { dishId: 'gongbaojiding' })
+    eq('两家各有一条菜单', col('csm_menus').length, 2)
+
+    await call('a_owner', 'dissolveFamily', {})
+
+    eq('解散 A 家后，B 家的菜单还在', col('csm_menus').length, 1)
+    eq('留下来的那条确实是 B 家的', col('csm_menus')[0].familyCode, b.data.code)
+    eq('B 家的房间也还在', col('csm_families').length, 1)
+    eq('B 家房主仍然能正常拿到自己的家庭', (await call('b_owner', 'myFamily', {})).data.name, 'B 家')
+    eq('A 家房主已经查不到家庭了', (await call('a_owner', 'myFamily', {})).data, null)
+  }
+
   /* ---------- D. 没加入家庭不能点菜 ---------- */
   S('D. 权限：没进房间不能点菜')
   {
