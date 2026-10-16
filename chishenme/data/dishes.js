@@ -144,18 +144,57 @@ for (var i = 0; i < DISHES.length; i++) {
 var CAT_NAME = {}
 for (var j = 0; j < CATS.length; j++) CAT_NAME[CATS[j].key] = CATS[j].name
 
+/* ==================== 用户自建菜（运行时叠加层） ====================
+ *
+ * 内置的 80 道菜是**只读**的，永远不动。用户自己加的菜是另一层，
+ * 在运行时通过 setCustom() 装进来，三个读取函数（byId / byCat / imageOf）
+ * 自动把两层合起来。
+ *
+ * ★ 为什么把合并做在这一层，而不是让每个页面自己去查两次 ——
+ *   菜单、点菜页、菜库页、收藏页、摇一摇全都在用 byId/byCat/imageOf。
+ *   合并放在这里，这五个页面对「自建菜」的存在**一行都不用改**；
+ *   散在页面里做的话，加一个新页面就会漏一处，而且漏了不会报错。
+ *
+ * 自建菜的形状（由 app.js 统一归一化后传进来）：
+ *   { id, name, cat, main, tips, image, mine, creatorName, createdAt }
+ *   - image 云端模式下是 cloud:// 文件 ID，本地模式下是本机持久化路径
+ *   - mine  表示「是不是我自己加的」，只有自己加的才给编辑 / 删除
+ */
+var CUSTOM = []
+var CUSTOM_MAP = {}
+var CUSTOM_BY_CAT = {}
+
+/** 没传照片的自建菜用这张占位图（在 images/ 根目录，不参与菜品图规格检查） */
+var NO_PHOTO = '/images/dish-placeholder.png'
+
+function rebuildCustom() {
+  CUSTOM_MAP = {}
+  CUSTOM_BY_CAT = {}
+  for (var i = 0; i < CUSTOM.length; i++) {
+    var c = CUSTOM[i]
+    if (!c || !c.id) continue
+    CUSTOM_MAP[c.id] = c
+    if (!CUSTOM_BY_CAT[c.cat]) CUSTOM_BY_CAT[c.cat] = []
+    CUSTOM_BY_CAT[c.cat].push(c)
+  }
+}
+
 module.exports = {
   CATS: CATS,
   DISHES: DISHES,
   TOTAL: DISHES.length,
 
   byId: function (id) {
-    return MAP[id] || null
+    return MAP[id] || CUSTOM_MAP[id] || null
   },
 
   byCat: function (cat) {
-    if (!cat || cat === 'all') return DISHES.slice()
-    return (CACHE_BY_CAT[cat] || []).slice()
+    var all = (!cat || cat === 'all')
+    var base = all ? DISHES.slice() : (CACHE_BY_CAT[cat] || []).slice()
+    if (!CUSTOM.length) return base
+    // 自建菜排在内置菜后面：菜库里「我加的」总在末尾，位置可预期
+    var extra = all ? CUSTOM.slice() : (CUSTOM_BY_CAT[cat] || []).slice()
+    return base.concat(extra)
   },
 
   catName: function (cat) {
@@ -163,6 +202,42 @@ module.exports = {
   },
 
   imageOf: function (id) {
+    var c = CUSTOM_MAP[id]
+    if (c) return c.image || NO_PHOTO
     return '/images/dishes/' + id + '.jpg'
+  },
+
+  /* ---------- 自建菜 ---------- */
+
+  /** 装入用户自建菜（整批替换，不是追加） */
+  setCustom: function (list) {
+    CUSTOM = (list instanceof Array) ? list.slice() : []
+    rebuildCustom()
+    return CUSTOM.length
+  },
+
+  /** 自建菜副本 */
+  customList: function () {
+    return CUSTOM.slice()
+  },
+
+  /** 这道菜是不是用户自己加的（内置菜返回 false） */
+  isCustom: function (id) {
+    return !!CUSTOM_MAP[id]
+  },
+
+  /** 菜库总数 = 内置 + 自建。注意 TOTAL 仍是内置菜数，别混用 */
+  totalAll: function () {
+    return DISHES.length + CUSTOM.length
+  },
+
+  /**
+   * 生成自建菜的 id。
+   * ★ 前缀必须区分于内置菜（内置 id 全是英文单词），
+   *   否则将来某次扩菜真加了一道叫 u51a2b 的菜就会撞车。
+   *   末尾那串随机数是防「同一毫秒加两道菜」生成同一个 id。
+   */
+  newCustomId: function () {
+    return 'u' + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36)
   }
 }

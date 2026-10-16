@@ -1,15 +1,18 @@
 <!-- 菜库：分类筛选 + 卡片网格 + 详情弹层 -->
 <view class="page">
 
-  <scroll-view class="cat-bar" scroll-x="true" scroll-with-animation="true">
-    <view
-      wx:for="{{cats}}"
-      wx:key="key"
-      class="cat-item {{activeCat === item.key ? 'on' : ''}}"
-      data-cat="{{item.key}}"
-      bindtap="switchCat"
-    >{{item.name}}</view>
-  </scroll-view>
+  <view class="head">
+    <scroll-view class="cat-bar" scroll-x="true" scroll-with-animation="true">
+      <view
+        wx:for="{{cats}}"
+        wx:key="key"
+        class="cat-item {{activeCat === item.key ? 'on' : ''}}"
+        data-cat="{{item.key}}"
+        bindtap="switchCat"
+      >{{item.name}}</view>
+    </scroll-view>
+    <view class="add-dish" bindtap="goAdd">＋ 加菜</view>
+  </view>
 
   <view class="grid">
     <view
@@ -39,6 +42,9 @@
         <view class="sheet-head">
           <text class="sheet-name">{{detail.name}}</text>
           <text class="sheet-cat">{{detail.catName}}</text>
+          <view class="head-gap"></view>
+          <text wx:if="{{detail.mine}}" class="head-link" bindtap="editDish">编辑</text>
+          <text wx:if="{{detail.mine}}" class="head-link head-link-danger" bindtap="deleteDish">删除</text>
         </view>
         <view class="sheet-row">
           <text class="k">主料</text>

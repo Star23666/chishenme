@@ -78,6 +78,34 @@ function call(action, payload) {
 }
 
 /**
+ * 上传一个本机文件到云存储，resolve 出文件 ID（形如 cloud://xxx/yyy.jpg）。
+ *
+ * ★ 图片上传也只能放在这里。项目有条铁律：全项目只有这个文件能直接碰 wx.cloud
+ *   （wxml-check.js 的 G1 会扫全项目，页面里写一个 wx.cloud.uploadFile 就会红）。
+ *
+ * cloudPath 是云存储里的路径，同一路径重复上传会覆盖，所以文件名必须带时间戳/随机数。
+ */
+function uploadFile(cloudPath, filePath) {
+  return new Promise(function (resolve, reject) {
+    if (!init()) {
+      reject(new Error('CLOUD_DISABLED'))
+      return
+    }
+    wx.cloud.uploadFile({
+      cloudPath: cloudPath,
+      filePath: filePath,
+      success: function (res) {
+        if (res && res.fileID) resolve(res.fileID)
+        else reject(new Error('图片上传失败，换一张试试'))
+      },
+      fail: function (err) {
+        reject(new Error(friendly(err)))
+      }
+    })
+  })
+}
+
+/**
  * 把云开发抛回的英文错误码翻译成人话。
  *
  * 这里的每一条都是「第一次开通云开发的人一定会遇到」的顺序：
@@ -91,6 +119,7 @@ function friendly(err) {
   if (m === 'CLOUD_DISABLED') return '还没配置云开发'
   if (m === 'NO_FAMILY') return '你还没加入家庭'
   if (m === 'NOT_OWNER') return '只有房主能做这个'
+  if (m === 'NOT_MINE') return '只能改自己加的菜'
 
   // 云函数还没部署（-501000）—— 开通云开发后最常见的一步
   if (m.indexOf('-501000') >= 0 ||
@@ -149,5 +178,6 @@ module.exports = {
   init: init,
   db: db,
   call: call,
+  uploadFile: uploadFile,
   friendly: friendly
 }

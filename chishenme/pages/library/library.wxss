@@ -2,6 +2,34 @@
   min-height: 100vh;
 }
 
+/* ---------- 顶部：分类条 + 加菜 ----------
+   分类条和「＋ 加菜」共处一行。分类条是 scroll-view，
+   必须 flex:1 + min-width:0 + overflow:hidden 才肯收缩 ——
+   少了 min-width:0，它会按内容宽度撑开，把右边的按钮顶出屏幕。 */
+.head {
+  display: flex;
+  align-items: center;
+  background: var(--c-surface);
+  border-bottom: 1rpx solid var(--c-line);
+}
+
+.head .cat-bar {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: transparent;
+  border-bottom: none;
+}
+
+.add-dish {
+  flex-shrink: 0;
+  padding: 16rpx 26rpx 16rpx 16rpx;
+  font-size: var(--t-cap);
+  font-weight: 600;
+  color: var(--c-brand);
+}
+
+
 /* ---------- 卡片网格 ---------- */
 .grid {
   display: flex;
@@ -102,13 +130,44 @@
   margin-bottom: 18rpx;
 }
 
+/* 把「编辑 / 删除」推到这一行的最右边 */
+.head-gap {
+  flex: 1;
+}
+
+/* 只有自己加的菜才会出现这两个。做成药丸而不是纯文字，
+   是因为纯文字在真机上太难点中（复刻量过：纯文字只有 23px 高，
+   远低于好按的下限）；删除另有二次确认兜底。 */
+.head-link {
+  flex-shrink: 0;
+  padding: 22rpx 28rpx;
+  margin-left: 12rpx;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-sunk);
+  color: var(--c-ink-2);
+  font-size: var(--t-tag);
+}
+
+.head-link-danger {
+  background: var(--c-danger-tint);
+  color: var(--c-danger);
+}
+
 .sheet-name {
   font-size: var(--t-h1);
   font-weight: 700;
   color: var(--c-ink);
+  /* 菜名最长 12 字，加上分类标签和两个按钮会超出这一行。
+     这里让菜名先让位（省略号），别把右边的按钮挤出屏幕。 */
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .sheet-cat {
+  flex-shrink: 0;
   margin-left: 16rpx;
   font-size: var(--t-tag);
   color: var(--c-brand);

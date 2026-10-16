@@ -29,7 +29,8 @@ Page({
     this.setData({
       list: out,
       empty: out.length === 0,
-      total: D.TOTAL
+      // 内置 + 自建，别再写 D.TOTAL（那只是内置的 80 道）
+      total: app.totalDishes()
     })
   },
 

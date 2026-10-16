@@ -25,10 +25,13 @@ var CF_DIR = path.join(ROOT, 'chishenme', 'cloudfunctions', 'csmMenu')
 
 var store = {}
 var idSeq = 0
+/* 云存储假 SDK 记录「哪些文件被删了」，用来验证删菜会把图一起清掉 */
+var deletedFiles = []
 
 function resetStore() {
   for (var k in store) delete store[k]
   idSeq = 0
+  deletedFiles = []
 }
 
 function col(name) {
@@ -224,7 +227,15 @@ function makeSdk() {
     DYNAMIC_CURRENT_ENV: '__DYNAMIC_CURRENT_ENV__',
     init: function () {},
     database: database,
-    getWXContext: function () { return { OPENID: currentOpenid, APPID: 'wxtest' } }
+    getWXContext: function () { return { OPENID: currentOpenid, APPID: 'wxtest' } },
+    // 云存储：只实现删文件（删菜时要顺手把菜图清掉）
+    deleteFile: function (opt) {
+      var list = (opt && opt.fileList) || []
+      for (var i = 0; i < list.length; i++) deletedFiles.push(list[i])
+      return Promise.resolve({
+        fileList: list.map(function (f) { return { fileID: f, status: 0 } })
+      })
+    }
   }
 }
 
@@ -813,6 +824,143 @@ async function run() {
 
     var famDoc = col('csm_families')[0]
     ok('家庭文档也不带 _openid', famDoc._openid === undefined, String(famDoc._openid))
+  }
+
+  /* ---------- M. 用户自建菜（加菜 / 改菜 / 删菜） ---------- */
+  S('M. 用户自建菜')
+  {
+    resetStore()
+    var fam = await call('chef', 'createFamily', { name: '会做菜的家', nickname: '爸爸' })
+    var code = fam.data.code
+    await call('helper', 'joinFamily', { code: code, nickname: '妈妈' })
+
+    // 不在房间里就不能碰菜库
+    var noFam = await call('outsider', 'createDish', { name: '野生的菜' })
+    eq('没加入家庭时不能加菜', noFam.ok, false)
+    eq('拒绝原因是 NO_FAMILY', noFam.msg, 'NO_FAMILY')
+    eq('没加入家庭时也列不出菜', (await call('outsider', 'listDishes', {})).ok, false)
+
+    var created = await call('chef', 'createDish', {
+      id: 'uabc123', name: '外婆的糖醋排骨', cat: 'meat',
+      main: '排骨', tips: '多放糖', image: 'cloud://demo/dishes/a.jpg'
+    })
+    eq('加菜成功', created.ok, true, created.msg)
+    eq('客户端带的 id 被采用', created.data.dish.id, 'uabc123')
+    eq('自己加的菜 mine = true', created.data.dish.mine, true)
+    eq('记下了是谁加的', created.data.dish.creatorName, '爸爸')
+
+    var doc = col('csm_dishes')[0]
+    eq('写上了房间码', doc.familyCode, code)
+    eq('固定了创建者', doc.creator, 'chef')
+    ok('菜文档不带 _openid（写权限天然收口的前提）', doc._openid === undefined, String(doc._openid))
+
+    eq('同一个 id 不能加两次',
+      (await call('chef', 'createDish', { id: 'uabc123', name: '重复的' })).ok, false)
+
+    var auto = await call('chef', 'createDish', { name: '服务端自己造 id 的菜' })
+    ok('不传 id 时服务端生成一个合法的', /^u[a-z0-9]{2,38}$/.test(auto.data.dish.id), auto.data.dish.id)
+
+    // ★ 客户端提交的 dishId 是不可信输入
+    var evil = await call('chef', 'createDish', { id: "' OR 1=1--", name: '注入菜' })
+    eq('形状不合法时仍然加得进去（就地重造 id）', evil.ok, true)
+    ok('乱七八糟的 id 不会被原样存下', evil.data.dish.id !== "' OR 1=1--", evil.data.dish.id)
+    ok('重造出来的 id 仍然合法', /^u[a-z0-9]{2,38}$/.test(evil.data.dish.id), evil.data.dish.id)
+
+    eq('空菜名被拒绝', (await call('chef', 'createDish', { name: '   ' })).ok, false)
+    eq('非法分类回落到荤菜',
+      (await call('chef', 'createDish', { name: '分类怪', cat: 'zzz' })).data.dish.cat, 'meat')
+
+    var longOne = await call('chef', 'createDish', {
+      name: '菜'.repeat(40), main: '主'.repeat(60), tips: '点'.repeat(120)
+    })
+    ok('菜名截断到 12 字以内', longOne.data.dish.name.length <= 12, '' + longOne.data.dish.name.length)
+    ok('主料截断到 20 字以内', longOne.data.dish.main.length <= 20, '' + longOne.data.dish.main.length)
+    ok('要点截断到 40 字以内', longOne.data.dish.tips.length <= 40, '' + longOne.data.dish.tips.length)
+
+    // 家人看得到，但不能改也不能删
+    var seen = await call('helper', 'listDishes', {})
+    var asHelper = seen.data.list.filter(function (d) { return d.id === 'uabc123' })[0]
+    ok('家人也看得到这道菜', !!asHelper)
+    eq('但家人看到的 mine = false', asHelper ? asHelper.mine : null, false)
+    ok('返回里不含任何 openid', JSON.stringify(seen.data).indexOf('chef') < 0)
+
+    var editByOther = await call('helper', 'updateDish', { id: 'uabc123', name: '被改掉的菜' })
+    eq('别人改不动这道菜', editByOther.ok, false)
+    eq('返回 NOT_MINE（前端据此翻成人话）', editByOther.msg, 'NOT_MINE')
+    eq('被拒之后名字没变',
+      col('csm_dishes').filter(function (d) { return d.dishId === 'uabc123' })[0].name, '外婆的糖醋排骨')
+
+    var edit = await call('chef', 'updateDish', {
+      id: 'uabc123', name: '改良版糖醋排骨', cat: 'meat', main: '肋排', tips: '少放糖'
+    })
+    eq('自己改得动', edit.ok, true, edit.msg)
+    eq('名字改掉了', edit.data.dish.name, '改良版糖醋排骨')
+    eq('★ 没带新图时保留原来那张（改个名字不该把照片弄丢）',
+      edit.data.dish.image, 'cloud://demo/dishes/a.jpg')
+
+    var editImg = await call('chef', 'updateDish', {
+      id: 'uabc123', name: '换图版', image: 'cloud://demo/dishes/b.jpg'
+    })
+    eq('带了新图就换成新的', editImg.data.dish.image, 'cloud://demo/dishes/b.jpg')
+
+    eq('改一道不存在的菜会报错',
+      (await call('chef', 'updateDish', { id: 'ubuzai', name: 'x' })).ok, false)
+    eq('改成空名字被拒绝',
+      (await call('chef', 'updateDish', { id: 'uabc123', name: '  ' })).ok, false)
+
+    // 删：要连菜单里那条一起摘掉，并清掉云存储的图
+    await call('chef', 'addDish', { dishId: 'uabc123' })
+    await call('helper', 'addDish', { dishId: 'uabc123' })
+    eq('菜单里有这道自建菜',
+      col('csm_menus').filter(function (d) { return d.dishId === 'uabc123' }).length, 1)
+
+    var delByOther = await call('helper', 'deleteDish', { id: 'uabc123' })
+    eq('别人删不动这道菜', delByOther.ok, false)
+    eq('返回 NOT_MINE', delByOther.msg, 'NOT_MINE')
+    eq('被拒之后菜还在',
+      col('csm_dishes').filter(function (d) { return d.dishId === 'uabc123' }).length, 1)
+    eq('被拒之后菜单里那条也还在',
+      col('csm_menus').filter(function (d) { return d.dishId === 'uabc123' }).length, 1)
+
+    var del = await call('chef', 'deleteDish', { id: 'uabc123' })
+    eq('自己删得掉', del.ok, true)
+    eq('菜没了', col('csm_dishes').filter(function (d) { return d.dishId === 'uabc123' }).length, 0)
+    eq('★ 菜单里那条一起摘掉了（不留指向已删菜的孤儿记录）',
+      col('csm_menus').filter(function (d) { return d.dishId === 'uabc123' }).length, 0)
+    ok('云存储里的图也一起删了',
+      deletedFiles.indexOf('cloud://demo/dishes/b.jpg') >= 0, deletedFiles.join(','))
+    eq('重复删除是幂等的（网络重试安全）',
+      (await call('chef', 'deleteDish', { id: 'uabc123' })).ok, true)
+
+    // 没有图的菜也能删（不能因为没图就崩）
+    var noImg = await call('chef', 'createDish', { name: '没图的菜' })
+    eq('没图的菜删得掉', (await call('chef', 'deleteDish', { id: noImg.data.dish.id })).ok, true)
+
+    // 房间隔离
+    var fam2 = await call('other_chef', 'createFamily', { name: '别家', nickname: '我' })
+    await call('other_chef', 'createDish', { name: '别人家的菜' })
+    var names = (await call('chef', 'listDishes', {})).data.list.map(function (d) { return d.name })
+    ok('看不到别人家的菜', names.indexOf('别人家的菜') < 0, names.join(','))
+
+    // 一个家的菜量上限
+    for (var k = 0; k < 99; k++) {
+      await call('other_chef', 'createDish', { name: '菜' + k })
+    }
+    var fam2Docs = col('csm_dishes').filter(function (d) { return d.familyCode === fam2.data.code })
+    eq('攒到 100 道', fam2Docs.length, 100)
+    var over = await call('other_chef', 'createDish', { name: '第 101 道' })
+    eq('加满 100 道之后不让再加', over.ok, false)
+    ok('提示语说清楚了上限', /最多/.test(over.msg || ''), over.msg)
+
+    // 排序：按创建时间升序（菜库里自建菜的先后要稳定、可预期）
+    var ordered = (await call('chef', 'listDishes', {})).data.list
+    var orderedIds = ordered.map(function (d) { return d.id })
+    var rawOrder = col('csm_dishes')
+      .filter(function (d) { return d.familyCode === code })
+      .sort(function (a, b) { return a.createdAt - b.createdAt })
+      .map(function (d) { return d.dishId })
+    eq('自建菜按创建时间升序返回', JSON.stringify(orderedIds), JSON.stringify(rawOrder))
+    ok('返回的是本家全部自建菜', orderedIds.length === rawOrder.length, orderedIds.length + '/' + rawOrder.length)
   }
 
   /* ---------- 汇总 ---------- */

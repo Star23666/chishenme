@@ -5,7 +5,7 @@
 
 | 目录 | 是什么 |
 |---|---|
-| `chishenme/` | **今天吃啥** — 家庭点菜。80 道菜（含两广特色菜）、摇一摇配「三菜一汤」、家人共用一个房间实时同步 |
+| `chishenme/` | **今天吃啥** — 家庭点菜。80 道内置菜（含两广特色菜）+ 自己拍照加菜、摇一摇配「三菜一汤」、家人共用一个房间实时同步 |
 | `yimuzhang/` | **一目账** — 个人记账。明细 / 记一笔 / 统计 / 我的 四个 tab |
 | `vibe-coding-SOP.html` | 五阶段流程与上线检查清单（写这两个项目时总结的） |
 | `CHANGELOG.md` | 两个项目各自的版本历史 |
@@ -30,15 +30,16 @@ cp chishenme/config.example.js chishenme/config.js
 用微信开发者工具分别「导入项目」，选 `chishenme/` 和 `yimuzhang/` 两个目录。
 
 想开家庭共享（`chishenme`）的话，多花十分钟：顶部「云开发」→ 创建环境 →
-把环境 ID 填进 `chishenme/config.js` 的 `CLOUD_ENV` → 建两个集合
-`csm_families`、`csm_menus`（权限选「所有用户可读，仅创建者可读写」）→
-右键 `cloudfunctions/csmMenu`「上传并部署」。完整步骤见《今天吃啥-部署清单.md》。
+把环境 ID 填进 `chishenme/config.js` 的 `CLOUD_ENV` → 建三个集合
+`csm_families`、`csm_menus`、`csm_dishes`（都选
+「所有用户可读，仅创建者可读写」）→ 右键 `cloudfunctions/csmMenu`
+「上传并部署」。完整步骤见《今天吃啥-部署清单.md》。
 
 ---
 
 ## 怎么验证
 
-改完代码跑这几个脚本，一共 **614 项**断言。不需要连云环境，
+改完代码跑这几个脚本，一共 **718 项**断言。不需要连云环境，
 云函数那部分是用内存假数据库把真实的云函数代码跑一遍。
 
 ```bash
@@ -50,10 +51,10 @@ $NODE .workbuddy/verify/core-test.js          # 114 项
 $NODE .workbuddy/verify/wxml-check.js         #  32 项
 $PY   .workbuddy/tools/check-icon-colors.py   #   8 项
 
-# 今天吃啥（合计 460 项）
-$NODE .workbuddy/verify/chishenme/core-test.js     # 205 项
-$NODE .workbuddy/verify/chishenme/wxml-check.js    #  71 项
-$NODE .workbuddy/verify/chishenme/cloud-test.js    # 164 项
+# 今天吃啥（合计 564 项）
+$NODE .workbuddy/verify/chishenme/core-test.js     # 253 项
+$NODE .workbuddy/verify/chishenme/wxml-check.js    #  78 项
+$NODE .workbuddy/verify/chishenme/cloud-test.js    # 213 项
 $PY   .workbuddy/verify/chishenme/check-images.py  #  20 项
 ```
 
@@ -137,8 +138,29 @@ git push
 
 全部统一压成 **300×300 JPEG(q75)**。这个规格是被逼出来的：小程序主包上限
 **2MB**，80 张按原来的 320×320/q82 要 1.81MB，贴死上限没有余量；
-降到 300×300/q75 后约 1.42MB，主包落在 **1.55MB（占上限 77%）**。
+降到 300×300/q75 后约 1.42MB，主包落在 **1.57MB（占上限 78%）**。
 菜卡在手机上显示宽度约 165px，300px 仍有富余，肉眼几乎看不出差别。
+
+---
+
+## 自己加的菜
+
+内置的 80 道写死在小程序包里，是**只读**的 —— 改不了也删不了。
+（把仓库改一行 wxml 确实能把按钮变出来，但云函数照样会拒。）
+自己加的菜走的是另一条路：
+
+- 入口在**菜库页右上角「＋ 加菜」**，以及**菜品详情弹层**里的「编辑 / 删除」
+  （只有自己加的菜才出现这两个，删除还有一道二次确认）。
+- 接了云开发 → 照片传到云存储、菜名存云数据库，**全家人都能看到、都能点**；
+  没接云开发 → 只存本机，重启也不丢，但只有这台手机看得见。
+- **只有加这道菜的人**能改它、删它。别人加的菜你一样能点、能收藏，只是改不了。
+- 云模式删菜时，会**连这道菜在当日菜单里的记录、以及云存储里的那张图**一起清掉，
+  顺序也是「先摘菜单 → 再删图 → 最后删菜」，不留孤儿数据。
+
+实现上有一点值得记：内置菜和自建菜没有分成两套代码，而是在 `data/dishes.js`
+里做了一层**运行时叠加** —— `byId` / `byCat` / `imageOf` 自动把两层合起来。
+于是点菜页、菜单页、收藏页、摇一摇**一行都没改**。要是让每个页面自己查两次，
+将来加一个新页面就会漏一处，而且漏了不会报任何错。
 
 ---
 

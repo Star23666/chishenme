@@ -648,6 +648,7 @@ var cases = [
   ['CLOUD_DISABLED', '还没配置云开发'],
   ['NO_FAMILY', '你还没加入家庭'],
   ['NOT_OWNER', '只有房主能做这个'],
+  ['NOT_MINE', '只能改自己加的菜'],
   ['errCode: -501000 | FunctionName parameter could not be found', '云函数还没部署'],
   ['未知操作: dissolveFamily', '云函数还是旧版本'],
   ['cloud init error: { errMsg: "invalid scope" }', '云环境刚开通'],
@@ -673,13 +674,150 @@ eq('云函数的中文提示原样透传',
 // 空错误也得有兜底，不能弹一个空白 toast
 ok('错误对象为 null 时有兜底文案', cloudUtil.friendly(null).length > 0, cloudUtil.friendly(null))
 
+/* ==================== N. 用户自建菜（本地模式） ==================== */
+
+/*
+ * 加菜 / 改菜 / 删菜在本地模式下的完整链路。
+ *
+ * ★ 这一段是**异步**的（saveDish / deleteDish 都返回 Promise），
+ *   所以放在最后单独跑：上面的 A~M 都是同步的，跑完才轮到这里，
+ *   汇总和退出挪进 runAsync() 的回调里。
+ */
+function asyncPart() {
+  S('N. 用户自建菜（本地模式）')
+
+  reset()
+  D.setCustom([])
+  app.refreshDishes()
+
+  eq('一开始一道自建菜都没有', app.customDishes().length, 0)
+  eq('totalDishes 等于内置菜数', app.totalDishes(), D.TOTAL)
+  eq('内置菜不算自建菜', app.isCustomDish('hongshaorou'), false)
+  eq('内置菜不能编辑 / 删除', app.canEditDish('hongshaorou'), false)
+  eq('不存在的菜也不能编辑', app.canEditDish('no_such_dish'), false)
+
+  var savedId = ''
+  var keepMeatCount = catCount['meat']
+
+  return app.saveDish({
+    name: '外婆的糖醋排骨',
+    cat: 'meat',
+    main: '排骨',
+    tips: '多放糖，收汁要快',
+    image: 'cloud://demo/dishes/x.jpg'
+  }).then(function (rec) {
+    savedId = rec.id
+
+    ok('新菜的 id 带 u 前缀（不会撞上内置菜）', /^u/.test(savedId), savedId)
+    eq('自建菜进了菜库', app.customDishes().length, 1)
+    eq('菜库总数 +1', app.totalDishes(), D.TOTAL + 1)
+    eq('能按 id 查到', (D.byId(savedId) || {}).name, '外婆的糖醋排骨')
+    eq('图片用的是自己那张', D.imageOf(savedId), 'cloud://demo/dishes/x.jpg')
+    eq('这一类的数量 +1', D.byCat('meat').length, keepMeatCount + 1)
+    eq('「全部」也跟着 +1', D.byCat('all').length, D.TOTAL + 1)
+    var meatList = D.byCat('meat')
+    eq('自建菜排在同类内置菜后面', meatList[meatList.length - 1].id, savedId)
+    eq('自己加的菜可以编辑', app.canEditDish(savedId), true)
+
+    // 自建菜必须能像内置菜一样点
+    eq('自建菜能加进菜单', app.addToMenu(savedId), true)
+    var m = app.menu()
+    eq('菜单里能看到它', m.length, 1)
+    eq('菜单项带的是自建菜的名字', m[0].name, '外婆的糖醋排骨')
+    eq('菜单项图片走的是自建菜那张', m[0].image, 'cloud://demo/dishes/x.jpg')
+    eq('菜单统计把它算进荤菜', app.menuStats().meat, 1)
+
+    // 收藏也要能收
+    eq('自建菜能收藏', app.toggleFav(savedId), true)
+    eq('收藏列表里有它', app.favDishes().length, 1)
+
+    // 改：同一个 id 应当是覆盖，不是新增
+    return app.saveDish({
+      id: savedId, name: '外婆的糖醋排骨（改良版）', cat: 'meat', main: '肋排', tips: ''
+    })
+  }).then(function () {
+    eq('改菜不会多出一条', app.customDishes().length, 1)
+    eq('菜名改掉了', (D.byId(savedId) || {}).name, '外婆的糖醋排骨（改良版）')
+    eq('总数没变', app.totalDishes(), D.TOTAL + 1)
+    eq('菜单里跟着改成新名字', app.menu()[0].name, '外婆的糖醋排骨（改良版）')
+    ok('没传图片时保留原来那张（否则改次名字照片就没了）',
+      D.imageOf(savedId) === 'cloud://demo/dishes/x.jpg', D.imageOf(savedId))
+
+    // 空名字应当被拒绝，而不是存进去一道没名字的菜
+    return app.saveDish({ name: '   ', cat: 'veg' }).then(function () { return 'ok' }, function () { return 'rejected' })
+  }).then(function (r) {
+    eq('菜名是空白时被拒绝', r, 'rejected')
+    eq('被拒绝后菜库数量没变', app.customDishes().length, 1)
+
+    // 没传照片 → 用占位图
+    return app.saveDish({ name: '妈妈的番茄蛋汤', cat: 'soup' })
+  }).then(function (rec) {
+    var id = rec.id
+    eq('没传照片时用占位图', D.imageOf(id), '/images/dish-placeholder.png')
+    ok('占位图文件真的在包里', fs.existsSync(path.join(APP_DIR, 'images', 'dish-placeholder.png')))
+
+    // 别人加的菜：看得见、能点，但改不了也删不了。
+    // 本地模式下不会有这种记录（本机上的菜当然都是自己的），
+    // 它来自云端模式下别的家人 —— 这里直接把菜库摆成那种样子来验。
+    D.setCustom([
+      { id: savedId, name: '外婆的糖醋排骨（改良版）', cat: 'meat', image: 'cloud://demo/dishes/x.jpg', mine: true },
+      { id: 'u_other', name: '别人加的菜', cat: 'veg', mine: false }
+    ])
+    eq('别人加的菜也在菜库里', !!D.byId('u_other'), true)
+    eq('但自己改不了别人的菜', app.canEditDish('u_other'), false)
+
+    return app.deleteDish('u_other').then(function () { return 'ok' }, function () { return 'rejected' })
+  }).then(function (r) {
+    eq('删别人的菜被拒绝', r, 'rejected')
+    eq('被拒之后那道菜还在', !!D.byId('u_other'), true)
+
+    return app.deleteDish('hongshaorou').then(function () { return 'ok' }, function () { return 'rejected' })
+  }).then(function (r) {
+    eq('删内置菜被拒绝（内置的 80 道永远是只读的）', r, 'rejected')
+
+    // 回到「本机存储说了算」的状态，再验真正的删除链路。
+    // 本地模式下 refreshDishes 是同步生效的（Promise.resolve 的参数先求值），
+    // 所以这行之后可以直接断言。
+    app.refreshDishes()
+    eq('本机存着 2 道自建菜', app.customDishes().length, 2)
+    eq('删之前菜单里有它', app.qtyOf(savedId), 1)
+    return app.deleteDish(savedId)
+  }).then(function () {
+    eq('删掉了', !!D.byId(savedId), false)
+    eq('菜库只剩没删的那道', app.customDishes().length, 1)
+    eq('总数 = 内置 + 剩下那道', app.totalDishes(), D.TOTAL + 1)
+    eq('菜单里也一起摘掉了', app.qtyOf(savedId), 0)
+    eq('菜单统计跟着归零', app.menuStats().meat, 0)
+    eq('被删的菜不再出现在分类里', (function () {
+      var l = D.byCat('meat')
+      for (var i = 0; i < l.length; i++) if (l[i].id === savedId) return true
+      return false
+    })(), false)
+
+    // 收尾：本机存储和菜库叠加层一起清干净，别影响别的检查
+    reset()
+    app.refreshDishes()
+    eq('清空后总数回到内置数', app.totalDishes(), D.TOTAL)
+    eq('清空后连自建菜查询都查不到', D.byId(savedId), null)
+  })
+}
+
 /* ---------------- 汇总 ---------------- */
 
-console.log('\n' + '='.repeat(56))
-console.log('  通过 ' + pass + ' 项，失败 ' + fail + ' 项')
-if (fail) {
-  console.log('\n  失败清单：')
-  for (var fi = 0; fi < failures.length; fi++) console.log('    - ' + failures[fi])
+function summary() {
+  console.log('\n' + '='.repeat(56))
+  console.log('  通过 ' + pass + ' 项，失败 ' + fail + ' 项')
+  if (fail) {
+    console.log('\n  失败清单：')
+    for (var fi = 0; fi < failures.length; fi++) console.log('    - ' + failures[fi])
+  }
+  console.log('='.repeat(56))
+  process.exit(fail ? 1 : 0)
 }
-console.log('='.repeat(56))
-process.exit(fail ? 1 : 0)
+
+asyncPart().then(summary).catch(function (e) {
+  console.error('\n  异步段自己崩了：')
+  console.error(e && e.stack ? e.stack : e)
+  process.exit(1)
+})
+

@@ -26,6 +26,7 @@ module.exports = {
   /** 数据库集合名 */
   COL_FAMILIES: 'csm_families',
   COL_MENUS: 'csm_menus',
+  COL_DISHES: 'csm_dishes',
 
   /** 一个家庭最多几个人 */
   MAX_MEMBERS: 15

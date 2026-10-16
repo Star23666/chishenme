@@ -23,11 +23,17 @@
 var storage = require('./utils/storage.js')
 var fmt = require('./utils/format.js')
 var cloud = require('./utils/cloud.js')
+var media = require('./utils/media.js')
 var config = require('./config.js')
 var D = require('./data/dishes.js')
 
 var VERSION = 2
 var NOTE_MAX = 20
+
+/** 自建菜的字段上限（和云函数里的常量保持一致，两边都截一次） */
+var DISH_NAME_MAX = 12
+var DISH_MAIN_MAX = 20
+var DISH_TIPS_MAX = 40
 
 /** watch 建不起来时退化成轮询的间隔 */
 var POLL_MS = 15000
@@ -43,7 +49,8 @@ App({
     watcher: null,      // 实时推送句柄
     pollTimer: null,    // 轮询兜底
     listeners: [],      // 页面订阅菜单变化的回调
-    pending: 0          // 在途的写请求数
+    pending: 0,         // 在途的写请求数
+    dishesLoaded: false // 自建菜是否已经从服务端拉过
   },
 
   onLaunch: function () {
@@ -51,9 +58,10 @@ App({
     if (!storage.get(storage.KEY_VERSION, 0)) {
       storage.set(storage.KEY_VERSION, VERSION)
     }
+    // 本地模式下的自建菜先装上，首屏就能看到（云端模式由 refreshFamily 之后拉）
+    if (this.mode() !== 'cloud') this.refreshDishes()
     // 云模式：先把「我在哪个家庭」拉回来，后面 watch 才有房间码可用
     if (this.mode() === 'cloud') {
-      var self = this
       this.refreshFamily().catch(function () { /* 没网/没建集合都不该拦住启动 */ })
       // 本地缓存里先认一下，让首屏就有房间信息
       var cached = storage.get(storage.KEY_FAMILY, null)
@@ -111,6 +119,8 @@ App({
       storage.set(storage.KEY_FAMILY, fam)
       if (fam.myName) storage.set(storage.KEY_NICK, fam.myName)
       this.startWatch()
+      // 自建菜要先装好再拉菜单：菜单里的 dishId 未知就会被当成脏数据丢掉
+      this.refreshDishes()
       this.refreshMenu()
     } else {
       this.globalData.family = null
@@ -120,6 +130,8 @@ App({
       this._saveMenu([])
       this._syncBadge()
       this._notify()
+      // 自建菜是「房间里」的东西，退出去就不该再看见（本地模式的除外）
+      this.refreshDishes()
     }
   },
 
@@ -370,9 +382,9 @@ App({
     return D.CATS
   },
 
-  /** 全部菜品（副本，防止页面误改静态数据） */
+  /** 全部菜品（内置 + 自建，副本，防止页面误改静态数据） */
   allDishes: function () {
-    return D.DISHES.slice()
+    return D.byCat('all')
   },
 
   /** 按分类取菜；cat 为 'all' 或空取全部 */
@@ -380,13 +392,238 @@ App({
     return D.byCat(cat)
   },
 
-  /** 单道菜 */
+  /** 单道菜（内置或自建都能查到） */
   dishById: function (id) {
     return D.byId(id)
   },
 
+  /** 菜库总数（内置 + 自建）。页面上写「本菜库共 X 道」一律用它，别用 D.TOTAL */
   totalDishes: function () {
-    return D.TOTAL
+    return D.totalAll()
+  },
+
+  /* ==================== 用户自建菜 ====================
+   *
+   * 内置 80 道是写死在包里的、只读；用户自己加的菜是另一条路：
+   *   cloud 模式 -> 云数据库 csm_dishes，全家人共享
+   *   local 模式 -> 本机存储，只有这台手机看得见
+   * 两条路都归一成同一个形状后交给 data/dishes.js 的叠加层，
+   * 所以菜单页、点菜页、收藏页、摇一摇**一行都不用改**。
+   */
+
+  /** 自建菜清单（副本） */
+  customDishes: function () {
+    return D.customList()
+  },
+
+  /** 这道菜是不是用户自己加的 */
+  isCustomDish: function (id) {
+    return D.isCustom(id)
+  },
+
+  /**
+   * 能不能编辑 / 删除这道菜。
+   * ★ 这只是界面上的方便（决定要不要显示那两个按钮），真正的拦阻在云函数里 ——
+   *   改一行 wxml 就能让按钮出现，但服务端照样会拒绝。
+   */
+  canEditDish: function (id) {
+    var d = D.byId(id)
+    if (!d || !D.isCustom(id)) return false
+    return d.mine !== false
+  },
+
+  /** 给新菜预留一个 id（传图时要用它命名云存储文件） */
+  newDishId: function () {
+    return D.newCustomId()
+  },
+
+  /** 本地模式下自建菜的原始列表（云模式下始终为空，别在这里判断模式） */
+  _localDishes: function () {
+    var l = storage.get(storage.KEY_DISHES, [])
+    return (l instanceof Array) ? l : []
+  },
+
+  /**
+   * 把任意来源的自建菜归一化后装进菜库。
+   * 归一化放在这里而不是各处：谁调的都得过这一关，
+   * 免得某个字段缺失就在页面上变成 undefined。
+   */
+  _applyDishes: function (raw) {
+    var list = []
+    var arr = (raw instanceof Array) ? raw : []
+    var legal = {}
+    for (var c = 0; c < D.CATS.length; c++) legal[D.CATS[c].key] = true
+    for (var i = 0; i < arr.length; i++) {
+      var r = arr[i]
+      if (!r || !r.id || !r.name) continue
+      list.push({
+        id: r.id,
+        name: r.name,
+        cat: legal[r.cat] ? r.cat : 'meat',
+        main: r.main || '',
+        tips: r.tips || '',
+        image: r.image || '',
+        // 本地模式的记录里没有 mine 字段 —— 本机上的菜当然都是自己的
+        mine: r.mine !== false,
+        creatorName: r.creatorName || '',
+        createdAt: r.createdAt || 0
+      })
+    }
+    D.setCustom(list)
+    this.globalData.dishesLoaded = true
+    this._notify()
+    // ★ 云端模式下必须重拉一次菜单：刚才那批菜单快照可能比自建菜先到，
+    //   里面属于自建菜的条目会被当成「菜谱里没有的脏数据」丢掉。
+    //   自建菜一到，就得让菜单按新菜库重算一遍。
+    if (this.mode() === 'cloud' && this.family()) this.refreshMenu()
+    return list.length
+  },
+
+  /** 重新拉一遍自建菜 */
+  refreshDishes: function () {
+    var self = this
+    if (this.mode() === 'cloud') {
+      if (!this.family()) {
+        D.setCustom([])
+        this._notify()
+        return Promise.resolve(0)
+      }
+      return cloud.call('listDishes').then(function (data) {
+        return self._applyDishes((data && data.list) || [])
+      }).catch(function (e) {
+        // 集合还没建、网络抖动：**保留已经装好的那份**，别把菜清空。
+        // 清空的话用户会以为自己的菜丢了，比一次拉取失败严重得多。
+        if (e && e.message === 'NO_FAMILY') {
+          D.setCustom([])
+          self.setFamily(null)
+        }
+        return -1
+      })
+    }
+    return Promise.resolve(this._applyDishes(this._localDishes()))
+  },
+
+  /**
+   * 把用户刚选的临时图片变成能长期保存的引用。
+   *   云模式 -> 上传到云存储，拿到 cloud:// 文件 ID
+   *   本地模式 -> 复制进本机用户目录，拿到重启后仍有效的路径
+   */
+  prepareDishImage: function (tempPath, dishId) {
+    var id = dishId || D.newCustomId()
+    if (this.mode() === 'cloud') {
+      // 路径里带时间戳：同一道菜换图时不能覆盖旧文件
+      // （旧文件还在的话，已经发出去的分享/缓存可能还指着它）
+      var path = 'dishes/' + id + '-' + Date.now() + media.extOf(tempPath)
+      return cloud.uploadFile(path, tempPath)
+    }
+    return Promise.resolve(media.persist(tempPath, id))
+  },
+
+  /**
+   * 新增或修改一道自建菜。
+   * payload: { id?, name, cat, main, tips, image }，image 必须是已经准备好
+   * 的长期引用（先调 prepareDishImage）。
+   * 返回 Promise<保存后的记录>。
+   */
+  saveDish: function (payload) {
+    var p = payload || {}
+    var name = String(p.name || '').trim()
+    if (!name) return Promise.reject(new Error('给这道菜起个名字'))
+    var id = p.id || D.newCustomId()
+    var rec = {
+      id: id,
+      name: name.slice(0, DISH_NAME_MAX),
+      cat: p.cat || 'meat',
+      main: String(p.main || '').trim().slice(0, DISH_MAIN_MAX),
+      tips: String(p.tips || '').trim().slice(0, DISH_TIPS_MAX),
+      image: p.image || ''
+    }
+    var self = this
+
+    if (this.mode() === 'cloud') {
+      // ★ 两个 action 名必须**字面量写出来**，不能拼：
+      //   wxml-check.js 的 G5 靠正则扫 app.js，确认「前端调的每个 action
+      //   云函数里都真的存在」。写成 cloud.call(p.id ? 'a' : 'b') 就扫不到了，
+      //   将来云函数改名 / 漏改时那条检查会静默失效。
+      var req = p.id
+        ? cloud.call('updateDish', rec)
+        : cloud.call('createDish', rec)
+      return req.then(function () {
+        return self.refreshDishes()
+      }).then(function () {
+        return rec
+      })
+    }
+
+    // 本地模式：整表读出来改完写回去（数据量很小，不值得做增量）
+    var list = this._localDishes()
+    var out = []
+    var prev = null
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].id === id) { prev = list[i]; break }
+    }
+    for (var j = 0; j < list.length; j++) {
+      if (list[j] && list[j].id !== id) out.push(list[j])
+    }
+    out.push({
+      id: id, name: rec.name, cat: rec.cat, main: rec.main, tips: rec.tips,
+      // ★ 没带新图时沿用旧的那张。云函数里有同样的防呆，本地这条分支也得有 ——
+      //   否则改一次菜名，照片就变回占位图了。（core-test 抓到过一次）
+      image: rec.image || (prev ? (prev.image || '') : ''),
+      mine: true,
+      creatorName: this.myName() || '',
+      createdAt: prev ? (prev.createdAt || Date.now()) : Date.now()
+    })
+    if (!storage.set(storage.KEY_DISHES, out)) {
+      return Promise.reject(new Error('本机存储写不进去了，先清一点空间'))
+    }
+    this._applyDishes(out)
+    return Promise.resolve(rec)
+  },
+
+  /** 删除一道自建菜（只有自己加的能删） */
+  deleteDish: function (id) {
+    if (!this.canEditDish(id)) return Promise.reject(new Error('只能删自己加的菜'))
+    var self = this
+
+    if (this.mode() === 'cloud') {
+      return cloud.call('deleteDish', { id: id }).then(function () {
+        return self.refreshDishes()
+      }).then(function () {
+        self.dropDishFromMenu(id)
+        return true
+      })
+    }
+
+    var list = this._localDishes()
+    var out = []
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].id !== id) out.push(list[i])
+    }
+    storage.set(storage.KEY_DISHES, out)
+    this._applyDishes(out)
+    this.dropDishFromMenu(id)
+    return Promise.resolve(true)
+  },
+
+  /**
+   * 菜被删掉之后，今天的菜单里也不能再留着它。
+   * 云模式下服务端已经跟着清了，这里主要管本地那份镜像与本机模式。
+   */
+  dropDishFromMenu: function (id) {
+    var raw = this._rawMenu()
+    var out = []
+    var changed = false
+    for (var i = 0; i < raw.length; i++) {
+      if (raw[i].dishId === id) { changed = true; continue }
+      out.push(raw[i])
+    }
+    if (!changed) return false
+    this._saveMenu(out)
+    this._syncBadge()
+    this._notify()
+    if (this.mode() === 'cloud') this._push('setQty', { dishId: id, qty: 0 })
+    return true
   },
 
   /* ==================== 今日菜单 ==================== */

@@ -14,6 +14,7 @@ var KEY_FAV = 'csm_fav'              // 收藏的 dishId 数组
 var KEY_VERSION = 'csm_version'      // 数据版本号，为将来迁移预留
 var KEY_FAMILY = 'csm_family'        // 我所在的家庭（云模式才写），{code,name,myName,...}
 var KEY_NICK = 'csm_nick'            // 我的称呼，本地存一份用于预填输入框
+var KEY_DISHES = 'csm_dishes'        // 本地模式下的自建菜（云模式走云数据库，不写这里）
 
 function get(key, def) {
   try {
@@ -47,6 +48,7 @@ module.exports = {
   KEY_VERSION: KEY_VERSION,
   KEY_FAMILY: KEY_FAMILY,
   KEY_NICK: KEY_NICK,
+  KEY_DISHES: KEY_DISHES,
   get: get,
   set: set,
   remove: remove

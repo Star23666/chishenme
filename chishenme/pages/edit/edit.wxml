@@ -1,0 +1,73 @@
+<view class="page">
+
+  <!-- 照片区：整块可点。没图时是一块安静的灰底加一个「＋」，
+       有图时直接铺满 —— 不加边框、不加投影，避免「卡里套卡」的模板感 -->
+  <view class="photo" bindtap="pickImage">
+    <image wx:if="{{preview}}" class="photo-img" src="{{preview}}" mode="aspectFill"></image>
+    <view wx:else class="photo-empty">
+      <view class="photo-mark">＋</view>
+      <view class="photo-hint">拍一张 / 从相册选</view>
+    </view>
+    <view wx:if="{{preview}}" class="photo-redo">换一张</view>
+  </view>
+
+  <view class="form">
+
+    <view class="row">
+      <text class="k">菜名</text>
+      <input
+        class="input"
+        value="{{name}}"
+        maxlength="12"
+        placeholder="例如：外婆的糖醋排骨"
+        placeholder-class="ph"
+        bindinput="onName"
+      />
+    </view>
+
+    <view class="row row-cat">
+      <text class="k">分类</text>
+      <view class="chips">
+        <view
+          wx:for="{{cats}}"
+          wx:key="key"
+          class="chip {{cat === item.key ? 'on' : ''}}"
+          data-cat="{{item.key}}"
+          bindtap="pickCat"
+        >{{item.name}}</view>
+      </view>
+    </view>
+
+    <view class="row">
+      <text class="k">主料</text>
+      <input
+        class="input"
+        value="{{main}}"
+        maxlength="20"
+        placeholder="选填，例如：排骨"
+        placeholder-class="ph"
+        bindinput="onMain"
+      />
+    </view>
+
+    <view class="row row-area">
+      <text class="k">要点</text>
+      <textarea
+        class="area"
+        value="{{tips}}"
+        maxlength="40"
+        placeholder="选填，一句话记住怎么做"
+        placeholder-class="ph"
+        bindinput="onTips"
+      ></textarea>
+    </view>
+
+  </view>
+
+  <view class="foot">
+    <view class="btn-primary {{saving ? 'disabled' : ''}}" bindtap="save">{{isNew ? '加入菜库' : '保存修改'}}</view>
+    <view class="foot-note">{{isNew ? '加好的菜全家人都能看到，也能直接点' : '改的是同一道菜，大家点的还是它'}}</view>
+  </view>
+
+  <view class="safe-bottom"></view>
+</view>

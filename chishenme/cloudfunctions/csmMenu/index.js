@@ -16,6 +16,15 @@
  *                   所以客户端在「仅创建者可写」下实际写不了任何一条 → 写权限被天然收口）
  *   csm_menus     { familyCode, date, dishId, qty, note, byNames[], addedAt, updatedAt }
  *                 权限：同上。必须放开读，否则 watch 收不到别人写的记录。
+ *   csm_dishes    { familyCode, dishId, name, cat, main, tips, image, creator, creatorName,
+ *                   createdAt, updatedAt }
+ *                 权限：同上。这是「用户自己加的菜」（内置 80 道写死在小程序包里，不在这）。
+ *                 ★ 图片存的是云存储文件 ID（cloud://...），不占数据库体积。
+ *                 ★ 这个集合的读写**全部**经过云函数，客户端不直连它：
+ *                   菜单为了 watch 实时推送必须直连，菜谱不需要实时，
+ *                   少开一条直连通道就少一份权限要配。
+ *                 ★ 所以客户端提交的 dishId 不可信，要在这里校验形状；
+ *                   「只有创建者能改删」也必须在服务端判定（见 updateDish / deleteDish）。
  *
  * ── 为什么 byNames 存「称呼」而不是 openid ──
  *   客户端 watch 到的只有这一个集合，拿不到 nicknames 映射表。
@@ -36,12 +45,21 @@ const _ = db.command
 
 const FAM = 'csm_families'
 const MENU = 'csm_menus'
+const DISH = 'csm_dishes'
 
 const MAX_MEMBERS = 15
 const MAX_QTY = 99
 const NICK_MAX = 8
 const NAME_MAX = 12
 const NOTE_MAX = 20
+
+/* 自建菜 */
+const DISH_CATS = ['meat', 'veg', 'soup', 'staple', 'cold']
+const DISH_NAME_MAX = 12
+const DISH_MAIN_MAX = 20
+const DISH_TIPS_MAX = 40
+const DISH_IMAGE_MAX = 300          // cloud:// 文件 ID 也就一百来字符，留足余量
+const MAX_DISHES = 100              // 一个家最多自己加多少道，防手滑 / 防滥用
 
 /** 房间码字母表：去掉了容易看错的 0 O 1 I */
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -92,6 +110,25 @@ function publicMenuDoc(d) {
     note: d.note || '',
     byNames: d.byNames instanceof Array ? d.byNames : [],
     addedAt: d.addedAt || 0
+  }
+}
+
+/**
+ * 自建菜文档 → 客户端形状。
+ * ★ 只回一个 mine 布尔，不回 creator 的 openid —— 家人之间不需要知道彼此的身份标识，
+ *   客户端要的只是「这个按钮该不该显示」。
+ */
+function publicDish(d, openid) {
+  return {
+    id: d.dishId,
+    name: d.name,
+    cat: d.cat,
+    main: d.main || '',
+    tips: d.tips || '',
+    image: d.image || '',
+    mine: d.creator === openid,
+    creatorName: d.creatorName || '',
+    createdAt: d.createdAt || 0
   }
 }
 
@@ -395,6 +432,147 @@ async function listMenu(openid) {
   return ok({ date: date, list: r.data.map(publicMenuDoc) })
 }
 
+/* ---------------- 用户自建菜 ---------------- */
+
+/**
+ * 列出本房间的自建菜。
+ * ★ 只按 familyCode 过滤 —— 别的家的菜一道都不能漏出来。
+ */
+async function listDishes(openid) {
+  const fam = await requireFamily(openid)
+  const r = await db.collection(DISH)
+    .where({ familyCode: fam.code })
+    .orderBy('createdAt', 'asc')
+    .limit(MAX_DISHES)
+    .get()
+  return ok({ list: r.data.map((d) => publicDish(d, openid)) })
+}
+
+async function findDishDoc(familyCode, dishId) {
+  const r = await db.collection(DISH).where({
+    familyCode: familyCode,
+    dishId: dishId
+  }).limit(1).get()
+  return r.data[0] || null
+}
+
+/** 校验分类，非法就回落到一个合法的 */
+function safeCat(v, fallback) {
+  const c = clean(v, 10)
+  return DISH_CATS.indexOf(c) >= 0 ? c : fallback
+}
+
+/**
+ * 新增一道菜。
+ * dishId 由客户端生成后带过来 —— 因为传图时要用它命名云存储文件，
+ * 顺序上「先有 id 才能上传」。所以这里**必须当成不可信输入**校验形状，
+ * 不合格就地重造一个，绝不能让客户端塞任意字符串当 id。
+ */
+async function createDish(openid, p) {
+  const fam = await requireFamily(openid)
+  const name = clean(p.name, DISH_NAME_MAX)
+  if (!name) throw new Error('给这道菜起个名字')
+
+  let dishId = clean(p.id, 40)
+  if (!/^u[a-z0-9]{2,38}$/.test(dishId)) {
+    dishId = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+  }
+
+  const exist = await findDishDoc(fam.code, dishId)
+  if (exist) throw new Error('这道菜已经加过了')
+
+  const cnt = await db.collection(DISH).where({ familyCode: fam.code }).count()
+  if (cnt.total >= MAX_DISHES) {
+    throw new Error('一个家最多加 ' + MAX_DISHES + ' 道自己的菜')
+  }
+
+  const nicks = fam.nicknames || {}
+  const doc = {
+    familyCode: fam.code,
+    dishId: dishId,
+    name: name,
+    cat: safeCat(p.cat, 'meat'),
+    main: clean(p.main, DISH_MAIN_MAX),
+    tips: clean(p.tips, DISH_TIPS_MAX),
+    image: clean(p.image, DISH_IMAGE_MAX),
+    creator: openid,
+    creatorName: nicks[openid] || '家人',
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  }
+  await db.collection(DISH).add({ data: doc })
+  return ok({ dish: publicDish(doc, openid) })
+}
+
+/**
+ * 改一道菜。
+ * ★ 「只有创建者能改」必须在服务端判定。客户端那个「不是自己加的不显示编辑按钮」
+ *   只是界面上的方便，改一行 wxml 就绕过去了。
+ */
+async function updateDish(openid, p) {
+  const fam = await requireFamily(openid)
+  const dishId = clean(p.id, 40)
+  if (!dishId) throw new Error('这道菜已经不在了')
+
+  const doc = await findDishDoc(fam.code, dishId)
+  if (!doc) throw new Error('这道菜已经不在了')
+  if (doc.creator !== openid) throw new Error('NOT_MINE')
+
+  const name = clean(p.name, DISH_NAME_MAX)
+  if (!name) throw new Error('给这道菜起个名字')
+
+  const data = {
+    name: name,
+    cat: safeCat(p.cat, doc.cat),
+    main: clean(p.main, DISH_MAIN_MAX),
+    tips: clean(p.tips, DISH_TIPS_MAX),
+    updatedAt: Date.now()
+  }
+  // ★ 图片只在带了新图时才覆盖。编辑文字时没重选图片，客户端传的就是空串；
+  //   若无脑覆盖，改一次菜名顺手就把照片弄没了。
+  const image = clean(p.image, DISH_IMAGE_MAX)
+  if (image) data.image = image
+
+  await db.collection(DISH).doc(doc._id).update({ data: data })
+  const fresh = await db.collection(DISH).doc(doc._id).get()
+  return ok({ dish: publicDish(fresh.data, openid) })
+}
+
+/**
+ * 删一道菜。只有创建者能删。
+ *
+ * ★ 顺序：先摘菜单 → 再删云存储的图 → 最后删菜本身。
+ *   和「解散房间」同一个道理：菜记录是找那批菜单条目的**唯一线索**
+ *   （菜单里只存 dishId）。先删菜的话，万一摘菜单失败，那些条目就变成
+ *   指向一道已经不存在的菜的孤儿记录 —— 客户端会把它们当脏数据静默过滤掉，
+ *   谁也看不见，也就永远没人去清。
+ */
+async function deleteDish(openid, p) {
+  const fam = await requireFamily(openid)
+  const dishId = clean(p.id, 40)
+  if (!dishId) return ok(null)
+
+  const doc = await findDishDoc(fam.code, dishId)
+  if (!doc) return ok(null)                 // 已经没了：幂等，网络重试安全
+  if (doc.creator !== openid) throw new Error('NOT_MINE')
+
+  await db.collection(MENU).where({
+    familyCode: fam.code,
+    dishId: dishId
+  }).remove()
+
+  if (doc.image && String(doc.image).indexOf('cloud://') === 0) {
+    try {
+      await cloud.deleteFile({ fileList: [doc.image] })
+    } catch (e) {
+      // 图删不掉不能拦住删菜：留下一个没人引用的文件，比让用户删不掉菜好得多
+    }
+  }
+
+  await db.collection(DISH).doc(doc._id).remove()
+  return ok(null)
+}
+
 /* ---------------- 入口 ---------------- */
 
 exports.main = async (event) => {
@@ -423,6 +601,10 @@ exports.main = async (event) => {
       case 'setNote': return await setNote(openid, p)
       case 'clearMenu': return await clearMenu(openid)
       case 'listMenu': return await listMenu(openid)
+      case 'listDishes': return await listDishes(openid)
+      case 'createDish': return await createDish(openid, p)
+      case 'updateDish': return await updateDish(openid, p)
+      case 'deleteDish': return await deleteDish(openid, p)
       default:
         return err('未知操作: ' + action)
     }

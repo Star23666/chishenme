@@ -13,13 +13,17 @@ Page({
   },
 
   onLoad: function () {
-    this.setData({ cats: D.CATS, total: D.TOTAL })
-    this.refresh('all')
+    this.setData({ cats: D.CATS })
   },
 
   onShow: function () {
-    // 收藏可能在「收藏页」被改过，回到本页重新同步标记
-    this.refresh(this.data.activeCat)
+    // ★ 每次回到本页都先从服务端同步一次自建菜。
+    //   家里人刚加的菜、或者别人把某道菜删了，切回来就得看见 ——
+    //   菜库不像菜单那样有实时推送，只能靠这一下拉齐。
+    var that = this
+    app.refreshDishes().then(function () {
+      that.refresh(that.data.activeCat)
+    })
   },
 
   /** 按分类重建列表（附带图片路径与收藏状态） */
@@ -37,7 +41,8 @@ Page({
         fav: app.isFav(src[i].id)
       })
     }
-    this.setData({ list: out, activeCat: cat })
+    // 道数用 app.totalDishes()（内置 + 自建），不要用 D.TOTAL（那只是内置的 80 道）
+    this.setData({ list: out, activeCat: cat, total: app.totalDishes() })
   },
 
   switchCat: function (e) {
@@ -55,7 +60,9 @@ Page({
         main: dish.main,
         tips: dish.tips,
         image: D.imageOf(dish.id),
-        fav: app.isFav(dish.id)
+        fav: app.isFav(dish.id),
+        // 只有自己加的菜才给「编辑 / 删除」。内置菜和别人加的菜都不给。
+        mine: app.canEditDish(dish.id)
       },
       detailVisible: true
     })
@@ -92,11 +99,50 @@ Page({
     wx.showToast({ title: '已加入菜单', icon: 'success' })
   },
 
+  /* ---------------- 自建菜的增删改 ---------------- */
+
+  goAdd: function () {
+    wx.navigateTo({ url: '/pages/edit/edit' })
+  },
+
+  editDish: function () {
+    var d = this.data.detail
+    if (!d || !d.mine) return
+    this.setData({ detailVisible: false })
+    wx.navigateTo({ url: '/pages/edit/edit?id=' + d.id })
+  },
+
+  deleteDish: function () {
+    var d = this.data.detail
+    if (!d || !d.mine) return
+    var that = this
+    wx.showModal({
+      title: '删掉「' + d.name + '」？',
+      content: '它会从菜库和今天的菜单里一起消失，家里人也就点不到这道菜了。',
+      confirmText: '删除',
+      cancelText: '算了',
+      confirmColor: '#D9483B',
+      success: function (res) {
+        if (!res.confirm) return
+        wx.showLoading({ title: '删除中', mask: true })
+        app.deleteDish(d.id).then(function () {
+          wx.hideLoading()
+          that.setData({ detailVisible: false })
+          that.refresh(that.data.activeCat)
+          wx.showToast({ title: '已删除', icon: 'none' })
+        }).catch(function (e) {
+          wx.hideLoading()
+          wx.showToast({ title: app.errText(e) || '没删掉，再试一次', icon: 'none' })
+        })
+      }
+    })
+  },
+
   onShareAppMessage: function () {
     // ★ 别把道数写死。菜库会一直加菜，写死的数字迟早变成假消息
     //   （曾经这里是「进来挑 35 道家常菜」）。
     return {
-      title: '今天吃啥？进来挑 ' + D.TOTAL + ' 道菜',
+      title: '今天吃啥？进来挑 ' + this.data.total + ' 道菜',
       path: '/pages/library/library'
     }
   }

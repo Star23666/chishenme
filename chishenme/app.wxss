@@ -169,6 +169,13 @@ page {
   color: #FFFFFF;
 }
 
+/* ---- 输入框占位文字 ----
+   微信默认的 placeholder 是很浅的灰且各平台不一致，统一压到最淡那一档。
+   用 placeholder-class="ph" 引用（加菜页的两个 input 和一个 textarea）。 */
+.ph {
+  color: var(--c-ink-4);
+}
+
 /* ---- 底部安全区占位 ---- */
 .safe-bottom {
   height: calc(40rpx + env(safe-area-inset-bottom));

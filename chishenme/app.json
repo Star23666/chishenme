@@ -5,7 +5,8 @@
     "pages/menu/menu",
     "pages/random/random",
     "pages/fav/fav",
-    "pages/family/family"
+    "pages/family/family",
+    "pages/edit/edit"
   ],
   "window": {
     "backgroundTextStyle": "light",

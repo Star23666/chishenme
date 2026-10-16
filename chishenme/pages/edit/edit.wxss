@@ -1,0 +1,138 @@
+.page {
+  min-height: 100vh;
+}
+
+/* ---------- 照片 ---------- */
+.photo {
+  position: relative;
+  width: 100%;
+  height: 470rpx;
+  background: var(--c-surface-sunk);
+  overflow: hidden;
+}
+
+.photo-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.photo-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-mark {
+  font-size: 72rpx;
+  line-height: 1;
+  color: var(--c-ink-4);
+  font-weight: 300;
+}
+
+.photo-hint {
+  margin-top: 18rpx;
+  font-size: var(--t-cap);
+  color: var(--c-ink-3);
+}
+
+/* 「换一张」压在照片右下角。半透明黑底是唯一一处需要压住照片的地方，
+   用纯黑 + 透明度而不是主色，免得跟主按钮抢注意力。 */
+.photo-redo {
+  position: absolute;
+  right: 24rpx;
+  bottom: 24rpx;
+  padding: 10rpx 26rpx;
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, 0.55);
+  color: #FFFFFF;
+  font-size: var(--t-cap);
+}
+
+/* ---------- 表单 ---------- */
+.form {
+  margin-top: 20rpx;
+  background: var(--c-surface);
+  border-top: 1rpx solid var(--c-line);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  min-height: 100rpx;
+  padding: 0 30rpx;
+  border-bottom: 1rpx solid var(--c-line);
+}
+
+.row-cat,
+.row-area {
+  align-items: flex-start;
+  padding-top: 26rpx;
+  padding-bottom: 26rpx;
+}
+
+.k {
+  width: 110rpx;
+  flex-shrink: 0;
+  font-size: var(--t-sub);
+  color: var(--c-ink-3);
+}
+
+/*
+ * ★ 微信 <input> 的基础库默认样式是 height:1.4rem / min-height:1.4rem。
+ *   这里写了 box-sizing:border-box，就**必须**显式给 height，
+ *   否则一旦再叠加上下 padding，内容区会被算成负值 ——
+ *   真机上整行字都看不见（模拟器和浏览器复刻都正常，极难排查）。
+ *   所以这里只给 height，垂直居中交给组件自己。
+ */
+.input {
+  flex: 1;
+  height: 100rpx;
+  box-sizing: border-box;
+  font-size: var(--t-body);
+  color: var(--c-ink);
+}
+
+.chips {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.chip {
+  margin: 0 14rpx 14rpx 0;
+  padding: 10rpx 26rpx;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-sunk);
+  color: var(--c-ink-2);
+  font-size: var(--t-cap);
+}
+
+.chip.on {
+  background: var(--c-brand);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.area {
+  flex: 1;
+  height: 110rpx;
+  box-sizing: border-box;
+  font-size: var(--t-body);
+  line-height: 1.5;
+  color: var(--c-ink);
+}
+
+/* ---------- 底部 ---------- */
+.foot {
+  padding: 46rpx 30rpx 0;
+}
+
+.foot-note {
+  margin-top: 20rpx;
+  text-align: center;
+  font-size: var(--t-cap);
+  color: var(--c-ink-4);
+}
