@@ -628,6 +628,7 @@ var cases = [
   ['NO_FAMILY', '你还没加入家庭'],
   ['NOT_OWNER', '只有房主能做这个'],
   ['errCode: -501000 | FunctionName parameter could not be found', '云函数还没部署'],
+  ['未知操作: dissolveFamily', '云函数还是旧版本'],
   ['cloud init error: { errMsg: "invalid scope" }', '云环境刚开通'],
   ['errCode: -501007 | env not exists', '环境 ID 填错了'],
   ['errCode: -502005 | collection not exist', '集合还没建'],

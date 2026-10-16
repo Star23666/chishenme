@@ -38,7 +38,7 @@ cp chishenme/config.example.js chishenme/config.js
 
 ## 怎么验证
 
-改完代码跑这几个脚本，一共 **455 项**断言。不需要连云环境，
+改完代码跑这几个脚本，一共 **457 项**断言。不需要连云环境，
 云函数那部分是用内存假数据库把真实的云函数代码跑一遍。
 
 ```bash
@@ -50,8 +50,8 @@ $NODE .workbuddy/verify/core-test.js          # 114 项
 $NODE .workbuddy/verify/wxml-check.js         #  32 项
 $PY   .workbuddy/tools/check-icon-colors.py   #   8 项
 
-# 今天吃啥（合计 455 项）
-$NODE .workbuddy/verify/chishenme/core-test.js     # 200 项
+# 今天吃啥（合计 457 项）
+$NODE .workbuddy/verify/chishenme/core-test.js     # 202 项
 $NODE .workbuddy/verify/chishenme/wxml-check.js    #  71 项
 $NODE .workbuddy/verify/chishenme/cloud-test.js    # 164 项
 $PY   .workbuddy/verify/chishenme/check-images.py  #  20 项
@@ -113,6 +113,9 @@ git push
 - **一次提交只做一件事。** 上面那三个提交就是例子：功能、清理各一条，
   将来要回滚某一项时不用连坐。
 - **发一个新版本时才打标签**，不必每次提交都打。
+- **改了 `chishenme/cloudfunctions/` 就得重新部署云函数。**
+  它不会跟着小程序代码一起上传 —— 漏了就是「界面是新的、云端是旧的」，
+  手机上会弹「未知操作: xxx」。见《今天吃啥-部署清单.md》第 4 步。
 
 ---
 

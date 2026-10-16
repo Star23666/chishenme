@@ -100,6 +100,14 @@ function friendly(err) {
     return '云函数还没部署（部署清单第 4 步）'
   }
 
+  // ★ 云函数是旧版本：前端调了一个旧云函数里还没有的 action，
+  //   微信的原话是「未知操作: xxx」。这句话直接弹给用户等于什么都没说，
+  //   而真实原因只有一个 —— 改了云函数，但忘了重新上传部署。
+  //   （云函数是单独部署的，不会跟着小程序代码一起上传，这一步最容易漏。）
+  if (m.indexOf('未知操作') >= 0 || /unknown action|unhandled action/i.test(m)) {
+    return '云函数还是旧版本，重新部署一次（部署清单第 4 步）'
+  }
+
   // 环境刚开通，云 API 还没就绪 —— 官方要求等约 10 分钟
   if (m.indexOf('invalid scope') >= 0 ||
       m.indexOf('cloud init error') >= 0 ||
