@@ -655,6 +655,10 @@ var cases = [
   ['errCode: -501007 | env not exists', '环境 ID 填错了'],
   ['errCode: -502005 | collection not exist', '集合还没建'],
   ['errCode: -502003 | permission denied', '数据库权限没配好'],
+  // 真机上传照片失败的真实报错：官方错误码表里查不到这个码，
+  // 不翻译的话用户会被一句「cgi fail(1,-10090)」彻底搞懵
+  ['cgi fail(1,-10090)', '照片没传上去'],
+  ['errCode: -403001 | upload file exceed size limit', '太大了'],
   ['request:fail timeout', '网络不太好']
 ]
 
@@ -673,6 +677,23 @@ eq('云函数的中文提示原样透传',
 
 // 空错误也得有兜底，不能弹一个空白 toast
 ok('错误对象为 null 时有兜底文案', cloudUtil.friendly(null).length > 0, cloudUtil.friendly(null))
+
+/*
+ * ★ 真机上 wx.cloud.uploadFile 传错时给的是 { errCode, errMsg } 这种**裸对象**，
+ *   不是 Error 实例。以前 friendly 只读 message，于是真实错误全被吞掉，
+ *   用户只能看到一句没用的兜底文案。这两条把「两种形态都认」锁住。
+ */
+var bareFail = { errCode: -1, errMsg: 'uploadFile:fail cgi fail(1,-10090)' }
+ok('上传失败的裸对象（errMsg 形态）也能翻译',
+  cloudUtil.friendly(bareFail).indexOf('照片没传上去') >= 0, cloudUtil.friendly(bareFail))
+
+var codeOnly = { errCode: -10090 }
+ok('只有 errCode、没有任何文案时也能认出来',
+  cloudUtil.friendly(codeOnly).indexOf('照片没传上去') >= 0, cloudUtil.friendly(codeOnly))
+
+ok('字符串形态的错误也能翻译',
+  cloudUtil.friendly('cgi fail(1,-10090)').indexOf('照片没传上去') >= 0,
+  cloudUtil.friendly('cgi fail(1,-10090)'))
 
 /* ==================== N. 用户自建菜（本地模式） ==================== */
 

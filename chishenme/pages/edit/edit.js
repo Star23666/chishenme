@@ -99,12 +99,17 @@ Page({
     wx.showLoading({ title: '保存中', mask: true })
 
     // 只有这次重选了图才需要处理图片；否则沿用原来那张
-    var prep = Promise.resolve(d.image)
-    if (d.picked && d.preview) {
-      prep = app.prepareDishImage(d.preview, d.id || app.newDishId())
-    }
+    var wantedPhoto = !!(d.picked && d.preview)
+    var prep = wantedPhoto
+      ? app.prepareDishImage(d.preview, d.id || app.newDishId())
+      : Promise.resolve(d.image)
+
+    // 照片没传上时 prepareDishImage 返回空串（不报错）。
+    // 用它和「本来就没选图」区分开：选了却拿到空串 = 传丢了。
+    var photoLost = false
 
     prep.then(function (image) {
+      photoLost = wantedPhoto && !image
       var payload = {
         name: name,
         cat: d.cat,
@@ -118,8 +123,23 @@ Page({
       return app.saveDish(payload)
     }).then(function () {
       wx.hideLoading()
-      wx.showToast({ title: d.isNew ? '已加入菜库' : '改好了', icon: 'success' })
-      setTimeout(function () { wx.navigateBack() }, 600)
+      if (!photoLost) {
+        wx.showToast({ title: d.isNew ? '已加入菜库' : '改好了', icon: 'success' })
+        setTimeout(function () { wx.navigateBack() }, 600)
+        return
+      }
+      // ★ 菜已经存住了，只是照片没跟上。这件事必须说清楚 ——
+      //   否则用户以为照片也存好了，回头才发现这道菜是张空图。
+      //   照片失败绝不能连累保存，这里是「告知」而不是「报错」。
+      wx.showModal({
+        title: d.isNew ? '菜加好了，照片没传上' : '改好了，新照片没传上',
+        content: d.isNew
+          ? '照片上传失败，这道菜先用了默认图。等网络好的时候，点开这道菜再「编辑」一次就能补上。'
+          : '照片上传失败，这道菜还用着原来那张。等网络好的时候，再「编辑」一次就能补上。',
+        showCancel: false,
+        confirmText: '知道了',
+        complete: function () { wx.navigateBack() }
+      })
     }).catch(function (e) {
       wx.hideLoading()
       that.setData({ saving: false })

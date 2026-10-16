@@ -113,7 +113,18 @@ function uploadFile(cloudPath, filePath) {
  * 按这个顺序提示，用户一步一步往下走就行，不用去猜错误码。
  */
 function friendly(err) {
-  var m = (err && err.message) || ''
+  // ★ 微信的失败回调有两种形态，这里必须都认：
+  //   1) cloud.call 里我们自己包的 Error —— 只有 message
+  //   2) wx.cloud.uploadFile 之类的**原始 fail 参数** { errCode, errMsg }
+  //   以前只读 message，于是 (2) 的真实错误全被吞掉，用户只能看到
+  //   一句没用的兜底文案。真机上传失败就是这么被藏起来的。
+  var m = ''
+  if (typeof err === 'string') m = err
+  else if (err) m = err.errMsg || err.message || ''
+  // 只剩错误码时也别丢：-10090 这种码本身就是线索
+  if (!m && err && err.errCode !== undefined && err.errCode !== null) {
+    m = String(err.errCode)
+  }
 
   // 我们自己抛的（app.js / 云函数约定）
   if (m === 'CLOUD_DISABLED') return '还没配置云开发'
@@ -162,6 +173,22 @@ function friendly(err) {
       m.indexOf('UNAUTHORIZED') >= 0 ||
       m.indexOf('-502003') >= 0) {
     return '数据库权限没配好（部署清单第 3 步）'
+  }
+
+  // ★ 照片传不上去。真机上微信客户端给的是「cgi fail(1,-10090)」这种
+  //   完全没有可读信息的客户端错误码 —— 官方那张云开发错误码表里都查不到它。
+  //   它几乎总是网络 / 客户端侧的问题，所以提示要指向「换个环境重试」，
+  //   别让用户以为是小程序写坏了。
+  if (m.indexOf('cgi fail') >= 0 ||
+      m.indexOf('-10090') >= 0 ||
+      m.indexOf('uploadFile') >= 0) {
+    return '照片没传上去，换张图或换个网络再试'
+  }
+
+  // 上传的文件超过云存储单文件上限
+  if (m.indexOf('-403001') >= 0 ||
+      /exceed.*size|size.*limit|too large|file.*too big/i.test(m)) {
+    return '这张照片太大了，换张小一点的'
   }
 
   if (m.indexOf('timeout') >= 0 || m.indexOf('NETWORK') >= 0 ||

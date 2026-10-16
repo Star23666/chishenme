@@ -39,7 +39,7 @@ cp chishenme/config.example.js chishenme/config.js
 
 ## 怎么验证
 
-改完代码跑这几个脚本，一共 **718 项**断言。不需要连云环境，
+改完代码跑这几个脚本，一共 **725 项**断言。不需要连云环境，
 云函数那部分是用内存假数据库把真实的云函数代码跑一遍。
 
 ```bash
@@ -51,8 +51,8 @@ $NODE .workbuddy/verify/core-test.js          # 114 项
 $NODE .workbuddy/verify/wxml-check.js         #  32 项
 $PY   .workbuddy/tools/check-icon-colors.py   #   8 项
 
-# 今天吃啥（合计 564 项）
-$NODE .workbuddy/verify/chishenme/core-test.js     # 253 项
+# 今天吃啥（合计 571 项）
+$NODE .workbuddy/verify/chishenme/core-test.js     # 260 项
 $NODE .workbuddy/verify/chishenme/wxml-check.js    #  78 项
 $NODE .workbuddy/verify/chishenme/cloud-test.js    # 213 项
 $PY   .workbuddy/verify/chishenme/check-images.py  #  20 项
@@ -138,7 +138,7 @@ git push
 
 全部统一压成 **300×300 JPEG(q75)**。这个规格是被逼出来的：小程序主包上限
 **2MB**，80 张按原来的 320×320/q82 要 1.81MB，贴死上限没有余量；
-降到 300×300/q75 后约 1.42MB，主包落在 **1.57MB（占上限 78%）**。
+降到 300×300/q75 后约 1.42MB，主包落在 **1.57MB（占上限 79%）**。
 菜卡在手机上显示宽度约 165px，300px 仍有富余，肉眼几乎看不出差别。
 
 ---

@@ -508,13 +508,33 @@ App({
    *   云模式 -> 上传到云存储，拿到 cloud:// 文件 ID
    *   本地模式 -> 复制进本机用户目录，拿到重启后仍有效的路径
    */
+  /**
+   * 把选好的照片准备好，返回一个能直接存进菜记录的引用：
+   *   云端模式 -> cloud:// 文件 ID
+   *   本地模式 -> 本机长期路径
+   *
+   * ★ 传不上去时**返回空串，而不是 reject**。
+   *   照片是锦上添花，菜名 / 分类 / 主料 / 小贴士才是用户真正填了半天的东西。
+   *   因为网络抖动就让整个保存失败、让用户从头再填一遍，那才是真的
+   *   「做到一半不能用」—— 项目铁律里明确不许出现这种情况。
+   *   返回空串，调用方就能照常把菜存下来，只是这道菜暂时用默认占位图。
+   *   （云函数和本地分支都有「没带新图就沿用旧图」的防呆，所以改菜时
+   *     照片传失败不会把原来那张也弄丢。）
+   */
   prepareDishImage: function (tempPath, dishId) {
     var id = dishId || D.newCustomId()
+    if (!tempPath) return Promise.resolve('')
     if (this.mode() === 'cloud') {
       // 路径里带时间戳：同一道菜换图时不能覆盖旧文件
       // （旧文件还在的话，已经发出去的分享/缓存可能还指着它）
       var path = 'dishes/' + id + '-' + Date.now() + media.extOf(tempPath)
-      return cloud.uploadFile(path, tempPath)
+      return cloud.uploadFile(path, tempPath).then(function (fileID) {
+        return fileID || ''
+      }).catch(function (e) {
+        // 留一行日志方便排查，但绝不把它抛出去
+        console.warn('[加菜] 照片上传失败：' + cloud.friendly(e))
+        return ''
+      })
     }
     return Promise.resolve(media.persist(tempPath, id))
   },
