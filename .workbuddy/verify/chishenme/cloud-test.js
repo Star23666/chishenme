@@ -27,11 +27,18 @@ var store = {}
 var idSeq = 0
 /* 云存储假 SDK 记录「哪些文件被删了」，用来验证删菜会把图一起清掉 */
 var deletedFiles = []
+/* getTempFileURL 的假账本：
+   - tempCalls 记下每次问到的 fileList（验「只问 cloud://」「同一个只问一次」）
+   - tempFail 里的 fileID 会被模拟成换不到（验「换不到不能拖垮主流程」） */
+var tempCalls = []
+var tempFail = {}
 
 function resetStore() {
   for (var k in store) delete store[k]
   idSeq = 0
   deletedFiles = []
+  tempCalls = []
+  tempFail = {}
 }
 
 function col(name) {
@@ -241,6 +248,31 @@ function makeSdk() {
       for (var i = 0; i < list.length; i++) deletedFiles.push(list[i])
       return Promise.resolve({
         fileList: list.map(function (f) { return { fileID: f, status: 0 } })
+      })
+    },
+    /**
+     * 换临时链接的假实现。
+     * ★ 真实接口一次最多 50 个 —— 这里必须**照着卡**，不然「分批换」那段逻辑
+     *   等于没测（真到 60 张图的时候才会炸，而且是在线上炸）。
+     */
+    getTempFileURL: function (opt) {
+      var list = ((opt && opt.fileList) || []).slice()
+      if (list.length > 50) {
+        return Promise.reject(new Error('fileList 一次最多 50 个'))
+      }
+      tempCalls.push(list.slice())
+      return Promise.resolve({
+        fileList: list.map(function (f) {
+          if (tempFail[f]) {
+            return { fileID: f, tempFileURL: '', status: 1, errMsg: 'STORAGE_EXCEED_AUTHORITY' }
+          }
+          return {
+            fileID: f,
+            tempFileURL: 'https://fake.tcb.example.com/' + String(f).split('/').pop() + '?sign=ok',
+            status: 0,
+            errMsg: 'ok'
+          }
+        })
       })
     }
   }
@@ -1121,6 +1153,93 @@ async function run() {
       (await call('q_owner', 'createDish', { name: '第一百道' })).ok, true)
     eq('  到 100 道才拦住',
       (await call('q_owner', 'createDish', { name: '第一百零一道' })).ok, false)
+  }
+
+  S('9. 图片临时链接（免费版改不了云存储权限，只能由云函数去换）')
+
+  /*
+   * 背景：云存储权限若是「仅创建者及管理员可读写」，客户端直接读**别人**传的图
+   * 会报 STORAGE_EXCEED_AUTHORITY —— 表现就是「家人互相看不到菜图」，
+   * 而且现象是开发者工具里一行 `Failed to load image .../cloud://... net::OK`，
+   * 一点都不像权限问题。免费版环境又改不了这个权限。
+   * 所以改由云函数去换：它是 admin，安全规则只管客户端、管不着他。
+   *
+   * ★ 这一段盯死四条：
+   *   1. 只对 cloud:// 去换 —— 本机路径 / 包内路径不该白花一次调用。
+   *   2. 换不到**绝不能抛错**。文字信息比一张图重要，菜库得照样打得开。
+   *   3. 映射只发给客户端「显示」用，**不许混进 list / overrides** ——
+   *      否则客户端会把一个会过期的链接当成正式数据存下来。
+   *   4. 一次最多 50 个，超了必须分批（不然图一多就整批失败）。
+   */
+  {
+    const tFam = await call('tl_owner', 'createFamily', { name: '临时链接测试家', nickname: '房主' })
+
+    /* ---- 空菜库：一次调用都不该发 ---- */
+    tempCalls = []
+    const empty = (await call('tl_owner', 'listDishes', {})).data
+    eq('没图的时候 temp 是空对象', Object.keys(empty.temp || {}).length, 0)
+    eq('★ 没图就一次都不去换（不白花调用）', tempCalls.length, 0)
+
+    /* ---- 一道带云图、一道没图 ---- */
+    await call('tl_owner', 'createDish', {
+      id: 'uc001', name: '带图的菜', cat: 'meat', image: 'cloud://demo/dishes/a.jpg'
+    })
+    await call('tl_owner', 'createDish', { id: 'uc002', name: '没图的菜', cat: 'veg' })
+
+    tempCalls = []
+    const one = (await call('tl_owner', 'listDishes', {})).data
+    eq('★ 云图换到了临时链接',
+      one.temp['cloud://demo/dishes/a.jpg'], 'https://fake.tcb.example.com/a.jpg?sign=ok')
+    eq('  映射里只有这一条', Object.keys(one.temp).length, 1)
+    eq('  只问了一次', tempCalls.length, 1)
+    eq('★ 只把 cloud:// 拿去问（没图的菜不会被牵连）',
+      tempCalls[0].join('|'), 'cloud://demo/dishes/a.jpg')
+    eq('★ 换出来的链接只待在 temp 里，没混进菜本身',
+      one.list.filter((d) => d.id === 'uc001')[0].image, 'cloud://demo/dishes/a.jpg')
+
+    /* ---- 两道菜共用同一张图：只问一次 ---- */
+    await call('tl_owner', 'createDish', {
+      id: 'uc003', name: '蹭同一张图', cat: 'soup', image: 'cloud://demo/dishes/a.jpg'
+    })
+    tempCalls = []
+    await call('tl_owner', 'listDishes', {})
+    eq('★ 同一个 fileID 只问一次', tempCalls[0].length, 1)
+
+    /* ---- 房主给内置菜换的图也要换（它同样可能是别人传的） ---- */
+    await call('tl_owner', 'updateBuiltin', {
+      id: 'hongshaorou', name: '带图红烧肉', image: 'cloud://demo/dishes/builtin.jpg'
+    })
+    const withOv = (await call('tl_owner', 'listDishes', {})).data
+    ok('★ 内置菜改动里的图也换了',
+      !!withOv.temp['cloud://demo/dishes/builtin.jpg'], JSON.stringify(withOv.temp))
+    eq('  映射没混进 overrides 里',
+      withOv.overrides['hongshaorou'].image, 'cloud://demo/dishes/builtin.jpg')
+
+    /* ---- 换不到：不抛错，其余照常 ---- */
+    tempFail['cloud://demo/dishes/a.jpg'] = true
+    const gf = await call('tl_owner', 'listDishes', {})
+    eq('★ 某张换不到也不会让整次请求失败', gf.ok, true)
+    eq('★ 换不到的那个不进映射', gf.data.temp['cloud://demo/dishes/a.jpg'], undefined)
+    ok('  换得到的那个照样在',
+      !!gf.data.temp['cloud://demo/dishes/builtin.jpg'], JSON.stringify(gf.data.temp))
+    eq('  菜本身的数据一点没受影响', gf.data.list.length, 3)
+    tempFail = {}
+
+    /* ---- 图一多必须分批（51 张 batch + a.jpg + builtin.jpg = 53） ---- */
+    for (let i = 0; i < 51; i++) {
+      await call('tl_owner', 'createDish', {
+        id: 'ub' + (100 + i), name: '凑数' + i, cat: 'meat',
+        image: 'cloud://demo/dishes/batch' + i + '.jpg'
+      })
+    }
+    tempCalls = []
+    const many = (await call('tl_owner', 'listDishes', {})).data
+    eq('★ 超过 50 个自动分批（不是一次全塞进去）', tempCalls.length, 2)
+    eq('  第一批正好 50 个', tempCalls[0].length, 50)
+    eq('  第二批是剩下的 3 个', tempCalls[1].length, 3)
+    eq('★ 每一批都没超接口上限',
+      tempCalls.every((c) => c.length <= 50), true)
+    eq('  53 张全都换到了', Object.keys(many.temp).length, 53)
   }
 
   /* ---------- 汇总 ---------- */

@@ -990,6 +990,79 @@ function asyncPart() {
     app.refreshDishes()
     eq('清空后总数回到内置数', app.totalDishes(), D.TOTAL)
     eq('清空后连自建菜查询都查不到', D.byId(savedId), null)
+
+    /* ==================== N2. 图片临时链接 ====================
+     * 云存储权限若是「仅创建者可读写」，家人之间就互相看不到菜图；免费版又改不了
+     * 这个权限。所以由云函数把 cloud:// 换成临时链接随菜库一起发下来，
+     * 数据层这里只负责「显示时替换」。
+     *
+     * ★ 这一段盯死三条：
+     *   1. 只替换「显示」这条路（imageOf）。setCustom / overrideOf 里存的必须还是
+     *      原样的 cloud:// —— 链接 1 天就过期，落库等于给自己埋一颗定时炸弹。
+     *   2. 映射里没有的一律原样返回：包内路径、本机路径、这次没换成的 cloud://。
+     *   3. 脏映射（空串 / null / 数字）要被丢掉。让 imageOf 返回空串的话，
+     *      图片会变成「莫名其妙一片空白」，比裂图还难查。
+     *
+     * ★ 还要盯住一件事：这段必须待在**这个回调里面**。N 整段是一条
+     *   `return app.saveDish(...).then(...)`，写在那个 return 之后就成了死代码 ——
+     *   断言加了一堆、一条都不跑，而且不报错（这个坑已经踩过一次）。
+     */
+    S('N2. 图片临时链接（只在显示层替换，绝不落库）')
+
+    D.setTempUrls({})
+    eq('起点：一条映射都没有', D.tempUrlCount(), 0)
+
+    D.setCustom([
+      { id: 'uz001', name: '带云图甲', cat: 'meat', main: '', tips: '', image: 'cloud://demo/x.jpg', mine: true, creatorName: '', createdAt: 1 },
+      { id: 'uz002', name: '没图的', cat: 'veg', main: '', tips: '', image: '', mine: true, creatorName: '', createdAt: 2 },
+      { id: 'uz003', name: '带云图乙', cat: 'soup', main: '', tips: '', image: 'cloud://demo/y.jpg', mine: true, creatorName: '', createdAt: 3 }
+    ])
+
+    eq('还没换链接时显示原始 cloud://', D.imageOf('uz001'), 'cloud://demo/x.jpg')
+
+    var installed = D.setTempUrls({
+      'cloud://demo/x.jpg': 'https://fake.example.com/x.jpg?sign=ok',
+      'cloud://demo/gone.jpg': '',      // 云端换失败：空串
+      'cloud://demo/bad.jpg': null,     // 云端换失败：null
+      'cloud://demo/weird.jpg': 12345   // 脏数据：不是字符串
+    })
+    eq('★ 只认 https 开头的，三条脏数据被丢掉', installed, 1)
+    eq('  映射里就一条', D.tempUrlCount(), 1)
+
+    eq('★ 命中映射的显示临时链接', D.imageOf('uz001'), 'https://fake.example.com/x.jpg?sign=ok')
+    eq('★ 映射里没有的那个 cloud:// 原样返回', D.imageOf('uz003'), 'cloud://demo/y.jpg')
+    eq('★ 没图的菜照旧走占位图', D.imageOf('uz002'), '/images/dish-placeholder.png')
+    ok('★ 包内路径完全不受影响',
+      D.imageOf('hongshaorou').indexOf('/images/dishes/') === 0, D.imageOf('hongshaorou'))
+
+    /* ★ 最要紧的一条：临时链接绝不能污染「存起来的那份」 */
+    eq('★ 自建菜里存的还是原始 fileID',
+      D.customList().filter(function (d) { return d.id === 'uz001' })[0].image, 'cloud://demo/x.jpg')
+    eq('★ byId 拿出来的也是原始 fileID', D.byId('uz001').image, 'cloud://demo/x.jpg')
+    eq('★ 搜出来的同样是原始 fileID',
+      D.search('带云图甲')[0].image, 'cloud://demo/x.jpg')
+
+    /* 房主给内置菜换的图，同样要能换 */
+    D.setOverrides({ hongshaorou: { image: 'cloud://demo/ov.jpg' } })
+    eq('房主换的图还没换链接时是原始值', D.imageOf('hongshaorou'), 'cloud://demo/ov.jpg')
+    D.setTempUrls({ 'cloud://demo/ov.jpg': 'https://fake.example.com/ov.jpg?sign=ok' })
+    eq('★ 房主换的图也能换成临时链接',
+      D.imageOf('hongshaorou'), 'https://fake.example.com/ov.jpg?sign=ok')
+    eq('★ 覆盖层里存的仍是原始 fileID',
+      D.overrideOf('hongshaorou').image, 'cloud://demo/ov.jpg')
+
+    /* 传垃圾只该清空，不该崩 */
+    eq('传 null 只清空不报错', D.setTempUrls(null), 0)
+    eq('  清完一条不剩', D.tempUrlCount(), 0)
+    eq('传数组不认（数组不是合法映射）', D.setTempUrls([1, 2]), 0)
+    eq('传字符串也不认', D.setTempUrls('cloud://x'), 0)
+    eq('  传完还是干净的', D.tempUrlCount(), 0)
+
+    /* 收尾：别把叠加层留给后面的检查 */
+    D.setTempUrls({})
+    D.setOverrides({})
+    D.setCustom([])
+    eq('收尾后菜库回到内置数', D.byCat('all').length, D.TOTAL)
   })
 }
 

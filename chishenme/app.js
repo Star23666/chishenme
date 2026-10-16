@@ -41,6 +41,13 @@ var POLL_MS = 15000
 /** 菜单 tab 在 tabBar 里的下标，用来打角标 */
 var TAB_MENU = 2
 
+/**
+ * 图片临时链接放多久算「该换了」。
+ * 云端换来的链接默认 1 天过期，这里提前到 6 小时 —— 留足余量，
+ * 免得用户刚好在过期的边界上切回前台看到一片裂图。
+ */
+var TEMP_STALE_MS = 6 * 60 * 60 * 1000
+
 App({
 
   globalData: {
@@ -50,7 +57,8 @@ App({
     pollTimer: null,    // 轮询兜底
     listeners: [],      // 页面订阅菜单变化的回调
     pending: 0,         // 在途的写请求数
-    dishesLoaded: false // 自建菜是否已经从服务端拉过
+    dishesLoaded: false, // 自建菜是否已经从服务端拉过
+    tempAt: 0           // 图片临时链接是什么时候换的（只存内存，绝不落 storage）
   },
 
   onLaunch: function () {
@@ -71,6 +79,7 @@ App({
 
   onShow: function () {
     this.startWatch()
+    this._refreshStaleTemp()
   },
 
   onHide: function () {
@@ -506,12 +515,17 @@ App({
     var self = this
     if (this.mode() === 'cloud') {
       if (!this.family()) {
+        this._applyTempUrls(null)
         this._applyOverrides({})
         D.setCustom([])
         this._notify()
         return Promise.resolve(0)
       }
       return cloud.call('listDishes').then(function (data) {
+        // ★ 临时链接先装。它只决定「图显示成什么」，跟可见性无关，早装晚装
+        //   都不会让菜多一道少一道；装在 _applyDishes 之前是为了让紧接着那次
+        //   setData 出去时，图上就已经是能用的链接，而不是先裂一下再补。
+        self._applyTempUrls(data && data.temp)
         // ★ 覆盖层必须先装。它决定「哪些菜可见」，而 _applyDishes 末尾会
         //   重拉一次菜单（刚才那批菜单快照可能比菜库先到）；晚装一步的话，
         //   被房主藏起来的菜会在菜单里多显示一会儿，然后自己消失。
@@ -521,6 +535,7 @@ App({
         // 集合还没建、网络抖动：**保留已经装好的那份**，别把菜清空。
         // 清空的话用户会以为自己的菜丢了，比一次拉取失败严重得多。
         if (e && e.message === 'NO_FAMILY') {
+          self._applyTempUrls(null)
           self._applyOverrides({})
           D.setCustom([])
           self.setFamily(null)
@@ -528,9 +543,36 @@ App({
         return -1
       })
     }
-    // 本地模式：自建菜和覆盖层都从本机读
+    // 本地模式：自建菜和覆盖层都从本机读。图是本机路径 / 包内路径，没有临时链接可言
+    this._applyTempUrls(null)
     this._applyOverrides(this._localOverrides())
     return Promise.resolve(this._applyDishes(this._localDishes()))
+  },
+
+  /**
+   * 装入图片临时链接映射，并记下装入时间（用于判断过没过期）。
+   *
+   * ★ 只在内存里，**绝不写 storage** —— 链接默认 1 天过期，落库就变成死链，
+   *   而且是那种「过一天才发作、还看不出是谁写进去的」的坏账。
+   */
+  _applyTempUrls: function (map) {
+    this.globalData.tempAt = Date.now()
+    return D.setTempUrls(map)
+  },
+
+  /**
+   * 临时链接会过期，App 又可能在后头放很久。切回前台时如果已经放了很久，
+   * 就重拉一次菜库把链接换成新的。
+   *
+   * ★ 只在「之前换过、而且确实过期了」时才拉：tempAt 为 0 表示还没换过，
+   *   那条路启动时本来就会走一次 refreshDishes，这里再拉一遍纯属重复请求。
+   */
+  _refreshStaleTemp: function () {
+    if (this.mode() !== 'cloud' || !this.family()) return
+    var at = this.globalData.tempAt
+    if (!at || Date.now() - at < TEMP_STALE_MS) return
+    // 拉不到就算了，继续用旧链接；下次切回前台还会再试
+    this.refreshDishes().catch(function () { /* 有意为空 */ })
   },
 
   /**

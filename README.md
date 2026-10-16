@@ -39,7 +39,7 @@ cp chishenme/config.example.js chishenme/config.js
 
 ## 怎么验证
 
-改完代码跑这几个脚本，一共 **826 项**断言。不需要连云环境，
+改完代码跑这几个脚本，一共 **865 项**断言。不需要连云环境，
 云函数那部分是用内存假数据库把真实的云函数代码跑一遍。
 
 ```bash
@@ -51,10 +51,10 @@ $NODE .workbuddy/verify/core-test.js          # 114 项
 $NODE .workbuddy/verify/wxml-check.js         #  32 项
 $PY   .workbuddy/tools/check-icon-colors.py   #   8 项
 
-# 今天吃啥（合计 672 项）
-$NODE .workbuddy/verify/chishenme/core-test.js     # 314 项
+# 今天吃啥（合计 711 项）
+$NODE .workbuddy/verify/chishenme/core-test.js     # 334 项
 $NODE .workbuddy/verify/chishenme/wxml-check.js    #  78 项
-$NODE .workbuddy/verify/chishenme/cloud-test.js    # 260 项
+$NODE .workbuddy/verify/chishenme/cloud-test.js    # 279 项
 $PY   .workbuddy/verify/chishenme/check-images.py  #  20 项
 ```
 
@@ -172,6 +172,22 @@ git push
   匹配范围是**菜名 + 主料**，菜名命中的排在前面；点一下分类就退出搜索。
   ★ 匹配和排序规则放在 `data/dishes.js` 的 `search()` 里而不是页面里 ——
   这条规则写错了**不会报错**，只会「搜出来的顺序怪怪的」，放数据层才能被 core-test 守住。
+
+照片是怎么送到手机上的（这里藏着一个很不显眼的坑）：
+
+- 云开发有**两套互相独立的权限**：数据库的和云存储的。菜名存在数据库里、照片存在
+  云存储里，**只改数据库权限对照片没有任何帮助**。
+- 这个环境的云存储权限是「仅创建者及管理员可读写」，于是**家人读不到别人传的照片** ——
+  客户端直接读会报 `STORAGE_EXCEED_AUTHORITY`，开发者工具里只留一行
+  `Failed to load image .../cloud://...` + `net::OK`，一点都不像权限问题。
+  而**免费版云开发不给改这个开关**，控制台会拦下来提示升级付费版。
+- 所以绕过去：**由云函数去换链接**。云函数是管理员身份，安全规则只约束客户端、管不着它。
+  `listDishes` 顺手把这次要返回的所有 `cloud://` 换成带签名的 `https://` 临时链接
+  一起发下来（超过 50 个自动分批），前端**只在显示的那一刻替换**（`imageOf` 一处）。
+- ★ 临时链接**绝不写进任何存储**。它默认 1 天过期，落库就是给自己埋一颗定时炸弹；
+  本机缓存和云端记录里存的永远还是 `cloud://`。切回前台超过 6 小时自动重拉一次。
+- 顺带解决一个隐患：安卓真机上有「`<image>` 渲染不了 `cloud://`」的反馈，
+  现在交给渲染层的是普通 `https://` 地址，那条路也一起绕过去了。
 
 实现上有一点值得记：内置菜、自己加的菜、房主对内置菜的改动**没有分成三套代码**，
 而是在 `data/dishes.js` 里做了两层**运行时叠加** —— `byId` / `byCat` / `imageOf` /

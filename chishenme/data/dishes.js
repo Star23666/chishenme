@@ -257,6 +257,61 @@ function countHidden() {
   return n
 }
 
+/* ==================== 云存储图片的「临时链接」 ====================
+ *
+ * ── 为什么需要这一层 ──
+ * 云存储有自己的一套权限，跟数据库权限无关。如果它是「仅创建者及管理员可读写」，
+ * 那么**家人之间互相看不到对方上传的菜图** —— 客户端直接读别人的 cloud:// 会报
+ * `STORAGE_EXCEED_AUTHORITY`，在开发者工具里表现成一行
+ * `Failed to load image .../cloud://... net::OK`，极其不像「权限问题」。
+ *
+ * 而我们的云开发是**免费环境，控制台不给改存储权限**（会提示升级付费版）。
+ * 于是换个方向：**云函数是管理员身份，安全规则只管客户端，管不着他**。
+ * 让云函数调 getTempFileURL 把 cloud:// 换成带签名的 https 临时链接，
+ * 随 listDishes 一起发下来，这里负责**显示时替换**。
+ *
+ * ── 两条不能破的规矩 ──
+ *   1. **临时链接绝不写进任何持久化的数据**（本机缓存 / 云端记录一条都不行）。
+ *      它默认 1 天就过期，写进去过一天就变成一堆死链，而且没人会想到来这儿找原因。
+ *      所以只管「读时替换」，CUSTOM / OVERRIDES 里存的永远是原样的 cloud://。
+ *   2. 映射里没有的一律**原样返回** —— 包内路径、本机路径、以及这次没换成功的
+ *      cloud:// 全走这条路。最差也只是「这张图暂时看不到」，不会让整页崩掉。
+ */
+var TEMP_URL = {}
+
+/**
+ * 装入云端发下来的 { fileID: 临时链接 } 映射（整批替换，不是追加）。
+ * 只认 https:// 开头的字符串：云端换失败的那些位置会是空值，别让它们进映射，
+ * 否则 imageOf 会返回一个空串，图片变成一片空白而看不出是为什么。
+ * 返回装进去几条，方便测试断言。
+ */
+function setTempUrls(map) {
+  TEMP_URL = {}
+  if (!map || typeof map !== 'object' || (map instanceof Array)) return 0
+  var n = 0
+  for (var k in map) {
+    var v = map[k]
+    if (typeof v === 'string' && v.indexOf('https://') === 0) {
+      TEMP_URL[k] = v
+      n++
+    }
+  }
+  return n
+}
+
+/** 显示用：能换成临时链接就换，换不了（不在映射里）就原样返回 */
+function tempOf(raw) {
+  if (!raw) return raw
+  return TEMP_URL[raw] || raw
+}
+
+/** 当前装了几条映射 */
+function tempUrlCount() {
+  var n = 0
+  for (var k in TEMP_URL) n++
+  return n
+}
+
 module.exports = {
   CATS: CATS,
   DISHES: DISHES,
@@ -281,12 +336,22 @@ module.exports = {
     return CAT_NAME[cat] || '其他'
   },
 
+  /**
+   * 这道菜该显示哪张图。
+   *
+   * ★ 所有页面（菜单 / 菜库 / 点菜 / 摇一摇 / 收藏 / edit 的预览）
+   *   都只经这一个函数取图，所以「cloud:// → 临时链接」的替换放在这里，
+   *   六处调用一行都不用改，将来加页面也不会漏。
+   *
+   * 只有「可能存着 cloud://」的两条分支要走替换；包内路径是本地的，
+   * 绕过去更省事（而且临时链接永远不会以 /images/ 开头，不会误伤）。
+   */
   imageOf: function (id) {
     var c = CUSTOM_MAP[id]
-    if (c) return c.image || NO_PHOTO
+    if (c) return c.image ? tempOf(c.image) : NO_PHOTO
     // 房主给内置菜换过图就用那张；没换过（image 为空串）仍然用包里那张原图
     var o = OVERRIDES[id]
-    if (o && o.image) return o.image
+    if (o && o.image) return tempOf(o.image)
     return '/images/dishes/' + id + '.jpg'
   },
 
@@ -343,6 +408,21 @@ module.exports = {
   /** 这道菜是不是内置的 80 道之一 */
   isBuiltin: function (id) {
     return !!MAP[id]
+  },
+
+  /* ---------- 云存储图片的临时链接 ---------- */
+
+  /**
+   * 装入云端换好的 { fileID: 临时链接 }。
+   * 约定：**只用于显示**，永远不要把这个映射里的值写进任何存储。
+   */
+  setTempUrls: function (map) {
+    return setTempUrls(map)
+  },
+
+  /** 当前有几条临时链接（测试用） */
+  tempUrlCount: function () {
+    return tempUrlCount()
   },
 
   /* ---------- 房主对内置菜的改动 ---------- */

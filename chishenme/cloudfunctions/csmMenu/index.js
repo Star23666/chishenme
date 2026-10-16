@@ -25,6 +25,10 @@
  *                 ★ 内置的 80 道菜本身写死在小程序包里（data/dishes.js + images/dishes/*.jpg），
  *                   这个集合里存的只是「房主把哪几道改了 / 藏了」。
  *                 ★ 图片存的是云存储文件 ID（cloud://...），不占数据库体积。
+ *                 ★ 免费版环境的「云存储权限」改不动，客户端直接读**别人**传的图会报
+ *                   STORAGE_EXCEED_AUTHORITY（表现是「家人互相看不到菜图」）。所以
+ *                   listDishes 用管理员身份把 cloud:// 换成**临时链接**一起发下去，
+ *                   客户端只拿它显示、绝不落库（见 signImages）。
  *                 ★ 这个集合的读写**全部**经过云函数，客户端不直连它：
  *                   菜单为了 watch 实时推送必须直连，菜谱不需要实时，
  *                   少开一条直连通道就少一份权限要配。
@@ -88,6 +92,9 @@ const MAX_DISHES = 100              // 一个家最多自己加多少道，防�
 const CUSTOM_ID = /^u[a-z0-9]{2,38}$/      // 和 createDish 里那条**必须**保持一致
 const BUILTIN_ID = /^[a-z][a-z0-9]{2,39}$/
 const MAX_OVERRIDES = 100           // 内置菜一共 80 道，留点余量防脏数据堆积
+
+/* getTempFileURL 一次最多换几个（接口硬上限 50） */
+const SIGN_BATCH = 50
 
 /** 这个 id 看起来像不像一道内置菜 */
 function isBuiltinId(id) {
@@ -487,10 +494,51 @@ async function listMenu(openid) {
 /* ---------------- 用户自建菜 ---------------- */
 
 /**
+ * 把一批 cloud:// 文件 ID 换成带签名的 https 临时链接，返回 { fileID: 链接 }。
+ *
+ * ── 为什么必须由云函数来做这件事 ──
+ * 云存储有自己的一套权限。如果是「仅创建者及管理员可读写」，**客户端直接读别人的图
+ * 会报 STORAGE_EXCEED_AUTHORITY** —— 结果就是家人之间互相看不到对方上传的菜图。
+ * 而免费版云开发环境**改不了这个权限**（控制台会拦，提示升级付费版）。
+ * 云函数是管理员身份，安全规则只约束客户端、管不着他，所以这里换出来的链接是能用的。
+ *
+ * ── 三条注意 ──
+ *   1. 换到的链接**默认 1 天过期**，所以它只随本次响应发下去给客户端「显示」用，
+ *      **绝不写进数据库**。客户端那边也只存在内存里（见 data/dishes.js 的 TEMP_URL）。
+ *   2. 换不到就不进映射（客户端会退回原始 cloud://，表现是「这张图暂时看不到」），
+ *      **绝不抛错** —— 菜名分类这些文字信息比一张图重要得多，
+ *      不能因为换图失败就让整个菜库打不开。
+ *   3. 同一个 fileID 只问一次（家人可能好几道菜共用一张图）。
+ */
+async function signImages(fileIDs) {
+  const map = {}
+  const uniq = []
+  for (let i = 0; i < fileIDs.length; i++) {
+    const f = fileIDs[i]
+    if (typeof f === 'string' && f.indexOf('cloud://') === 0 && uniq.indexOf(f) < 0) uniq.push(f)
+  }
+  for (let s = 0; s < uniq.length; s += SIGN_BATCH) {
+    try {
+      const r = await cloud.getTempFileURL({ fileList: uniq.slice(s, s + SIGN_BATCH) })
+      const got = (r && r.fileList) || []
+      for (let i = 0; i < got.length; i++) {
+        const x = got[i]
+        // status 为 0 才是真换到了；失败的那条 errMsg 各异，一律跳过
+        if (x && x.status === 0 && x.tempFileURL) map[x.fileID] = x.tempFileURL
+      }
+    } catch (e) {
+      // 整批失败也只当没换成，继续下一批
+    }
+  }
+  return map
+}
+
+/**
  * 列出本房间的菜库：自己加的菜 + 房主对内置菜的改动。
  * ★ 只按 familyCode 过滤 —— 别的家的菜一道都不能漏出来。
  * ★ 两种记录放在同一个集合里，靠 builtin 标记拆开。一次拉回来在内存里分，
  *   比查两次少一个来回；数量上限就是两个上限之和，够用。
+ * ★ temp 是「图片临时链接映射」，只给客户端显示用，别写进任何记录（会过期）。
  */
 async function listDishes(openid) {
   const fam = await requireFamily(openid)
@@ -506,7 +554,11 @@ async function listDishes(openid) {
     if (d.builtin === true) overrides[d.dishId] = publicOverride(d)
     else list.push(publicDish(d, openid))
   }
-  return ok({ list: list, overrides: overrides })
+  // 两种记录里的图都要换：房主给内置菜换的图同样可能是别人传的
+  const images = list.map(function (d) { return d.image })
+  for (const k in overrides) images.push(overrides[k].image)
+  const temp = await signImages(images)
+  return ok({ list: list, overrides: overrides, temp: temp })
 }
 
 async function findDishDoc(familyCode, dishId) {
