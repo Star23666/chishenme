@@ -39,7 +39,7 @@ cp chishenme/config.example.js chishenme/config.js
 
 ## 怎么验证
 
-改完代码跑这几个脚本，一共 **725 项**断言。不需要连云环境，
+改完代码跑这几个脚本，一共 **736 项**断言。不需要连云环境，
 云函数那部分是用内存假数据库把真实的云函数代码跑一遍。
 
 ```bash
@@ -51,8 +51,8 @@ $NODE .workbuddy/verify/core-test.js          # 114 项
 $NODE .workbuddy/verify/wxml-check.js         #  32 项
 $PY   .workbuddy/tools/check-icon-colors.py   #   8 项
 
-# 今天吃啥（合计 571 项）
-$NODE .workbuddy/verify/chishenme/core-test.js     # 260 项
+# 今天吃啥（合计 582 项）
+$NODE .workbuddy/verify/chishenme/core-test.js     # 271 项
 $NODE .workbuddy/verify/chishenme/wxml-check.js    #  78 项
 $NODE .workbuddy/verify/chishenme/cloud-test.js    # 213 项
 $PY   .workbuddy/verify/chishenme/check-images.py  #  20 项
@@ -156,6 +156,10 @@ git push
 - **只有加这道菜的人**能改它、删它。别人加的菜你一样能点、能收藏，只是改不了。
 - 云模式删菜时，会**连这道菜在当日菜单里的记录、以及云存储里的那张图**一起清掉，
   顺序也是「先摘菜单 → 再删图 → 最后删菜」，不留孤儿数据。
+- 菜库页顶部有个**搜索框**：输「鸡」能同时搜到内置的「宫保鸡丁」和你自己加的菜。
+  匹配范围是**菜名 + 主料**，菜名命中的排在前面；点一下分类就退出搜索。
+  ★ 匹配和排序规则放在 `data/dishes.js` 的 `search()` 里而不是页面里 ——
+  这条规则写错了**不会报错**，只会「搜出来的顺序怪怪的」，放数据层才能被 core-test 守住。
 
 实现上有一点值得记：内置菜和自建菜没有分成两套代码，而是在 `data/dishes.js`
 里做了一层**运行时叠加** —— `byId` / `byCat` / `imageOf` 自动把两层合起来。

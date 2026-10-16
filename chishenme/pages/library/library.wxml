@@ -1,5 +1,19 @@
-<!-- 菜库：分类筛选 + 卡片网格 + 详情弹层 -->
+<!-- 菜库：搜索 + 分类筛选 + 卡片网格 + 详情弹层 -->
 <view class="page">
+
+  <view class="topbar">
+    <view class="search">
+      <input
+        class="search-input"
+        value="{{kw}}"
+        placeholder="搜菜名或主料，比如「鸡」"
+        placeholder-class="ph"
+        confirm-type="search"
+        bindinput="onSearch"
+      />
+      <view wx:if="{{kw}}" class="search-clear" bindtap="clearSearch">✕</view>
+    </view>
+  </view>
 
   <view class="head">
     <scroll-view class="cat-bar" scroll-x="true" scroll-with-animation="true">
@@ -17,7 +31,7 @@
   <view class="grid">
     <view
       class="dish-card"
-      wx:for="{{list}}"
+      wx:for="{{shown}}"
       wx:key="id"
       data-id="{{item.id}}"
       bindtap="openDetail"
@@ -32,7 +46,9 @@
     </view>
   </view>
 
-  <view class="tip">长按菜品可收藏 / 取消收藏 · 本菜库共 {{total}} 道</view>
+  <view class="empty" wx:if="{{emptyText}}">{{emptyText}}</view>
+
+  <view class="tip">{{tipText}}</view>
   <view class="safe-bottom"></view>
 
   <view class="mask" wx:if="{{detailVisible}}" bindtap="closeDetail">

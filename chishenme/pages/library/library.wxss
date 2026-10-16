@@ -2,6 +2,51 @@
   min-height: 100vh;
 }
 
+/* ---------- 搜索框 ----------
+   和下面的分类条同属「白色头部」，中间不画分隔线，看起来是一整块。
+   搜索时是**全库搜**（内置菜 + 自己加的菜），不受下面选中的分类限制；
+   点一下分类就会自动退出搜索。 */
+.topbar {
+  background: var(--c-surface);
+  padding: 16rpx 24rpx 0;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  height: 76rpx;
+  padding: 0 10rpx 0 24rpx;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-sunk);
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  /* ★ 微信的 <input> 自带 height:1.4rem 默认样式。这里既然写了 box-sizing，
+     就必须显式给 height —— 否则内容区会算成负值，模拟器、浏览器复刻、
+     静态检查**全都看不出来**，只有真机上整行字被裁掉。
+     （wxml-check.js 的 F2 把这条锁住了） */
+  box-sizing: border-box;
+  height: 76rpx;
+  font-size: var(--t-sub);
+  color: var(--c-ink);
+}
+
+/* 清空按钮做成圆底而不是一个光秃秃的 ✕：
+   纯字符在真机上只有十几像素宽，很难点中。 */
+.search-clear {
+  flex-shrink: 0;
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: var(--c-line-strong);
+  color: var(--c-surface);
+  font-size: var(--t-cap);
+}
+
 /* ---------- 顶部：分类条 + 加菜 ----------
    分类条和「＋ 加菜」共处一行。分类条是 scroll-view，
    必须 flex:1 + min-width:0 + overflow:hidden 才肯收缩 ——
@@ -84,6 +129,15 @@
   background: rgba(255, 112, 67, 0.94);
   color: #FFFFFF;
   font-size: var(--t-tag);
+}
+
+/* 搜不到时的提示 */
+.empty {
+  text-align: center;
+  color: var(--c-ink-3);
+  font-size: var(--t-sub);
+  line-height: 1.7;
+  padding: 100rpx 60rpx 20rpx;
 }
 
 .tip {

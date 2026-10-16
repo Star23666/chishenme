@@ -207,6 +207,37 @@ module.exports = {
     return '/images/dishes/' + id + '.jpg'
   },
 
+  /**
+   * 按关键词找菜（内置的 80 道和自己加的菜一起找）。
+   *
+   * 只看「菜名」和「主料」两处 —— 这两个是用户记得住的；
+   * 搜「要点」那种长句子基本没人会用，还会把结果搅乱。
+   *
+   * ★ 菜名命中的必须排在主料命中的前面：搜「鸡」的时候想要的是
+   *   「宫保鸡丁」，而不是随便哪道主料里带个鸡字的菜。
+   *
+   * ★ 这条规则放在数据层、不放在页面里，是因为它写错了**不会报错**，
+   *   只会「搜出来的顺序怪怪的」，很难被注意到。放这儿才能被
+   *   core-test 的断言长期守住。
+   */
+  search: function (kw) {
+    var k = String(kw || '').trim().toLowerCase()
+    var all = DISHES.slice().concat(CUSTOM)
+    if (!k) return all        // 空关键词 = 没有筛选条件
+
+    var byName = []
+    var byMain = []
+    for (var i = 0; i < all.length; i++) {
+      var d = all[i]
+      if (String(d.name || '').toLowerCase().indexOf(k) >= 0) {
+        byName.push(d)
+      } else if (String(d.main || '').toLowerCase().indexOf(k) >= 0) {
+        byMain.push(d)
+      }
+    }
+    return byName.concat(byMain)
+  },
+
   /* ---------- 自建菜 ---------- */
 
   /** 装入用户自建菜（整批替换，不是追加） */

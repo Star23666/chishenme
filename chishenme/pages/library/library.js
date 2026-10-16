@@ -6,8 +6,12 @@ Page({
   data: {
     cats: [],
     activeCat: 'all',
-    list: [],
+    list: [],        // 当前分类下的全部菜
+    shown: [],       // 真正渲染的那个数组：搜索时是搜索结果
+    kw: '',          // 搜索词
     total: 0,
+    tipText: '',
+    emptyText: '',   // 搜不到时的提示，非空才显示
     detail: null,
     detailVisible: false
   },
@@ -26,9 +30,8 @@ Page({
     })
   },
 
-  /** 按分类重建列表（附带图片路径与收藏状态） */
-  refresh: function (cat) {
-    var src = D.byCat(cat)
+  /** 把菜品原始对象转成界面要用的形状（补上图片路径与收藏状态） */
+  decorate: function (src) {
     var out = []
     for (var i = 0; i < src.length; i++) {
       out.push({
@@ -41,11 +44,67 @@ Page({
         fav: app.isFav(src[i].id)
       })
     }
+    return out
+  },
+
+  /** 按分类重建列表 */
+  refresh: function (cat) {
     // 道数用 app.totalDishes()（内置 + 自建），不要用 D.TOTAL（那只是内置的 80 道）
-    this.setData({ list: out, activeCat: cat, total: app.totalDishes() })
+    this.setData({
+      list: this.decorate(D.byCat(cat)),
+      activeCat: cat,
+      total: app.totalDishes()
+    })
+    this.apply()
+  },
+
+  /**
+   * 决定此刻该显示什么：有搜索词就显示搜索结果，否则显示当前分类。
+   *
+   * 单独抽出来是因为「收藏 / 取消收藏 / 删菜 / 从别的页切回来」都会动到底层数据，
+   * 每一处都手写一遍显示逻辑，迟早会漏掉一个分支（并且不会报错，只是显示不对）。
+   */
+  apply: function () {
+    var kw = this.data.kw
+    var shown = kw ? this.search(kw) : this.data.list
+    var total = app.totalDishes()
+
+    var tipText = '长按菜品可收藏 / 取消收藏 · 本菜库共 ' + total + ' 道'
+    var emptyText = ''
+    if (kw) {
+      if (shown.length) {
+        tipText = '「' + kw + '」找到 ' + shown.length + ' 道'
+      } else {
+        tipText = ''
+        emptyText = '没找到「' + kw + '」。换个词试试，或者直接加一道'
+      }
+    }
+
+    this.setData({ shown: shown, total: total, tipText: tipText, emptyText: emptyText })
+  },
+
+  /**
+   * 搜索结果。匹配和排序规则在数据层的 D.search 里 ——
+   * 那边有 core-test 的断言守着，页面这层只负责把结果转成界面形状。
+   */
+  search: function (kw) {
+    return this.decorate(D.search(kw))
+  },
+
+  onSearch: function (e) {
+    // setData 会**同步**更新 this.data，所以紧接着的 apply() 能读到新的 kw
+    this.setData({ kw: String((e.detail && e.detail.value) || '') })
+    this.apply()
+  },
+
+  clearSearch: function () {
+    this.setData({ kw: '' })
+    this.apply()
   },
 
   switchCat: function (e) {
+    // 点分类 = 明确退出搜索。否则用户切了分类却发现列表没变，只会觉得坏了
+    this.setData({ kw: '' })
     this.refresh(e.currentTarget.dataset.cat)
   },
 

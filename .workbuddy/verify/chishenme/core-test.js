@@ -695,6 +695,66 @@ ok('字符串形态的错误也能翻译',
   cloudUtil.friendly('cgi fail(1,-10090)').indexOf('照片没传上去') >= 0,
   cloudUtil.friendly('cgi fail(1,-10090)'))
 
+/* ==================== M2. 菜库搜索 ==================== */
+
+S('M2. 菜库搜索（菜名优先，其次主料）')
+
+/*
+ * 搜「鸡」的时候想要的是「宫保鸡丁」，而不是随便哪道主料里带个鸡字的菜。
+ * ★ 这条排序规则错了**不会报错**，只会「搜出来的顺序怪怪的」——
+ *   很难被人发现，所以必须钉死。
+ */
+var hitChicken = D.search('鸡')
+ok('搜「鸡」有结果', hitChicken.length > 0, hitChicken.length)
+
+var nameHitCount = 0
+var seenMainHit = false
+var orderOk = true
+for (var si = 0; si < hitChicken.length; si++) {
+  var sName = String(hitChicken[si].name || '')
+  var sMain = String(hitChicken[si].main || '')
+  if (sName.indexOf('鸡') >= 0) {
+    nameHitCount++
+    if (seenMainHit) orderOk = false      // 名字命中的跑到了主料命中的后面
+  } else if (sMain.indexOf('鸡') >= 0) {
+    seenMainHit = true
+  } else {
+    orderOk = false                       // 结果里混进了毫不相关的菜
+  }
+}
+ok('菜名命中的全部排在主料命中的前面', orderOk,
+  hitChicken.map(function (d) { return d.name }).join(' / '))
+ok('确实两种命中都有（否则这条排序等于没验）', nameHitCount > 0 && seenMainHit,
+  '菜名命中 ' + nameHitCount + ' 道，主料命中 ' + (hitChicken.length - nameHitCount) + ' 道')
+
+eq('搜不到时返回空数组', D.search('zzzzqqq不存在的词').length, 0)
+eq('空关键词 = 不过滤，返回全部', D.search('').length, D.totalAll())
+eq('只有空格也算空关键词', D.search('   ').length, D.totalAll())
+eq('搜索忽略大小写', D.search('ABC').length, D.search('abc').length)
+
+/*
+ * ★ 「全库搜」的意义就在这条：自己加的菜必须也能被搜到。
+ *   下面用一道内置菜库里**根本不存在的**菜来验证，
+ *   并顺带断言「内置菜里确实没有这两个字」—— 否则这条测试等于自欺欺人。
+ */
+var SEARCH_TEST_ID = 'usearchtest'
+D.setCustom([{
+  id: SEARCH_TEST_ID, name: '清炒西葫芦', cat: 'veg',
+  main: '西葫芦、蒜', tips: '', image: '', mine: true
+}])
+
+eq('内置菜里确实没有「葫芦」二字（前置条件）',
+  D.DISHES.filter(function (d) { return d.name.indexOf('葫芦') >= 0 }).length, 0)
+
+var hitCustom = D.search('葫芦')
+eq('自己加的菜也能被搜到', hitCustom.length, 1)
+eq('  搜到的正是它', hitCustom[0] && hitCustom[0].id, SEARCH_TEST_ID)
+
+var hitXi = D.search('西葫')
+eq('搜自建菜独有的词只返回那一道', hitXi.length, 1)
+
+D.setCustom([])   // 收尾，别把这个状态留给后面的测试段
+
 /* ==================== N. 用户自建菜（本地模式） ==================== */
 
 /*
