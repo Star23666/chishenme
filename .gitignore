@@ -21,6 +21,8 @@ project.private.config.json
 .workbuddy/tmp/
 # 排查问题时随手截的图，散在 .workbuddy/ 根目录下（前缀 tmp-）
 .workbuddy/tmp-*
+# 模拟器截图产物（sim-shot.js / sim-dish-check.js 的输出，每次跑都变）
+.workbuddy/sim/
 
 # ── 系统与编辑器垃圾文件 ─────────────────────────────────
 .DS_Store
