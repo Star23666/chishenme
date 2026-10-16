@@ -66,7 +66,7 @@
 
   <view class="foot">
     <view class="btn-primary {{saving ? 'disabled' : ''}}" bindtap="save">{{isNew ? '加入菜库' : '保存修改'}}</view>
-    <view class="foot-note">{{isNew ? '加好的菜全家人都能看到，也能直接点' : '改的是同一道菜，大家点的还是它'}}</view>
+    <view class="foot-note">{{isNew ? '加好的菜全家人都能看到，也能直接点' : (isBuiltin ? '这是内置的菜，改完之后全家人都看到你的改法' : '改的是同一道菜，大家点的还是它')}}</view>
   </view>
 
   <view class="safe-bottom"></view>

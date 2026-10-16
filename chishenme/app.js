@@ -112,6 +112,19 @@ App({
     return storage.get(storage.KEY_NICK, '') || ''
   },
 
+  /**
+   * 我是不是这个家的房主。
+   * ★ 本地模式没有「家」的概念，本机上的菜谱本来就只有自己看 ——
+   *   这时候把「房主」当成自己，改删内置菜就能用，不会出现
+   *   「配了云开发才多出一半功能」的割裂。
+   * ★ 这里只用来决定「按钮显不显示」。真正拦阻的判定在云函数里。
+   */
+  isOwner: function () {
+    if (this.mode() !== 'cloud') return true
+    var f = this.family()
+    return !!(f && f.isOwner)
+  },
+
   /** 写入家庭缓存并联动 watch / 菜单刷新 */
   setFamily: function (fam) {
     if (fam && fam.code) {
@@ -404,11 +417,15 @@ App({
 
   /* ==================== 用户自建菜 ====================
    *
-   * 内置 80 道是写死在包里的、只读；用户自己加的菜是另一条路：
+   * 内置 80 道写死在包里、出厂只读；用户自己加的菜是另一条路：
    *   cloud 模式 -> 云数据库 csm_dishes，全家人共享
    *   local 模式 -> 本机存储，只有这台手机看得见
    * 两条路都归一成同一个形状后交给 data/dishes.js 的叠加层，
    * 所以菜单页、点菜页、收藏页、摇一摇**一行都不用改**。
+   *
+   * ★ 房主对内置菜的改动走的是**同一个集合、同一个叠加层**：
+   *   那边的记录长着内置菜的 id（hongshaorou 这种），这边的长着 u 开头的 id，
+   *   靠一个 builtin 标记分开，见下面「房主对内置菜的改动」一段。
    */
 
   /** 自建菜清单（副本） */
@@ -423,13 +440,18 @@ App({
 
   /**
    * 能不能编辑 / 删除这道菜。
+   *   - 自己加的菜：能
+   *   - 内置的 80 道：房主能（改名字 / 做法 / 分类，或者藏起来）
+   *   - 别人加的菜：不能
    * ★ 这只是界面上的方便（决定要不要显示那两个按钮），真正的拦阻在云函数里 ——
    *   改一行 wxml 就能让按钮出现，但服务端照样会拒绝。
    */
   canEditDish: function (id) {
     var d = D.byId(id)
-    if (!d || !D.isCustom(id)) return false
-    return d.mine !== false
+    if (!d) return false
+    if (D.isCustom(id)) return d.mine !== false
+    // 内置菜：只有房主能改。本地模式下 isOwner() 恒为真
+    return D.isBuiltin(id) && this.isOwner()
   },
 
   /** 给新菜预留一个 id（传图时要用它命名云存储文件） */
@@ -479,27 +501,35 @@ App({
     return list.length
   },
 
-  /** 重新拉一遍自建菜 */
+  /** 重新拉一遍自建菜和房主的内置菜改动 */
   refreshDishes: function () {
     var self = this
     if (this.mode() === 'cloud') {
       if (!this.family()) {
+        this._applyOverrides({})
         D.setCustom([])
         this._notify()
         return Promise.resolve(0)
       }
       return cloud.call('listDishes').then(function (data) {
+        // ★ 覆盖层必须先装。它决定「哪些菜可见」，而 _applyDishes 末尾会
+        //   重拉一次菜单（刚才那批菜单快照可能比菜库先到）；晚装一步的话，
+        //   被房主藏起来的菜会在菜单里多显示一会儿，然后自己消失。
+        self._applyOverrides((data && data.overrides) || {})
         return self._applyDishes((data && data.list) || [])
       }).catch(function (e) {
         // 集合还没建、网络抖动：**保留已经装好的那份**，别把菜清空。
         // 清空的话用户会以为自己的菜丢了，比一次拉取失败严重得多。
         if (e && e.message === 'NO_FAMILY') {
+          self._applyOverrides({})
           D.setCustom([])
           self.setFamily(null)
         }
         return -1
       })
     }
+    // 本地模式：自建菜和覆盖层都从本机读
+    this._applyOverrides(this._localOverrides())
     return Promise.resolve(this._applyDishes(this._localDishes()))
   },
 
@@ -540,7 +570,9 @@ App({
   },
 
   /**
-   * 新增或修改一道自建菜。
+   * 新增或修改一道菜。
+   *   - id 是 u 开头的自建菜 id（或者压根没传 id）-> 走自建菜那条路
+   *   - id 是内置菜的 id（hongshaorou 这种）-> 给房主记一条改动
    * payload: { id?, name, cat, main, tips, image }，image 必须是已经准备好
    * 的长期引用（先调 prepareDishImage）。
    * 返回 Promise<保存后的记录>。
@@ -559,21 +591,30 @@ App({
       image: p.image || ''
     }
     var self = this
+    // ★ 内置菜是「改一道本来就有的菜」，不是新加一道。
+    //   createDish / updateDish 都只认自建菜（云函数会把不合格的 id 就地重造成
+    //   u 开头的新 id），拿内置 id 去调这两个会一路走到「这道菜已经不在了」——
+    //   看起来像「改不了」，其实是走错了接口。
+    var isBuiltin = D.isBuiltin(id)
 
     if (this.mode() === 'cloud') {
-      // ★ 两个 action 名必须**字面量写出来**，不能拼：
+      // ★ 三个 action 名都必须**字面量写出来**，不能拼：
       //   wxml-check.js 的 G5 靠正则扫 app.js，确认「前端调的每个 action
-      //   云函数里都真的存在」。写成 cloud.call(p.id ? 'a' : 'b') 就扫不到了，
+      //   云函数里都真的存在」。写成 cloud.call(isBuiltin ? 'a' : 'b') 就扫不到了，
       //   将来云函数改名 / 漏改时那条检查会静默失效。
-      var req = p.id
-        ? cloud.call('updateDish', rec)
-        : cloud.call('createDish', rec)
+      var req
+      if (isBuiltin) req = cloud.call('updateBuiltin', rec)
+      else if (p.id) req = cloud.call('updateDish', rec)
+      else req = cloud.call('createDish', rec)
       return req.then(function () {
         return self.refreshDishes()
       }).then(function () {
         return rec
       })
     }
+
+    // 本地模式下的内置菜改动：另存一份记录，不和自建菜混在一起
+    if (isBuiltin) return this._saveLocalBuiltin(id, rec)
 
     // 本地模式：整表读出来改完写回去（数据量很小，不值得做增量）
     var list = this._localDishes()
@@ -601,9 +642,15 @@ App({
     return Promise.resolve(rec)
   },
 
-  /** 删除一道自建菜（只有自己加的能删） */
+  /**
+   * 把一道菜从菜库里去掉。
+   *   - 自己加的菜：真的从库里删掉（连带云存储里的图和今天菜单里的条目）
+   *   - 内置的 80 道：**删不掉** —— 数据和图都打在小程序包里，没法只删一台
+   *     手机上的那一份。所以走 hideBuiltin，改成对全家隐藏，房主随时能恢复。
+   */
   deleteDish: function (id) {
-    if (!this.canEditDish(id)) return Promise.reject(new Error('只能删自己加的菜'))
+    if (!this.canEditDish(id)) return Promise.reject(new Error('这道菜删不了'))
+    if (D.isBuiltin(id)) return this.hideBuiltin(id)
     var self = this
 
     if (this.mode() === 'cloud') {
@@ -644,6 +691,129 @@ App({
     this._notify()
     if (this.mode() === 'cloud') this._push('setQty', { dishId: id, qty: 0 })
     return true
+  },
+
+  /* ==================== 房主对内置菜的改动 ====================
+   *
+   * 内置的 80 道菜写死在 data/dishes.js 里，图片也打在小程序包里，
+   * 物理上删不掉 —— 所以这里能做的只有两件事：
+   *   改：记一条覆盖（名字 / 主料 / 要点 / 分类 / 换图），叠在原菜上显示
+   *   删：记一条「藏起来」，对全家人都不出现，房主随时能恢复
+   *
+   * 覆盖记录和自建菜存在**同一个集合** csm_dishes 里，靠 builtin 标记分开：
+   * 自建菜的 dishId 一定以 u 开头，内置菜的 dishId 就是它自己的英文 id
+   * （hongshaorou 这种）。两种记录都经 data/dishes.js 的叠加层生效，
+   * 所以菜单页、点菜页、收藏页、摇一摇依然一行都不用改。
+   */
+
+  /** 本地模式下房主对内置菜的改动（云模式下始终为空，别在这里判断模式） */
+  _localOverrides: function () {
+    var m = storage.get(storage.KEY_BUILTIN, null)
+    if (!m || typeof m !== 'object' || (m instanceof Array)) return {}
+    return m
+  },
+
+  /** 把覆盖层归一化后装进菜库 */
+  _applyOverrides: function (raw) {
+    return D.setOverrides(raw)
+  },
+
+  /** 本地模式：把房主对一道内置菜的改动记在本机 */
+  _saveLocalBuiltin: function (id, rec) {
+    var m = this._localOverrides()
+    var prev = m[id] || {}
+    m[id] = {
+      name: rec.name,
+      cat: rec.cat,
+      main: rec.main,
+      tips: rec.tips,
+      // ★ 没带新图时保留旧的那张。空串表示「没换过图，还用包里那张原图」——
+      //   无脑覆盖的话，改一次菜名就把房主之前换的图弄丢了。
+      image: rec.image || prev.image || '',
+      // 改一道已经藏起来的菜，不该顺手把它放出来
+      hidden: prev.hidden === true
+    }
+    if (!storage.set(storage.KEY_BUILTIN, m)) {
+      return Promise.reject(new Error('本机存储写不进去了，先清一点空间'))
+    }
+    this._applyOverrides(m)
+    this._notify()
+    return Promise.resolve(rec)
+  },
+
+  /** 被房主藏起来的内置菜（「恢复内置菜」那个入口用） */
+  hiddenBuiltin: function () {
+    return D.hiddenBuiltin('all')
+  },
+
+  /** 被房主藏起来的内置菜有几道 */
+  hiddenBuiltinCount: function () {
+    return D.hiddenCount()
+  },
+
+  /** 这道内置菜被房主改过吗（藏起来的不算） */
+  isEditedBuiltin: function (id) {
+    return D.isEdited(id)
+  },
+
+  /**
+   * 把一道内置菜从菜库里藏起来（房主专属，对全家生效）。
+   * 云模式下服务端会顺手把今天菜单里的那道菜也摘掉。
+   */
+  hideBuiltin: function (id) {
+    var self = this
+    if (this.mode() === 'cloud') {
+      return cloud.call('hideBuiltin', { id: id }).then(function () {
+        return self.refreshDishes()
+      }).then(function () {
+        self.dropDishFromMenu(id)
+        return true
+      })
+    }
+    var m = this._localOverrides()
+    var prev = m[id] || {}
+    // ★ 只把 hidden 打开，房主之前改过的名字 / 换过的图都留着 ——
+    //   万一恢复回来，看到的还是他改过的那个样子，而不是又变回出厂设置。
+    m[id] = {
+      name: prev.name || '',
+      cat: prev.cat || '',
+      main: (prev.main === undefined) ? null : prev.main,
+      tips: (prev.tips === undefined) ? null : prev.tips,
+      image: prev.image || '',
+      hidden: true
+    }
+    if (!storage.set(storage.KEY_BUILTIN, m)) {
+      return Promise.reject(new Error('本机存储写不进去了，先清一点空间'))
+    }
+    this._applyOverrides(m)
+    this.dropDishFromMenu(id)
+    this._notify()
+    return Promise.resolve(true)
+  },
+
+  /**
+   * 把一道被藏起来的内置菜恢复成原样（房主专属）。
+   *
+   * ★ 恢复之后它会重新出现在菜库里，但**不会**自动回到今天的菜单 ——
+   *   藏起来的时候已经顺手把菜单条目摘掉了。要吃就再点一次，
+   *   这样不会让一道菜凭空出现在菜单里。
+   */
+  restoreBuiltin: function (id) {
+    if (!this.isOwner()) return Promise.reject(new Error('NOT_OWNER'))
+    var self = this
+    if (this.mode() === 'cloud') {
+      return cloud.call('restoreBuiltin', { id: id }).then(function () {
+        return self.refreshDishes()
+      }).then(function () {
+        return true
+      })
+    }
+    var m = this._localOverrides()
+    delete m[id]
+    storage.set(storage.KEY_BUILTIN, m)
+    this._applyOverrides(m)
+    this._notify()
+    return Promise.resolve(true)
   },
 
   /* ==================== 今日菜单 ==================== */
@@ -941,7 +1111,10 @@ App({
   randomCombo: function () {
     var used = []
     var out = []
-    var plan = [D.byCat('meat'), D.byCat('veg'), D.byCat('soup'), D.DISHES.slice()]
+    // ★ 前三项走 byCat（已含自建菜），第四项「随便再来一道」也必须走 byCat，
+    //   不能像以前那样直接拿 D.DISHES —— 那是**出厂**的 80 道，房主藏起来的菜
+    //   还在里面，摇一摇会摇出一道根本不存在的菜（加不进去，只是白摇一次）。
+    var plan = [D.byCat('meat'), D.byCat('veg'), D.byCat('soup'), D.byCat('all')]
     for (var i = 0; i < plan.length; i++) {
       var d = this._pick(plan[i], used)
       if (d) {

@@ -48,6 +48,11 @@
 
   <view class="empty" wx:if="{{emptyText}}">{{emptyText}}</view>
 
+  <!-- 房主专属：被收起来的内置菜还能恢复。
+       放在列表正下方，是因为房主删掉一道内置菜之后的下一个念头
+       几乎一定是「我那道菜去哪了」—— 入口不能藏到别的页面去。 -->
+  <view class="hidden-bar" wx:if="{{hiddenTip}}" bindtap="openRestore">{{hiddenTip}}</view>
+
   <view class="tip">{{tipText}}</view>
   <view class="safe-bottom"></view>
 
@@ -60,8 +65,9 @@
           <text class="sheet-cat">{{detail.catName}}</text>
           <view class="head-gap"></view>
           <text wx:if="{{detail.mine}}" class="head-link" bindtap="editDish">编辑</text>
-          <text wx:if="{{detail.mine}}" class="head-link head-link-danger" bindtap="deleteDish">删除</text>
+          <text wx:if="{{detail.mine}}" class="head-link head-link-danger" bindtap="deleteDish">{{detail.builtin ? '收起' : '删除'}}</text>
         </view>
+        <view class="edited-note" wx:if="{{detail.editedText}}">{{detail.editedText}}</view>
         <view class="sheet-row">
           <text class="k">主料</text>
           <text class="v">{{detail.main}}</text>
@@ -74,6 +80,30 @@
       <view class="sheet-actions">
         <view class="act-fav" bindtap="toggleFavInDetail">{{detail.fav ? '★ 已收藏' : '☆ 收藏'}}</view>
         <view class="act-add" bindtap="addCurrent">加入今日菜单</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 已被收起来的内置菜：只有房主能看到，用来把它们放回菜库 -->
+  <view class="mask" wx:if="{{restoreVisible}}" bindtap="closeRestore">
+    <view class="sheet" catchtap="noop">
+      <view class="restore-head">
+        <view class="restore-title">已被你收起来的内置菜</view>
+        <view class="restore-sub">这几道菜家人现在看不到、也点不到。恢复之后它们会回到菜库里，你之前改过的名字和照片也会一起还原。</view>
+      </view>
+      <scroll-view class="restore-list" scroll-y="true">
+        <view class="restore-row" wx:for="{{hiddenList}}" wx:key="id">
+          <image class="restore-img" src="{{item.image}}" mode="aspectFill"></image>
+          <view class="restore-info">
+            <view class="restore-name">{{item.name}}</view>
+            <view class="restore-cat">{{item.catName}}</view>
+          </view>
+          <view class="restore-btn" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="doRestore">恢复</view>
+        </view>
+      </scroll-view>
+      <view class="restore-foot">
+        <view class="restore-all" bindtap="restoreAll">全部恢复</view>
+        <view class="restore-close" bindtap="closeRestore">关闭</view>
       </view>
     </view>
   </view>

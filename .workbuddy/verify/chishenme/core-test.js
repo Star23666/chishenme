@@ -755,6 +755,96 @@ eq('搜自建菜独有的词只返回那一道', hitXi.length, 1)
 
 D.setCustom([])   // 收尾，别把这个状态留给后面的测试段
 
+/* ==================== M3. 房主对内置菜的改动 / 隐藏 ==================== */
+
+S('M3. 房主对内置菜的改动 / 隐藏（数据层）')
+
+/*
+ * 内置的 80 道菜写死在 DISHES 里，图片也打在小程序包里 —— 物理上删不掉。
+ * 所以「改」和「删」都做成叠在它上面的一层，byId / byCat / imageOf / search
+ * 统一帮调用方叠好，页面一行都不用改。
+ *
+ * ★ 这一段最要紧的一条：**不管怎么改，DISHES 里那份出厂数据一个字都不能动**。
+ *   它是模块级静态数据，D.TOTAL、图片规格检查、内置菜数量断言全指着它；
+ *   一旦被就地改掉，错误会静悄悄地扩散到整个工作区，而且极难反查。
+ */
+
+var BASE_TOTAL = D.totalAll()
+eq('一开始既没有隐藏也没有改动', D.hiddenCount(), 0)
+
+// ---------- 改 ----------
+D.setOverrides({ hongshaorou: { name: '外婆红烧肉', cat: 'veg', main: '黑猪五花肉', tips: '炖足两小时' } })
+
+var ovr = D.byId('hongshaorou')
+eq('菜名叠上了房主的改法', ovr.name, '外婆红烧肉')
+eq('主料叠上了', ovr.main, '黑猪五花肉')
+eq('要点叠上了', ovr.tips, '炖足两小时')
+
+/*
+ * ★ 这三条就是「删掉按分类预建的索引」的理由：分类被改过之后，菜必须从
+ *   原来的分类里消失、出现在新分类里。两边错了都不报错 —— 只会「点了分类
+ *   看不见这道菜」或者「明明改成素菜了还赖在荤菜里」。
+ */
+ok('分类跟着挪到素菜里去了', D.byCat('veg').some(function (d) { return d.id === 'hongshaorou' }))
+ok('原来的荤菜分类里没有它了', !D.byCat('meat').some(function (d) { return d.id === 'hongshaorou' }))
+eq('全部分类里它还是一道（没被复制成两道）',
+  D.byCat('all').filter(function (d) { return d.id === 'hongshaorou' }).length, 1)
+eq('搜索认的是改后的名字', D.search('外婆').length, 1)
+eq('  搜到的就是它', D.search('外婆')[0] && D.search('外婆')[0].id, 'hongshaorou')
+eq('总数不受「改」影响', D.totalAll(), BASE_TOTAL)
+ok('改过的菜带 edited 标记（详情页要显示「房主改过」）', ovr.edited === true)
+
+// ---------- 出厂数据必须原封不动 ----------
+var rawFirst = D.DISHES[0]
+eq('DISHES 里那道菜还是原名', rawFirst.name, '红烧肉')
+eq('DISHES 里那道菜还是原分类', rawFirst.cat, 'meat')
+eq('DISHES 里那道菜还是原主料', rawFirst.main, '五花肉')
+ok('DISHES 里没被塞进 edited 这类叠加层的字段', rawFirst.edited === undefined)
+eq('DISHES 的长度还是 80', D.DISHES.length, 80)
+eq('TOTAL 还是出厂数', D.TOTAL, 80)
+
+// ---------- 换图 ----------
+D.setOverrides({
+  hongshaorou: { name: '外婆红烧肉', cat: 'veg', main: '', tips: null, image: 'cloud://demo/dishes/mine.jpg' }
+})
+eq('房主换的图会用上', D.imageOf('hongshaorou'), 'cloud://demo/dishes/mine.jpg')
+eq('主料能被清成空串（这才叫「改成没有」）', D.byId('hongshaorou').main, '')
+eq('要点传 null 才表示「没改」，保持原样',
+  D.byId('hongshaorou').tips, '冰糖炒出糖色，小火焖 40 分钟至软糯')
+
+// ---------- 藏 ----------
+D.setOverrides({
+  hongshaorou: { name: '外婆红烧肉', hidden: true },
+  gongbaojiding: { hidden: true }
+})
+eq('藏起来之后 byId 直接返回 null', D.byId('hongshaorou'), null)
+ok('分类里也没有它', !D.byCat('all').some(function (d) { return d.id === 'hongshaorou' }))
+eq('搜索也搜不到', D.search('外婆').length, 0)
+eq('藏起来的数量对', D.hiddenCount(), 2)
+eq('总数减掉藏起来的那几道', D.totalAll(), BASE_TOTAL - 2)
+eq('「已隐藏」名单拉得出来', D.hiddenBuiltin().length, 2)
+eq('  藏起来之前改过的名字在名单里还看得见（恢复后还是那个样子）',
+  D.hiddenBuiltin().filter(function (d) { return d.id === 'hongshaorou' })[0].name, '外婆红烧肉')
+eq('藏起来之后总数和「全部分类」的长度对得上', D.byCat('all').length, D.totalAll())
+
+// ---------- 恢复 ----------
+D.setOverrides({})
+eq('恢复之后又回来了', (D.byId('hongshaorou') || {}).name, '红烧肉')
+eq('图片回到包里那张', D.imageOf('hongshaorou'), '/images/dishes/hongshaorou.jpg')
+eq('隐藏数归零', D.hiddenCount(), 0)
+eq('总数回到原样', D.totalAll(), BASE_TOTAL)
+eq('「已隐藏」名单也空了', D.hiddenBuiltin().length, 0)
+
+// ---------- 脏数据 ----------
+/*
+ * 覆盖层是按 id 索引的，而 id 来自客户端。不是内置菜的 id 一律不认 ——
+ * 否则写错一个字母就会在别处留下一条永远不生效的垃圾记录。
+ */
+eq('不认识的 id 会被丢掉',
+  D.setOverrides({ no_such_dish: { hidden: true }, hongshaorou: { hidden: true } }), 1)
+eq('  「不认识的 id」确实没生效', D.hiddenCount(), 1)
+D.setOverrides({})
+
 /* ==================== N. 用户自建菜（本地模式） ==================== */
 
 /*
@@ -774,10 +864,13 @@ function asyncPart() {
   eq('一开始一道自建菜都没有', app.customDishes().length, 0)
   eq('totalDishes 等于内置菜数', app.totalDishes(), D.TOTAL)
   eq('内置菜不算自建菜', app.isCustomDish('hongshaorou'), false)
-  eq('内置菜不能编辑 / 删除', app.canEditDish('hongshaorou'), false)
+  // ★ 本地模式没有「家」，isOwner() 恒为真 —— 本机就是房主，所以内置菜
+  //   在这里可改可删。云端模式下改由 family.isOwner 决定（见 cloud-test.js）。
+  eq('本地模式下内置菜可改可删（本机就是房主）', app.canEditDish('hongshaorou'), true)
   eq('不存在的菜也不能编辑', app.canEditDish('no_such_dish'), false)
 
   var savedId = ''
+  var beforeHide = 0
   var keepMeatCount = catCount['meat']
 
   return app.saveDish({
@@ -852,9 +945,26 @@ function asyncPart() {
     eq('删别人的菜被拒绝', r, 'rejected')
     eq('被拒之后那道菜还在', !!D.byId('u_other'), true)
 
+    // ★ 内置菜「删不掉」—— 数据和图都打在小程序包里，没法只删一台手机上的那份。
+    //   所以 deleteDish 对它走的是「对全家隐藏」那条路：操作本身是成功的，
+    //   只是效果从「没了」变成「藏起来」，而且房主随时能恢复。
+    beforeHide = app.totalDishes()
     return app.deleteDish('hongshaorou').then(function () { return 'ok' }, function () { return 'rejected' })
   }).then(function (r) {
-    eq('删内置菜被拒绝（内置的 80 道永远是只读的）', r, 'rejected')
+    eq('删内置菜 = 把它藏起来（不是被拒绝）', r, 'ok')
+    eq('藏起来之后 byId 就查不到它了', D.byId('hongshaorou'), null)
+    eq('它进了「已隐藏」名单', app.hiddenBuiltinCount(), 1)
+    eq('菜库总数跟着少一道', app.totalDishes(), beforeHide - 1)
+    // 最关键的一条：隐藏是「叠加层说了算」，绝不能反过来去改 DISHES 里那条出厂数据
+    eq('DISHES 里那条出厂数据一个字都没动', D.DISHES.length, 80)
+    eq('静态数组里那道菜还是原来的名字', D.DISHES[0].name, '红烧肉')
+
+    // 立刻恢复，别把「藏起来」的状态留给后面的检查
+    return app.restoreBuiltin('hongshaorou')
+  }).then(function () {
+    eq('恢复之后又找回来了', (D.byId('hongshaorou') || {}).name, '红烧肉')
+    eq('「已隐藏」名单空了', app.hiddenBuiltinCount(), 0)
+    eq('总数回到藏之前', app.totalDishes(), beforeHide)
 
     // 回到「本机存储说了算」的状态，再验真正的删除链路。
     // 本地模式下 refreshDishes 是同步生效的（Promise.resolve 的参数先求值），

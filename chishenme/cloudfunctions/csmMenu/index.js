@@ -17,14 +17,20 @@
  *   csm_menus     { familyCode, date, dishId, qty, note, byNames[], addedAt, updatedAt }
  *                 权限：同上。必须放开读，否则 watch 收不到别人写的记录。
  *   csm_dishes    { familyCode, dishId, name, cat, main, tips, image, creator, creatorName,
- *                   createdAt, updatedAt }
- *                 权限：同上。这是「用户自己加的菜」（内置 80 道写死在小程序包里，不在这）。
+ *                   createdAt, updatedAt, builtin?, hidden? }
+ *                 权限：同上。这个集合里装着**两种**记录，靠 builtin 标记分开：
+ *                   - 用户自己加的菜：不带 builtin，dishId 一定以 u 开头
+ *                   - 房主对内置 80 道菜的改动 / 隐藏：builtin 为 true，
+ *                     dishId 就是内置菜自己的英文 id（hongshaorou 这种）
+ *                 ★ 内置的 80 道菜本身写死在小程序包里（data/dishes.js + images/dishes/*.jpg），
+ *                   这个集合里存的只是「房主把哪几道改了 / 藏了」。
  *                 ★ 图片存的是云存储文件 ID（cloud://...），不占数据库体积。
  *                 ★ 这个集合的读写**全部**经过云函数，客户端不直连它：
  *                   菜单为了 watch 实时推送必须直连，菜谱不需要实时，
  *                   少开一条直连通道就少一份权限要配。
  *                 ★ 所以客户端提交的 dishId 不可信，要在这里校验形状；
- *                   「只有创建者能改删」也必须在服务端判定（见 updateDish / deleteDish）。
+ *                   「只有创建者能改删」和「只有房主能改内置菜」也必须在
+ *                   服务端判定（见 updateDish / deleteDish / updateBuiltin）。
  *
  * ── 为什么 byNames 存「称呼」而不是 openid ──
  *   客户端 watch 到的只有这一个集合，拿不到 nicknames 映射表。
@@ -60,6 +66,33 @@ const DISH_MAIN_MAX = 20
 const DISH_TIPS_MAX = 40
 const DISH_IMAGE_MAX = 300          // cloud:// 文件 ID 也就一百来字符，留足余量
 const MAX_DISHES = 100              // 一个家最多自己加多少道，防手滑 / 防滥用
+
+/* 房主对内置菜的改动 */
+/*
+ * 自建菜的 id 是 'u' + 一串 base36（u5k2m1x9ab 这种），内置菜的 id 全是
+ * 小写英文单词（hongshaorou / gaofengningmengya）。两种记录躺在同一个集合里，
+ * 全靠这个形状把「改的是哪一道」认出来。
+ *
+ * ★ 两条正则必须**一起**用，缺一不可：
+ *   只看 BUILTIN_ID 的话，'uabc123' 完全符合「小写字母开头 + 字母数字」，
+ *   于是有人可以拿一道自建菜的 id 去调 updateBuiltin，在 csm_dishes 里
+ *   造出一条既不生效（客户端对不上内置菜）又永远清不掉的记录。
+ *   所以「像内置菜」还不够，还得「不像自建菜」。
+ * ★ 代价：将来若真加了一道以 u 开头的纯字母内置菜（比如 umami），
+ *   它会同时命中两条正则而被误拒。碰到时改这里一行就行 ——
+ *   比反过来（认不出自建菜、静默造垃圾数据）好排查得多。
+ * ★ 云函数这边维护不了那 80 个 id 的白名单（会和 data/dishes.js 两处重复，
+ *   迟早不同步）。就算有人塞进来一个不存在的 id，客户端在 data/dishes.js 里
+ *   对不上内置菜，那条记录也叠不上去、不会凭空多出一道菜，所以校验形状就够了。
+ */
+const CUSTOM_ID = /^u[a-z0-9]{2,38}$/      // 和 createDish 里那条**必须**保持一致
+const BUILTIN_ID = /^[a-z][a-z0-9]{2,39}$/
+const MAX_OVERRIDES = 100           // 内置菜一共 80 道，留点余量防脏数据堆积
+
+/** 这个 id 看起来像不像一道内置菜 */
+function isBuiltinId(id) {
+  return BUILTIN_ID.test(id) && !CUSTOM_ID.test(id)
+}
 
 /** 房间码字母表：去掉了容易看错的 0 O 1 I */
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -129,6 +162,25 @@ function publicDish(d, openid) {
     mine: d.creator === openid,
     creatorName: d.creatorName || '',
     createdAt: d.createdAt || 0
+  }
+}
+
+/**
+ * 内置菜的改动记录 → 客户端形状。
+ * id 就是内置菜自己的 id（hongshaorou 这种），客户端按它往那道菜上叠。
+ * ★ 同样不回 creator 的 openid —— 客户端只需要知道「这道菜被改过 / 被藏了」。
+ * ★ main / tips 传 null 表示「没改这两项」，传空串表示「房主把它清空了」，
+ *   两者在客户端叠的时候行为不一样，不能混。
+ */
+function publicOverride(d) {
+  return {
+    id: d.dishId,
+    name: d.name || '',
+    cat: d.cat || '',
+    main: (d.main === undefined || d.main === null) ? null : String(d.main),
+    tips: (d.tips === undefined || d.tips === null) ? null : String(d.tips),
+    image: d.image || '',
+    hidden: d.hidden === true
   }
 }
 
@@ -435,17 +487,26 @@ async function listMenu(openid) {
 /* ---------------- 用户自建菜 ---------------- */
 
 /**
- * 列出本房间的自建菜。
+ * 列出本房间的菜库：自己加的菜 + 房主对内置菜的改动。
  * ★ 只按 familyCode 过滤 —— 别的家的菜一道都不能漏出来。
+ * ★ 两种记录放在同一个集合里，靠 builtin 标记拆开。一次拉回来在内存里分，
+ *   比查两次少一个来回；数量上限就是两个上限之和，够用。
  */
 async function listDishes(openid) {
   const fam = await requireFamily(openid)
   const r = await db.collection(DISH)
     .where({ familyCode: fam.code })
     .orderBy('createdAt', 'asc')
-    .limit(MAX_DISHES)
+    .limit(MAX_DISHES + MAX_OVERRIDES)
     .get()
-  return ok({ list: r.data.map((d) => publicDish(d, openid)) })
+  const list = []
+  const overrides = {}
+  for (let i = 0; i < r.data.length; i++) {
+    const d = r.data[i]
+    if (d.builtin === true) overrides[d.dishId] = publicOverride(d)
+    else list.push(publicDish(d, openid))
+  }
+  return ok({ list: list, overrides: overrides })
 }
 
 async function findDishDoc(familyCode, dishId) {
@@ -474,14 +535,21 @@ async function createDish(openid, p) {
   if (!name) throw new Error('给这道菜起个名字')
 
   let dishId = clean(p.id, 40)
-  if (!/^u[a-z0-9]{2,38}$/.test(dishId)) {
+  if (!CUSTOM_ID.test(dishId)) {
     dishId = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
   }
 
   const exist = await findDishDoc(fam.code, dishId)
   if (exist) throw new Error('这道菜已经加过了')
 
-  const cnt = await db.collection(DISH).where({ familyCode: fam.code }).count()
+  // ★ 计数必须排除房主对内置菜的改动记录 —— 它们和自建菜存在同一个集合里。
+  //   不排除的话，房主改一道内置菜就白占掉一个「自己加菜」的名额：
+  //   改满 100 道之后，这个家连一道自己的菜都加不了了。
+  //   neq 语义和 MongoDB 的 $ne 一样，**字段不存在**也算「不等于 true」，
+  //   所以更早版本留下的、没有 builtin 字段的自建菜照样数得到。
+  const cnt = await db.collection(DISH)
+    .where({ familyCode: fam.code, builtin: _.neq(true) })
+    .count()
   if (cnt.total >= MAX_DISHES) {
     throw new Error('一个家最多加 ' + MAX_DISHES + ' 道自己的菜')
   }
@@ -573,6 +641,165 @@ async function deleteDish(openid, p) {
   return ok(null)
 }
 
+/* ---------------- 房主对内置菜的改动 ---------------- */
+
+/*
+ * 内置的 80 道菜写死在 data/dishes.js 里，图片也打在小程序包里 ——
+ * **物理上删不掉**，也没法只删掉某一家看到的那一份。所以这里只做两件事：
+ *   改：记一条改动（名字 / 主料 / 要点 / 分类 / 换图）
+ *   删：记一条「藏起来」，对全家人都不出现，房主随时能恢复
+ *
+ * ★ 权限一律在服务端判：`fam.owner !== openid` 直接 NOT_OWNER。
+ *   客户端那个「是房主才显示编辑 / 删除按钮」只是界面上的方便，
+ *   改一行 wxml 就能让按钮出现，真正拦得住的地方只有这里。
+ */
+
+/** 同一个家最多能有多少条内置菜改动（内部用，省得三处重复写） */
+async function countOverrides(familyCode) {
+  const c = await db.collection(DISH).where({ familyCode: familyCode, builtin: true }).count()
+  return c.total
+}
+
+/**
+ * 改一道内置菜（房主专属）。
+ *
+ * ★ 和 createDish / updateDish 是两条路，不能合并：
+ *   那两个只认自建菜（id 形状不合格会**就地重造成一个新 id**），
+ *   拿内置菜的 id 去调会被重造成一条全新的自建菜 —— 于是「改红烧肉」
+ *   变成「菜库里多出一道 uxxxxx 的红烧肉」，而原来那道一动没动。
+ */
+async function updateBuiltin(openid, p) {
+  const fam = await requireFamily(openid)
+  if (fam.owner !== openid) throw new Error('NOT_OWNER')
+
+  const dishId = clean(p.id, 40)
+  if (!isBuiltinId(dishId)) throw new Error('这道菜改不了')
+
+  const name = clean(p.name, DISH_NAME_MAX)
+  if (!name) throw new Error('给这道菜起个名字')
+
+  const data = {
+    name: name,
+    cat: safeCat(p.cat, 'meat'),
+    main: clean(p.main, DISH_MAIN_MAX),
+    tips: clean(p.tips, DISH_TIPS_MAX),
+    updatedAt: Date.now()
+  }
+  // ★ 图片只在带了新图时才覆盖。编辑文字时没重选图片，客户端传的就是空串；
+  //   无脑覆盖的话，改一次菜名顺手就把房主之前换的那张图弄丢了。
+  const image = clean(p.image, DISH_IMAGE_MAX)
+  if (image) data.image = image
+
+  const doc = await findDishDoc(fam.code, dishId)
+  if (doc) {
+    // 顺手把 builtin 标上：万一这条记录是更早的版本留下的，现在补齐。
+    // ★ 不碰 hidden —— 改一道已经藏起来的菜不该顺手把它放出来。
+    data.builtin = true
+    await db.collection(DISH).doc(doc._id).update({ data: data })
+    return ok(null)
+  }
+
+  if (await countOverrides(fam.code) >= MAX_OVERRIDES) {
+    throw new Error('改过的内置菜太多了')
+  }
+
+  const nicks = fam.nicknames || {}
+  data.familyCode = fam.code
+  data.dishId = dishId
+  data.builtin = true
+  data.hidden = false          // 能点开编辑就说明它当前是可见的
+  data.creator = openid
+  data.creatorName = nicks[openid] || '房主'
+  data.createdAt = Date.now()
+  await db.collection(DISH).add({ data: data })
+  return ok(null)
+}
+
+/**
+ * 把一道内置菜从全家的菜库里藏起来（房主专属）。
+ *
+ * ★ 顺序：先摘菜单 → 再写隐藏记录。
+ *   隐藏记录是找那批菜单条目的**唯一线索**（菜单里只存 dishId），
+ *   和「删自建菜」同一个道理：顺序反了的话，万一摘菜单失败，那些条目就变成
+ *   指向一道「已经看不见的菜」的孤儿记录 —— 客户端会把它们当脏数据静默过滤掉，
+ *   谁也看不见，也就永远没人去清。
+ */
+async function hideBuiltin(openid, p) {
+  const fam = await requireFamily(openid)
+  if (fam.owner !== openid) throw new Error('NOT_OWNER')
+
+  const dishId = clean(p.id, 40)
+  if (!isBuiltinId(dishId)) throw new Error('这道菜删不了')
+
+  await db.collection(MENU).where({
+    familyCode: fam.code,
+    dishId: dishId
+  }).remove()
+
+  const doc = await findDishDoc(fam.code, dishId)
+  if (doc) {
+    // 房主之前改过的名字 / 换过的图都留着 —— 万一恢复回来，
+    // 看到的还是他改过的那个样子，而不是又变回出厂设置。
+    await db.collection(DISH).doc(doc._id).update({
+      data: { builtin: true, hidden: true, updatedAt: Date.now() }
+    })
+    return ok(null)
+  }
+
+  if (await countOverrides(fam.code) >= MAX_OVERRIDES) {
+    throw new Error('改过的内置菜太多了')
+  }
+
+  const nicks = fam.nicknames || {}
+  await db.collection(DISH).add({
+    data: {
+      familyCode: fam.code,
+      dishId: dishId,
+      builtin: true,
+      hidden: true,
+      creator: openid,
+      creatorName: nicks[openid] || '房主',
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+  })
+  return ok(null)
+}
+
+/**
+ * 把一道被藏起来的内置菜恢复成出厂的样子（房主专属）。
+ *
+ * ★ 整条改动记录一起删掉，不是只把 hidden 关掉 —— 按钮上写的是「恢复」，
+ *   那就要连房主改过的名字 / 换过的图一起回到原样，否则会出现
+ *   「恢复了但名字还是我改的那个」这种谁也说不清的状态。
+ * ★ 幂等：没藏过、或者已经恢复过了，都当成功 —— 网络重试是安全的。
+ * ★ 恢复之后这道菜**不会**自动回到今天的菜单（藏起来时已经摘掉了），
+ *   要吃就再点一次，不会让一道菜凭空出现在菜单里。
+ */
+async function restoreBuiltin(openid, p) {
+  const fam = await requireFamily(openid)
+  if (fam.owner !== openid) throw new Error('NOT_OWNER')
+
+  const dishId = clean(p.id, 40)
+  if (!dishId) return ok(null)
+
+  const doc = await findDishDoc(fam.code, dishId)
+  if (!doc || doc.builtin !== true) return ok(null)
+
+  // 房主给这道菜换过图的话，那张图现在没人引用了，顺手删掉。
+  // 删不掉不能拦住恢复：留一个没人引用的文件，比让房主恢复不了好得多。
+  if (doc.image && String(doc.image).indexOf('cloud://') === 0) {
+    try {
+      await cloud.deleteFile({ fileList: [doc.image] })
+    } catch (e) {
+      // 忽略
+    }
+  }
+
+  await db.collection(DISH).doc(doc._id).remove()
+  return ok(null)
+}
+
 /* ---------------- 入口 ---------------- */
 
 exports.main = async (event) => {
@@ -605,6 +832,10 @@ exports.main = async (event) => {
       case 'createDish': return await createDish(openid, p)
       case 'updateDish': return await updateDish(openid, p)
       case 'deleteDish': return await deleteDish(openid, p)
+      // 房主对内置 80 道菜的改动（服务端判房主）
+      case 'updateBuiltin': return await updateBuiltin(openid, p)
+      case 'hideBuiltin': return await hideBuiltin(openid, p)
+      case 'restoreBuiltin': return await restoreBuiltin(openid, p)
       default:
         return err('未知操作: ' + action)
     }

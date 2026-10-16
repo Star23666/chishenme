@@ -131,18 +131,18 @@ var DISHES = [
   { id: 'liangbanhaidaisi', name: '凉拌海带丝', cat: 'cold', main: '海带丝、蒜、香醋', tips: '海带焯水后过冰水，口感才脆' }
 ]
 
-/* 索引，避免每次线性查找 */
+/* 按 id 索引，避免每次线性查找 */
 var MAP = {}
-var CACHE_BY_CAT = {}
-for (var i = 0; i < DISHES.length; i++) {
-  var d = DISHES[i]
-  MAP[d.id] = d
-  if (!CACHE_BY_CAT[d.cat]) CACHE_BY_CAT[d.cat] = []
-  CACHE_BY_CAT[d.cat].push(d)
-}
+for (var i = 0; i < DISHES.length; i++) MAP[DISHES[i].id] = DISHES[i]
 
 var CAT_NAME = {}
 for (var j = 0; j < CATS.length; j++) CAT_NAME[CATS[j].key] = CATS[j].name
+
+/* ★ 这里原本还有一个「按分类预先算好的索引」CACHE_BY_CAT。
+   加了「房主能改内置菜的分类」之后必须去掉：那个索引是按**出厂分类**建的，
+   房主把一道荤菜改成素菜后，按素菜筛会被索引用出厂分类挡在外面（点分类看不见），
+   按荤菜筛又会出现（明明已经改成素菜了）。两处都不报错，只是菜莫名多出来 / 不见了。
+   现在改成 80 道菜线性扫一遍 —— 这个量级代价可以忽略，换来的是分类永远跟改动一致。 */
 
 /* ==================== 用户自建菜（运行时叠加层） ====================
  *
@@ -179,22 +179,102 @@ function rebuildCustom() {
   }
 }
 
+/* ==================== 房主对内置菜的改动 / 隐藏 ====================
+ *
+ * 内置的 80 道菜写死在 DISHES 里，图片也打在小程序包里 —— 物理上删不掉。
+ * 但「把红烧肉改叫外婆红烧肉」「这道菜我家不做，别让它出现在菜单里」都是
+ * 真实需求，所以再叠一层：房主的改动记成一条覆盖，byId / byCat / imageOf /
+ * search 都会把它叠上去，页面照旧一行不用改。
+ *
+ * ★ 三条不能破的规矩：
+ *   1. **绝不改 DISHES 里的对象**。它们是模块级静态数据，D.TOTAL 和图片规格
+ *      检查都指着它们。要改动就生成一个新对象返回，绝不原地改。
+ *   2. 「删除」的语义是**隐藏**，不是真删。菜还在包里、图还在包里，
+ *      只是不再出现在任何地方；房主随时能恢复。
+ *   3. 隐藏对**所有人**生效（连 byId 都返回 null），所以菜单、收藏、点菜页、
+ *      摇一摇不用各自写一遍过滤 —— 和自建菜那层同一个思路，漏一处就会
+ *      让一道已经藏起来的菜从某个入口冒出来。
+ *
+ * 覆盖记录的形状（由 app.js 归一化后传进来）：
+ *   { name, cat, main, tips, image, hidden }
+ *   - hidden === true 表示「藏起来」；其余字段是房主的改法
+ *   - main / tips 为 null 表示「没改这两项」，空串表示「房主清空了它」
+ */
+var OVERRIDES = {}
+
+/** 这道内置菜是不是被房主藏起来了 */
+function isHidden(id) {
+  var o = OVERRIDES[id]
+  return !!(o && o.hidden === true)
+}
+
+/**
+ * 把房主的改动叠到一道内置菜上。
+ * 没改过就**原样返回引用**（调用方只读它），改过则返回一个新对象。
+ */
+function applyOverride(d) {
+  var o = OVERRIDES[d.id]
+  if (!o) return d
+  return {
+    id: d.id,
+    // 菜名和分类是必填项，空值一律当作「没改」（云函数也不接受空菜名）
+    name: o.name || d.name,
+    cat: o.cat || d.cat,
+    // 主料 / 要点可以是空串（房主真的清空了它），所以只认 null / undefined 为「没改」
+    main: (o.main === undefined || o.main === null) ? d.main : o.main,
+    tips: (o.tips === undefined || o.tips === null) ? d.tips : o.tips,
+    // 房主给这道内置菜换的图（cloud:// 或本机路径）。空串表示还用包里那张原图
+    image: o.image || '',
+    edited: true
+  }
+}
+
+/** 可见的内置菜（已叠上改动、已剔掉隐藏） */
+function builtinList(cat) {
+  var all = (!cat || cat === 'all')
+  var out = []
+  for (var i = 0; i < DISHES.length; i++) {
+    var d = applyOverride(DISHES[i])
+    if (isHidden(d.id)) continue
+    if (!all && d.cat !== cat) continue
+    out.push(d)
+  }
+  return out
+}
+
+/** 自建菜里属于某个分类的那批 */
+function customOf(cat) {
+  var all = (!cat || cat === 'all')
+  return all ? CUSTOM.slice() : (CUSTOM_BY_CAT[cat] || []).slice()
+}
+
+/** 藏起来的内置菜有几道 */
+function countHidden() {
+  var n = 0
+  for (var i = 0; i < DISHES.length; i++) {
+    if (isHidden(DISHES[i].id)) n++
+  }
+  return n
+}
+
 module.exports = {
   CATS: CATS,
   DISHES: DISHES,
   TOTAL: DISHES.length,
 
   byId: function (id) {
-    return MAP[id] || CUSTOM_MAP[id] || null
+    if (CUSTOM_MAP[id]) return CUSTOM_MAP[id]
+    var d = MAP[id]
+    if (!d) return null
+    // ★ 藏起来的内置菜在这里就断掉，别让调用方自己去判断 ——
+    //   菜单、收藏、摇一摇全靠这个 null 来当成「这道菜不存在了」
+    if (isHidden(id)) return null
+    return applyOverride(d)
   },
 
   byCat: function (cat) {
-    var all = (!cat || cat === 'all')
-    var base = all ? DISHES.slice() : (CACHE_BY_CAT[cat] || []).slice()
-    if (!CUSTOM.length) return base
     // 自建菜排在内置菜后面：菜库里「我加的」总在末尾，位置可预期
-    var extra = all ? CUSTOM.slice() : (CUSTOM_BY_CAT[cat] || []).slice()
-    return base.concat(extra)
+    return builtinList(cat).concat(customOf(cat))
   },
 
   catName: function (cat) {
@@ -204,11 +284,14 @@ module.exports = {
   imageOf: function (id) {
     var c = CUSTOM_MAP[id]
     if (c) return c.image || NO_PHOTO
+    // 房主给内置菜换过图就用那张；没换过（image 为空串）仍然用包里那张原图
+    var o = OVERRIDES[id]
+    if (o && o.image) return o.image
     return '/images/dishes/' + id + '.jpg'
   },
 
   /**
-   * 按关键词找菜（内置的 80 道和自己加的菜一起找）。
+   * 按关键词找菜（内置的 80 道和自己加的菜一起找，藏起来的不算）。
    *
    * 只看「菜名」和「主料」两处 —— 这两个是用户记得住的；
    * 搜「要点」那种长句子基本没人会用，还会把结果搅乱。
@@ -222,7 +305,7 @@ module.exports = {
    */
   search: function (kw) {
     var k = String(kw || '').trim().toLowerCase()
-    var all = DISHES.slice().concat(CUSTOM)
+    var all = builtinList('all').concat(CUSTOM)
     if (!k) return all        // 空关键词 = 没有筛选条件
 
     var byName = []
@@ -257,9 +340,98 @@ module.exports = {
     return !!CUSTOM_MAP[id]
   },
 
-  /** 菜库总数 = 内置 + 自建。注意 TOTAL 仍是内置菜数，别混用 */
+  /** 这道菜是不是内置的 80 道之一 */
+  isBuiltin: function (id) {
+    return !!MAP[id]
+  },
+
+  /* ---------- 房主对内置菜的改动 ---------- */
+
+  /**
+   * 装入覆盖层（整批替换）。
+   * 不认识的 id 直接丢掉 —— 那是别的房间留下的、或者已经下架的内置菜，
+   * 留着只会在别处变成一个莫名其妙的空条目。
+   */
+  setOverrides: function (map) {
+    OVERRIDES = {}
+    var src = map || {}
+    for (var id in src) {
+      if (!Object.prototype.hasOwnProperty.call(src, id)) continue
+      var o = src[id]
+      if (!o || !MAP[id]) continue
+      OVERRIDES[id] = {
+        name: (o.name === undefined || o.name === null) ? '' : String(o.name),
+        cat: (o.cat === undefined || o.cat === null) ? '' : String(o.cat),
+        main: (o.main === undefined || o.main === null) ? null : String(o.main),
+        tips: (o.tips === undefined || o.tips === null) ? null : String(o.tips),
+        image: o.image ? String(o.image) : '',
+        hidden: o.hidden === true
+      }
+    }
+    return Object.keys(OVERRIDES).length
+  },
+
+  /** 这道内置菜被房主藏起来了吗 */
+  isHidden: function (id) {
+    return isHidden(id)
+  },
+
+  /** 这道内置菜被房主改过吗（藏起来的不算「改过」） */
+  isEdited: function (id) {
+    var o = OVERRIDES[id]
+    return !!(o && o.hidden !== true)
+  },
+
+  /** 房主给这道内置菜记下的改动（没有就是 null） */
+  overrideOf: function (id) {
+    var o = OVERRIDES[id]
+    if (!o) return null
+    return {
+      name: o.name, cat: o.cat, main: o.main, tips: o.tips,
+      image: o.image, hidden: o.hidden
+    }
+  },
+
+  /**
+   * 被房主藏起来的内置菜列表 —— 专门给「恢复内置菜」那个入口用。
+   * 别的地方一律拿不到它们（byId / byCat / search 都不含）。
+   */
+  hiddenBuiltin: function (cat) {
+    var all = (!cat || cat === 'all')
+    var out = []
+    for (var i = 0; i < DISHES.length; i++) {
+      var raw = DISHES[i]
+      if (!isHidden(raw.id)) continue
+      var d = applyOverride(raw)
+      if (!all && d.cat !== cat) continue
+      // ★ 显式复制一份。applyOverride 在「只藏起来、没改任何字段」时确实会
+      //   返回新对象，但这里不依赖那个巧合 —— 万一将来 isHidden 的判定变了
+      //   而它返回了原对象，往上写 hidden 就等于改到了静态数据。
+      out.push({
+        id: d.id,
+        name: d.name,
+        cat: d.cat,
+        main: d.main,
+        tips: d.tips,
+        image: d.image || '',
+        hidden: true
+      })
+    }
+    return out
+  },
+
+  /** 藏起来的内置菜有几道 */
+  hiddenCount: function () {
+    return countHidden()
+  },
+
+  /**
+   * 菜库总数 = 可见的内置菜 + 自建。
+   * ★ 注意 TOTAL 仍然是内置菜的**出厂**数量（80），别拿它当总数用。
+   *   隐藏了几道之后，菜库页上的数字得跟着变小，所以这里必须减去隐藏数。
+   */
   totalAll: function () {
-    return DISHES.length + CUSTOM.length
+    return DISHES.length - countHidden() + CUSTOM.length
   },
 
   /**

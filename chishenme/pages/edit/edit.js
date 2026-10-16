@@ -6,8 +6,10 @@ var media = require('../../utils/media.js')
  * 加菜 / 改菜。
  *
  * 两种用法：
- *   /pages/edit/edit            新建
- *   /pages/edit/edit?id=<菜品id> 改已有的（只有自己加的才让进）
+ *   /pages/edit/edit             新建一道自己的菜
+ *   /pages/edit/edit?id=<菜品id>  改已有的
+ *     - id 是 u 开头的自建菜：只有自己加的才让进
+ *     - id 是内置菜（hongshaorou 这种）：只有房主才让进
  *
  * ★ 页面只管收集输入和显示，保存逻辑全在 app.js ——
  *   页面直接调 wx.cloud 会破坏架构铁律（wxml-check 的 G1 会红）。
@@ -17,11 +19,12 @@ Page({
   data: {
     id: '',
     isNew: true,
+    isBuiltin: false, // 改的是内置的 80 道之一（提示语不一样）
     name: '',
     cat: 'meat',
     main: '',
     tips: '',
-    image: '',      // 已保存的图片引用（cloud:// 或本机路径）
+    image: '',      // 已保存的图片引用（cloud:// 或本机路径）；内置菜为空串表示用包里那张
     preview: '',    // 界面上显示的那张：新选的临时图优先
     picked: false,  // 这次是不是重选了图
     cats: [],
@@ -41,18 +44,25 @@ Page({
 
     if (id) {
       var d = D.byId(id)
-      // 内置菜不给改，别人加的也不给改 —— 就算有人手拼 URL 进来，这里也拦住
+      // 内置菜只有房主能改，别人加的菜谁都不能改 ——
+      // 就算有人手拼 URL 进来，这里也拦住。（真正拦得住的地方是云函数）
       if (!d || !app.canEditDish(id)) {
         wx.showToast({ title: '这道菜改不了', icon: 'none' })
         setTimeout(function () { wx.navigateBack() }, 800)
         return
       }
+      init.isBuiltin = !app.isCustomDish(id)
       init.name = d.name
       init.cat = d.cat
       init.main = d.main || ''
       init.tips = d.tips || ''
+      // ★ image 和 preview 是两件事，别混：
+      //   image   是「要存进记录里的图片引用」。内置菜的图在包里，这里必须是
+      //           空串 —— 把包内路径存进记录，将来换图 / 换设备就对不上了。
+      //   preview 是「界面上显示哪张」。统一走 imageOf：内置菜看到包里那张，
+      //           自建菜没传图时看到占位图，而不是一片空白。
       init.image = d.image || ''
-      init.preview = d.image || ''
+      init.preview = D.imageOf(id)
     }
 
     this.setData(init)

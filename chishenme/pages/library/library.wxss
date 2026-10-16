@@ -275,3 +275,130 @@
   font-size: var(--t-body);
   font-weight: 600;
 }
+
+/* 详情里的「你改过这道菜」。
+   刻意做得很轻：它是一句解释，不是一个状态标签，
+   抢了菜名和分类的注意力就本末倒置了。 */
+.edited-note {
+  margin: -8rpx 0 16rpx;
+  font-size: var(--t-cap);
+  color: var(--c-ink-3);
+}
+
+/* ---------- 房主专属：已被收起来的内置菜 ---------- */
+
+/* 菜库底部的入口。用发丝线框而不是实色块 ——
+   它是补充信息，不能长得像「加入今日菜单」那种主要动作。 */
+.hidden-bar {
+  margin: 20rpx 30rpx 0;
+  padding: 22rpx 24rpx;
+  border: 1rpx solid var(--c-line-strong);
+  border-radius: var(--r-panel);
+  text-align: center;
+  font-size: var(--t-cap);
+  color: var(--c-ink-2);
+}
+
+.restore-head {
+  padding: 30rpx 30rpx 6rpx;
+}
+
+.restore-title {
+  font-size: var(--t-h1);
+  font-weight: 700;
+  color: var(--c-ink);
+}
+
+.restore-sub {
+  margin-top: 12rpx;
+  font-size: var(--t-cap);
+  color: var(--c-ink-3);
+  line-height: 1.6;
+}
+
+/* scroll-view 必须有个高度上限，否则里面菜一多会把整屏顶满 */
+.restore-list {
+  max-height: 620rpx;
+  padding: 10rpx 20rpx;
+  box-sizing: border-box;
+}
+
+.restore-row {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 10rpx;
+  border-bottom: 1rpx solid var(--c-line);
+}
+
+/* 最后一行不画线，免得和下面的按钮贴在一起显脏 */
+.restore-row:last-child {
+  border-bottom: none;
+}
+
+.restore-img {
+  flex-shrink: 0;
+  width: 92rpx;
+  height: 92rpx;
+  border-radius: var(--r-item);
+  background: var(--c-surface-sunk);
+}
+
+.restore-info {
+  flex: 1;
+  min-width: 0;
+  margin-left: 20rpx;
+}
+
+.restore-name {
+  font-size: var(--t-body);
+  font-weight: 600;
+  color: var(--c-ink);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.restore-cat {
+  margin-top: 6rpx;
+  font-size: var(--t-tag);
+  color: var(--c-ink-3);
+}
+
+.restore-btn {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  padding: 16rpx 30rpx;
+  border-radius: var(--r-pill);
+  background: var(--c-brand-tint);
+  color: var(--c-brand);
+  font-size: var(--t-tag);
+  font-weight: 600;
+}
+
+.restore-foot {
+  display: flex;
+  padding: 22rpx 30rpx;
+  padding-bottom: calc(22rpx + env(safe-area-inset-bottom));
+}
+
+.restore-all {
+  flex: 1;
+  margin-right: 20rpx;
+  text-align: center;
+  padding: 22rpx 0;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-sunk);
+  color: var(--c-ink-2);
+  font-size: var(--t-body);
+}
+
+.restore-close {
+  flex: 1;
+  text-align: center;
+  padding: 22rpx 0;
+  border-radius: var(--r-pill);
+  background: var(--c-brand);
+  color: #FFFFFF;
+  font-size: var(--t-body);
+  font-weight: 600;
+}

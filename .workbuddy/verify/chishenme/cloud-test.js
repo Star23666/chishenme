@@ -71,6 +71,7 @@ function setPath(obj, key, val) {
 var command = {
   all: function (arr) { return { __op: 'all', v: arr } },
   lt: function (v) { return { __op: 'lt', v: v } },
+  neq: function (v) { return { __op: 'neq', v: v } },
   inc: function (n) { return { __op: 'inc', v: n } },
   addToSet: function (v) { return { __op: 'addToSet', v: v } },
   pull: function (v) { return { __op: 'pull', v: v } }
@@ -92,6 +93,12 @@ function matchDoc(doc, cond) {
         }
       } else if (want.__op === 'lt') {
         if (!(got < want.v)) return false
+      } else if (want.__op === 'neq') {
+        // ★ 语义必须和真实云开发（MongoDB 的 $ne）一致：**字段不存在**也算
+        //   「不等于」。createDish 数「自己加了几道菜」时要靠这条把更早版本
+        //   留下的、没有 builtin 字段的自建菜一起数进去。
+        //   照「字段必须存在」实现的话，测试会比线上宽松，等于白测。
+        if (got === want.v) return false
       } else {
         // 把比较指令用在 where 里不是合法用法，直接不匹配
         return false
@@ -961,6 +968,159 @@ async function run() {
       .map(function (d) { return d.dishId })
     eq('自建菜按创建时间升序返回', JSON.stringify(orderedIds), JSON.stringify(rawOrder))
     ok('返回的是本家全部自建菜', orderedIds.length === rawOrder.length, orderedIds.length + '/' + rawOrder.length)
+  }
+
+  /* ---------- 房主对内置菜的改动 / 隐藏 ---------- */
+  S('8. 房主对内置菜的改动 / 隐藏')
+
+  /*
+   * 内置的 80 道菜写死在 data/dishes.js 里、图片打在小程序包里，物理上删不掉。
+   * 所以「改」和「删」都是往 csm_dishes 里记一条**改动**：
+   *   updateBuiltin  -> 改名字 / 主料 / 要点 / 分类 / 换图
+   *   hideBuiltin    -> 对全家隐藏（客户端就当它不存在）
+   *   restoreBuiltin -> 恢复出厂
+   *
+   * ★ 这一段要盯死两条：
+   *   1. 权限在**服务端**判。客户端藏按钮只是方便，改一行 wxml 就绕过去了。
+   *   2. 内置菜改动和自建菜存在同一个集合里，任何按「本家有几道菜」来判断的
+   *      地方都必须把它们分开算 —— 混一次就是一个不报错的 bug。
+   */
+  {
+    const bFam = await call('b_owner', 'createFamily', { name: '内置菜测试家', nickname: '房主' })
+    const bCode = bFam.data.code
+    await call('b_member', 'joinFamily', { code: bCode, nickname: '家人' })
+
+    const overDocs = () => col('csm_dishes').filter(
+      (d) => d.familyCode === bCode && d.builtin === true
+    )
+
+    /* ---- 房主改一道内置菜 ---- */
+    const edit = await call('b_owner', 'updateBuiltin', {
+      id: 'hongshaorou', name: '外婆红烧肉', cat: 'veg', main: '黑猪五花肉', tips: '炖足两小时'
+    })
+    eq('房主改得动内置菜', edit.ok, true)
+    eq('库里记下了一条改动', overDocs().length, 1)
+    eq('  dishId 就是内置菜自己的 id', overDocs()[0].dishId, 'hongshaorou')
+    eq('  builtin 标成 true（和自建菜分开）', overDocs()[0].builtin, true)
+    eq('  记的是房主的 openid', overDocs()[0].creator, 'b_owner')
+
+    /* ---- 改动对全家生效 ---- */
+    const bList = (await call('b_member', 'listDishes', {})).data
+    ok('家人拉到的东西里有这条改动', !!bList.overrides['hongshaorou'],
+      JSON.stringify(bList.overrides))
+    eq('  改后的名字传下去了', bList.overrides['hongshaorou'].name, '外婆红烧肉')
+    // ★ 这条最关键：内置菜改动要是混进 list，客户端会把它当成一道**新菜**，
+    //   于是「红烧肉」在菜库里出现两次
+    eq('★ 改动没有混进自建菜列表（否则菜库里会出现两道红烧肉）', bList.list.length, 0)
+
+    /* ---- 权限：家人改不动 ---- */
+    const memberEdit = await call('b_member', 'updateBuiltin', { id: 'xiangguhuaji', name: '我要改' })
+    eq('家人改内置菜被拒', memberEdit.ok, false)
+    eq('返回 NOT_OWNER', memberEdit.msg, 'NOT_OWNER')
+    eq('被拒之后库里没多出记录', overDocs().length, 1)
+
+    /* ---- 客户端传的 id 不可信 ---- */
+    eq('拿自建菜形状的 id 来改内置菜会被拒',
+      (await call('b_owner', 'updateBuiltin', { id: 'uabc123', name: '瞎编的' })).ok, false)
+    eq('id 形状不对也被拒',
+      (await call('b_owner', 'updateBuiltin', { id: '中文菜名', name: '瞎编的' })).ok, false)
+    eq('菜名空着也被拒',
+      (await call('b_owner', 'updateBuiltin', { id: 'hongshaorou', name: '   ' })).ok, false)
+    eq('以上都被拒之后，库里还是只有那一条', overDocs().length, 1)
+
+    /* ---- 再改一次是覆盖，不是新增 ---- */
+    await call('b_owner', 'updateBuiltin', { id: 'hongshaorou', name: '外婆红烧肉2', cat: 'veg' })
+    eq('再改一次不新增记录', overDocs().length, 1)
+    eq('  名字更新了',
+      (await call('b_owner', 'listDishes', {})).data.overrides['hongshaorou'].name, '外婆红烧肉2')
+
+    /* ---- 换图之后改名字，不能把图弄丢 ---- */
+    await call('b_owner', 'updateBuiltin', {
+      id: 'hongshaorou', name: '带图的', image: 'cloud://demo/dishes/edited.jpg'
+    })
+    await call('b_owner', 'updateBuiltin', { id: 'hongshaorou', name: '改名字不带图' })
+    const keepImg = (await call('b_owner', 'listDishes', {})).data.overrides['hongshaorou']
+    eq('★ 改名字时没带新图，之前换的那张图还在', keepImg.image, 'cloud://demo/dishes/edited.jpg')
+
+    /* ---- 隐藏 ---- */
+    await call('b_owner', 'addDish', { dishId: 'hongshaorou' })
+    await call('b_owner', 'addDish', { dishId: 'gongbaojiding' })
+    eq('菜单里先有两道', col('csm_menus').filter((d) => d.familyCode === bCode).length, 2)
+
+    const hid = await call('b_owner', 'hideBuiltin', { id: 'hongshaorou' })
+    eq('房主藏得动内置菜', hid.ok, true)
+    eq('★ 藏起来时今天菜单里那道也一起摘掉了（不留孤儿条目）',
+      col('csm_menus').filter((d) => d.dishId === 'hongshaorou').length, 0)
+    eq('菜单里另一道没被连累',
+      col('csm_menus').filter((d) => d.dishId === 'gongbaojiding').length, 1)
+    eq('那条记录被标成 hidden', overDocs().filter((d) => d.dishId === 'hongshaorou')[0].hidden, true)
+    eq('★ 之前改过的名字还留着（恢复之后还是那个样子）',
+      (await call('b_member', 'listDishes', {})).data.overrides['hongshaorou'].name, '改名字不带图')
+    eq('★ 换过的那张图也还留着',
+      (await call('b_member', 'listDishes', {})).data.overrides['hongshaorou'].image,
+      'cloud://demo/dishes/edited.jpg')
+
+    await call('b_owner', 'hideBuiltin', { id: 'gongbaojiding' })
+    eq('藏一道从没改过的内置菜也会记一条', overDocs().length, 2)
+    eq('  那条只有 hidden、没有名字',
+      !!overDocs().filter((d) => d.dishId === 'gongbaojiding')[0].name, false)
+    eq('  客户端拿到它时 hidden 是 true',
+      (await call('b_member', 'listDishes', {})).data.overrides['gongbaojiding'].hidden, true)
+
+    /* ---- 权限：家人藏不动 ---- */
+    const memberHide = await call('b_member', 'hideBuiltin', { id: 'mapodoufu' })
+    eq('家人藏不了内置菜', memberHide.ok, false)
+    eq('返回 NOT_OWNER', memberHide.msg, 'NOT_OWNER')
+    eq('被拒之后库里还是两条', overDocs().length, 2)
+
+    /* ---- 幂等 ---- */
+    eq('重复藏同一道不报错', (await call('b_owner', 'hideBuiltin', { id: 'gongbaojiding' })).ok, true)
+    eq('  也不会多出一条记录', overDocs().length, 2)
+
+    /* ---- 恢复 ---- */
+    const res = await call('b_owner', 'restoreBuiltin', { id: 'hongshaorou' })
+    eq('房主恢复得动', res.ok, true)
+    eq('恢复之后这条改动没了',
+      overDocs().filter((d) => d.dishId === 'hongshaorou').length, 0)
+    ok('★ 房主换的那张图顺手删了（已经没人引用它）',
+      deletedFiles.indexOf('cloud://demo/dishes/edited.jpg') >= 0, deletedFiles.join(','))
+    eq('★ 恢复不会把菜自动塞回今天的菜单（要吃再点一次）',
+      col('csm_menus').filter((d) => d.dishId === 'hongshaorou').length, 0)
+    eq('恢复是幂等的', (await call('b_owner', 'restoreBuiltin', { id: 'hongshaorou' })).ok, true)
+    eq('恢复一道从没改过的菜也不报错',
+      (await call('b_owner', 'restoreBuiltin', { id: 'laweibaozifan' })).ok, true)
+    eq('家人恢复不了', (await call('b_member', 'restoreBuiltin', { id: 'gongbaojiding' })).ok, false)
+    eq('  被拒之后那道菜还是藏着的', overDocs().length, 1)
+
+    /* ---- 房间隔离 ---- */
+    eq('别家看不到这个房间的内置菜改动',
+      Object.keys((await call('other_chef', 'listDishes', {})).data.overrides).length, 0)
+    eq('没有家庭的人改不了内置菜',
+      (await call('lonely_one', 'updateBuiltin', { id: 'hongshaorou', name: 'x' })).msg, 'NO_FAMILY')
+
+    /* ---- ★ 内置菜改动不能占掉「一个家最多 100 道自己的菜」的名额 ---- */
+    /*
+     * 两种记录躺在同一个集合里，而 createDish 是按「本家有多少条记录」来数上限的。
+     * 不把 builtin 排除掉的话，房主改一道内置菜就白占一个名额 ——
+     * 改满 100 道之后这个家连一道自己的菜都加不了，而且看不出任何异常。
+     */
+    const qFam = await call('q_owner', 'createFamily', { name: '名额测试', nickname: '我' })
+    const qCode = qFam.data.code
+    await call('q_owner', 'hideBuiltin', { id: 'hongshaorou' })
+    await call('q_owner', 'hideBuiltin', { id: 'gongbaojiding' })
+    await call('q_owner', 'hideBuiltin', { id: 'mapodoufu' })
+    eq('先摆好 3 条内置菜改动',
+      col('csm_dishes').filter((d) => d.familyCode === qCode).length, 3)
+
+    for (let h = 0; h < 99; h++) {
+      await call('q_owner', 'createDish', { name: '自家菜' + h })
+    }
+    eq('★ 内置菜改动不占自建菜的名额（99 道都加进去了）',
+      col('csm_dishes').filter((d) => d.familyCode === qCode && d.builtin !== true).length, 99)
+    eq('  第 100 道还能加',
+      (await call('q_owner', 'createDish', { name: '第一百道' })).ok, true)
+    eq('  到 100 道才拦住',
+      (await call('q_owner', 'createDish', { name: '第一百零一道' })).ok, false)
   }
 
   /* ---------- 汇总 ---------- */
