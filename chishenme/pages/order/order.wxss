@@ -1,0 +1,143 @@
+.page {
+  min-height: 100vh;
+}
+
+/* ---------- 顶部统计 ----------
+   数字压到 --t-display（44rpx，原来 56rpx），让「3 道菜已选」读起来是一句话，
+   而不是「一个大数字 + 一个小标签」—— 后者是模板感的经典配方。 */
+.head {
+  background: var(--c-brand);
+  padding: 26rpx 30rpx 30rpx;
+  display: flex;
+  align-items: baseline;
+}
+
+.head-num {
+  font-size: var(--t-display);
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.head-txt {
+  font-size: var(--t-sub);
+  color: rgba(255, 255, 255, 0.88);
+  margin-left: 14rpx;
+}
+
+/* ---------- 列表 ---------- */
+.rows {
+  background: var(--c-surface);
+  margin: 0 20rpx;
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  border-bottom: 1rpx solid var(--c-line);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row-img {
+  width: 110rpx;
+  height: 110rpx;
+  border-radius: var(--r-item);
+  background: var(--c-surface-sunk);
+  flex-shrink: 0;
+}
+
+.row-mid {
+  flex: 1;
+  min-width: 0;
+  padding: 0 20rpx;
+}
+
+.row-name {
+  font-size: var(--t-h2);
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.row-note {
+  font-size: var(--t-cap);
+  color: var(--c-brand);
+  margin-top: 8rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.row-note-empty {
+  font-size: var(--t-cap);
+  color: var(--c-ink-4);
+  margin-top: 8rpx;
+}
+
+/* ---------- 步进器 ---------- */
+.stepper {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.st-btn {
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 52rpx;
+  text-align: center;
+  border-radius: 50%;
+  border: 2rpx solid var(--c-brand);
+  color: var(--c-brand);
+  font-size: var(--t-h1);
+}
+
+.st-plus {
+  background: var(--c-brand);
+  color: #FFFFFF;
+  border-color: var(--c-brand);
+}
+
+.st-num {
+  min-width: 56rpx;
+  text-align: center;
+  font-size: var(--t-h2);
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+/* ---------- 底部悬浮条 ---------- */
+.float-space {
+  height: 150rpx;
+}
+
+.float-bar {
+  position: fixed;
+  left: 30rpx;
+  right: 30rpx;
+  bottom: calc(30rpx + env(safe-area-inset-bottom));
+  height: 96rpx;
+  background: var(--c-ink);
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40rpx;
+  z-index: 20;
+}
+
+.fb-left {
+  color: #FFFFFF;
+  font-size: var(--t-sub);
+}
+
+/* 深色胶囊上的一抹暖色，属于主色家族，和左边白字拉开层次 */
+.fb-right {
+  color: #FFAE90;
+  font-size: var(--t-body);
+  font-weight: 600;
+}

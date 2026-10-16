@@ -1,0 +1,163 @@
+.page {
+  padding: 0 24rpx 48rpx;
+}
+
+/* ---------- 概览卡片 ---------- */
+.cards {
+  margin-top: 12rpx;
+}
+
+.card {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 28rpx 32rpx;
+}
+
+.card.primary {
+  background: #4F7CFF;
+}
+
+.card.primary .clabel {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.card.primary .cvalue {
+  color: #FFFFFF;
+}
+
+.card.primary .csub {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.cardrow {
+  display: flex;
+  margin-top: 20rpx;
+}
+
+.card.half {
+  flex: 1;
+  padding: 26rpx 28rpx;
+}
+
+.card.half.first {
+  margin-right: 20rpx;
+}
+
+.clabel {
+  font-size: 25rpx;
+  color: #8A8F99;
+  margin-bottom: 12rpx;
+}
+
+.cvalue {
+  font-size: 42rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  line-height: 1.2;
+}
+
+.cvalue.big {
+  font-size: 68rpx;
+}
+
+.cvalue.exp {
+  color: #E8564C;
+}
+
+.cvalue.inc {
+  color: #2FA36B;
+}
+
+.csub {
+  font-size: 24rpx;
+  color: #8A8F99;
+  margin-top: 14rpx;
+}
+
+/* ---------- 流水列表 ---------- */
+.group {
+  margin-top: 34rpx;
+}
+
+.ghead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10rpx 14rpx;
+}
+
+.gdate {
+  font-size: 26rpx;
+  color: #6B7280;
+  font-weight: 600;
+}
+
+.gsum {
+  font-size: 24rpx;
+  color: #9AA0AA;
+}
+
+.rows {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  padding: 26rpx 28rpx;
+  border-bottom: 1rpx solid #F0F1F4;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.rdot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  margin-right: 20rpx;
+  flex: 0 0 16rpx;
+}
+
+.rmid {
+  flex: 1;
+  min-width: 0;
+}
+
+.rname {
+  font-size: 29rpx;
+  color: #1F2329;
+}
+
+.rnote {
+  font-size: 24rpx;
+  color: #9AA0AA;
+  margin-top: 4rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ramt {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-left: 16rpx;
+}
+
+.ramt.exp {
+  color: #1F2329;
+}
+
+.ramt.inc {
+  color: #2FA36B;
+}
+
+.hint {
+  text-align: center;
+  font-size: 23rpx;
+  color: #B4B9C2;
+  padding: 30rpx 0 0;
+}

@@ -1,0 +1,61 @@
+<view class="page">
+
+  <!-- 月份切换 -->
+  <view class="monthbar">
+    <view class="mbtn" bindtap="prevMonth">‹</view>
+    <view class="mtext">{{monthText}}</view>
+    <view class="mbtn {{isCurrentMonth ? 'disabled' : ''}}" bindtap="nextMonth">›</view>
+  </view>
+
+  <!-- 概览 -->
+  <view class="cards">
+    <view class="card primary">
+      <view class="clabel">本月结余</view>
+      <view class="cvalue big">{{summary.balanceText}}</view>
+      <view class="csub">共 {{count}} 笔记录</view>
+    </view>
+    <view class="cardrow">
+      <view class="card half first">
+        <view class="clabel">本月支出</view>
+        <view class="cvalue exp">{{summary.expenseText}}</view>
+      </view>
+      <view class="card half">
+        <view class="clabel">本月收入</view>
+        <view class="cvalue inc">{{summary.incomeText}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 流水列表 -->
+  <block wx:if="{{groups.length > 0}}">
+    <view class="group" wx:for="{{groups}}" wx:key="date">
+      <view class="ghead">
+        <text class="gdate">{{item.dateLabel}}</text>
+        <text class="gsum">支出 {{item.expenseText}}</text>
+      </view>
+      <view class="rows">
+        <view class="row"
+              wx:for="{{item.items}}"
+              wx:for-item="row"
+              wx:key="id"
+              data-id="{{row.id}}"
+              bindlongpress="onDelete">
+          <view class="rdot" style="background:{{row.color}}"></view>
+          <view class="rmid">
+            <view class="rname">{{row.categoryName}}</view>
+            <view class="rnote" wx:if="{{row.note}}">{{row.note}}</view>
+          </view>
+          <view class="ramt {{row.type === 'income' ? 'inc' : 'exp'}}">{{row.amountText}}</view>
+        </view>
+      </view>
+    </view>
+    <view class="hint">长按任意一条可以删除</view>
+  </block>
+
+  <!-- 空状态 -->
+  <view class="empty" wx:else>
+    <view class="etitle">本月还没有记账</view>
+    <view>点底部「记一笔」开始</view>
+  </view>
+
+</view>

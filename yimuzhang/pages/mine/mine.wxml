@@ -1,0 +1,51 @@
+<view class="page">
+
+  <view class="hero">
+    <view class="logo">一目账</view>
+    <view class="slogan">不登录 · 不上传 · 数据只存在你手机里</view>
+  </view>
+
+  <view class="statcard">
+    <view class="sitem">
+      <view class="sn">{{total}}</view>
+      <view class="sl">累计记录</view>
+    </view>
+    <view class="sitem pad">
+      <view class="sn">{{dayCount}}</view>
+      <view class="sl">记账天数</view>
+    </view>
+  </view>
+
+  <view class="moneycard">
+    <view class="mrow">
+      <text class="mlabel">累计支出</text>
+      <text class="mval exp">¥{{expenseText}}</text>
+    </view>
+    <view class="mrow">
+      <text class="mlabel">累计收入</text>
+      <text class="mval inc">¥{{incomeText}}</text>
+    </view>
+    <view class="mrow">
+      <text class="mlabel">结余</text>
+      <text class="mval">¥{{balanceText}}</text>
+    </view>
+  </view>
+
+  <view class="cells">
+    <view class="cell" bindtap="exportData">
+      <text class="ct">导出数据</text>
+      <text class="ca">复制到剪贴板 ›</text>
+    </view>
+    <view class="cell danger" bindtap="clearData">
+      <text class="ct">清空全部数据</text>
+      <text class="ca">不可恢复 ›</text>
+    </view>
+  </view>
+
+  <view class="tip">
+    数据保存在手机本地，清理微信缓存或删除小程序会一起丢失。重要的账目请先用「导出数据」备份到别处。
+  </view>
+
+  <view class="ver">一目账 v1.0</view>
+
+</view>

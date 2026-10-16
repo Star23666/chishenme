@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vibe Coding 实操流程方案</title>
+<style>
+  :root{
+    --bg:#fbfbf9;
+    --card:#ffffff;
+    --text:#1f1f1d;
+    --muted:#6b6b66;
+    --faint:#96968f;
+    --border:#e6e4de;
+    --border-strong:#d5d2c9;
+    --accent:#4f46e5;
+    --accent-bg:#eef2ff;
+    --accent-line:#c7d2fe;
+    --ok:#0f6e56;
+    --ok-bg:#e1f5ee;
+    --warn:#b45309;
+    --warn-bg:#fef6e7;
+    --bad:#b91c1c;
+    --bad-bg:#fdeaea;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:15px;
+    line-height:1.75;
+    letter-spacing:.01em;
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:0 24px 96px;}
+
+  /* ---------- hero ---------- */
+  .hero{padding:64px 0 40px;border-bottom:1px solid var(--border);margin-bottom:40px;}
+  .badge{
+    display:inline-block;font-size:12px;letter-spacing:.06em;color:var(--accent);
+    background:var(--accent-bg);border:1px solid var(--accent-line);
+    padding:3px 10px;border-radius:999px;margin-bottom:18px;
+  }
+  h1{font-size:34px;line-height:1.3;font-weight:600;margin:0 0 14px;letter-spacing:-.01em;}
+  .hero p.sub{font-size:16px;color:var(--muted);margin:0 0 20px;max-width:640px;}
+  .hero .meta{font-size:12.5px;color:var(--faint);}
+
+  /* ---------- section ---------- */
+  section{margin:0 0 56px;}
+  h2{
+    font-size:13px;font-weight:600;letter-spacing:.1em;color:var(--accent);
+    margin:0 0 6px;
+  }
+  h2 .num{color:var(--faint);font-weight:500;margin-right:6px;}
+  h3{font-size:19px;font-weight:600;margin:8px 0 18px;line-height:1.45;}
+  h4{font-size:15px;font-weight:600;margin:26px 0 8px;}
+  p{margin:0 0 14px;}
+  strong{font-weight:600;}
+  code{
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    font-size:.88em;background:#f2f0ea;border:1px solid var(--border);
+    border-radius:4px;padding:1px 5px;color:#444;
+  }
+
+  /* ---------- callout ---------- */
+  .callout{
+    background:var(--accent-bg);border:1px solid var(--accent-line);border-radius:12px;
+    padding:20px 22px;margin:0 0 24px;
+  }
+  .callout p:last-child{margin-bottom:0;}
+  .callout .k{font-weight:600;color:var(--accent);}
+  .callout.warn{background:var(--warn-bg);border-color:#f5d9a8;}
+  .callout.warn .k{color:var(--warn);}
+  .callout.bad{background:var(--bad-bg);border-color:#f3c6c6;}
+  .callout.bad .k{color:var(--bad);}
+  .callout.ok{background:var(--ok-bg);border-color:#a9ddcb;}
+  .callout.ok .k{color:var(--ok);}
+
+  /* ---------- loop diagram ---------- */
+  .loop{
+    display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+    margin:20px 0 24px;
+  }
+  .loop .step{
+    background:var(--card);border:1px solid var(--border-strong);border-radius:8px;
+    padding:8px 13px;font-size:13.5px;font-weight:500;white-space:nowrap;
+  }
+  .loop .arrow{color:var(--faint);font-size:13px;}
+  .loop .step.hi{background:var(--accent-bg);border-color:var(--accent-line);color:var(--accent);}
+
+  /* ---------- pipeline ---------- */
+  .pipe{display:flex;flex-direction:column;gap:0;margin:24px 0 28px;}
+  .pstage{
+    display:grid;grid-template-columns:34px 1fr;gap:16px;
+    padding:0 0 24px;position:relative;
+  }
+  .pstage:not(:last-child)::before{
+    content:"";position:absolute;left:16px;top:34px;bottom:-2px;width:1px;background:var(--border-strong);
+  }
+  .pdot{
+    width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:600;background:var(--accent-bg);color:var(--accent);
+    border:1px solid var(--accent-line);position:relative;z-index:1;
+  }
+  .pbody{padding-top:3px;}
+  .pbody .pt{font-size:15.5px;font-weight:600;margin:0 0 2px;}
+  .pbody .pd{font-size:13.5px;color:var(--muted);margin:0 0 8px;}
+  .pbody .po{font-size:12.5px;color:var(--faint);margin:0;}
+  .pbody .po b{color:var(--accent);font-weight:500;}
+
+  /* ---------- table ---------- */
+  .tw{overflow-x:auto;margin:18px 0 24px;border:1px solid var(--border);border-radius:10px;background:var(--card);}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px;}
+  th{
+    text-align:left;font-weight:600;font-size:12px;letter-spacing:.04em;color:var(--muted);
+    padding:11px 14px;border-bottom:1px solid var(--border);background:#faf9f6;white-space:nowrap;
+  }
+  td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  td:first-child{font-weight:500;white-space:nowrap;}
+  .tag{
+    display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:4px;
+    font-weight:500;white-space:nowrap;
+  }
+  .tag.g{background:var(--ok-bg);color:var(--ok);}
+  .tag.y{background:var(--warn-bg);color:var(--warn);}
+  .tag.r{background:var(--bad-bg);color:var(--bad);}
+  .tag.b{background:var(--accent-bg);color:var(--accent);}
+
+  /* ---------- gates ---------- */
+  .gates{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0 24px;}
+  .gate{
+    background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);
+    border-radius:8px;padding:14px 16px;
+  }
+  .gate .gt{font-size:14px;font-weight:600;margin:0 0 4px;}
+  .gate .gd{font-size:12.5px;color:var(--muted);margin:0;line-height:1.6;}
+  @media(max-width:640px){.gates{grid-template-columns:1fr;}}
+
+  /* ---------- checklist ---------- */
+  .check{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 6px;margin:18px 0 24px;}
+  .ck{display:flex;gap:12px;align-items:flex-start;padding:10px 14px;border-radius:8px;cursor:pointer;transition:background .12s;}
+  .ck:hover{background:#faf9f6;}
+  .ck input{appearance:none;-webkit-appearance:none;width:17px;height:17px;border:1.5px solid var(--border-strong);
+    border-radius:4px;margin:3px 0 0;flex:0 0 17px;cursor:pointer;position:relative;transition:all .12s;}
+  .ck input:checked{background:var(--accent);border-color:var(--accent);}
+  .ck input:checked::after{content:"";position:absolute;left:5px;top:1.5px;width:4px;height:9px;
+    border:solid #fff;border-width:0 1.8px 1.8px 0;transform:rotate(45deg);}
+  .ck .ct{font-size:14px;line-height:1.6;}
+  .ck .ct b{font-weight:600;}
+  .ck .ct span{color:var(--muted);font-size:12.5px;display:block;margin-top:1px;}
+  .ck input:checked + .ct{color:var(--faint);text-decoration:line-through;text-decoration-color:var(--border-strong);}
+  .ck input:checked + .ct span{text-decoration:none;}
+
+  /* ---------- stat ---------- */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0 26px;}
+  @media(max-width:640px){.stats{grid-template-columns:1fr;}}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;}
+  .stat .n{font-size:26px;font-weight:600;line-height:1.2;color:var(--bad);letter-spacing:-.02em;}
+  .stat .n.b{color:var(--accent);}
+  .stat .l{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.55;}
+
+  /* ---------- misc ---------- */
+  ul.plain{margin:0 0 16px;padding-left:0;list-style:none;}
+  ul.plain li{position:relative;padding-left:18px;margin-bottom:7px;}
+  ul.plain li::before{content:"";position:absolute;left:4px;top:11px;width:4px;height:4px;border-radius:50%;background:var(--border-strong);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0 24px;}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr;}}
+  .mini{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+  .mini h4{margin:0 0 6px;font-size:14px;}
+  .mini p{font-size:13px;color:var(--muted);margin:0;}
+  .mini.no{border-left:3px solid var(--bad);}
+  .mini.yes{border-left:3px solid var(--ok);}
+  footer{border-top:1px solid var(--border);padding-top:24px;font-size:12.5px;color:var(--faint);line-height:1.8;}
+  .quote{border-left:2px solid var(--border-strong);padding-left:14px;color:var(--muted);font-size:14px;margin:0 0 18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="badge">2026 · 实操流程方案</div>
+  <h1>Vibe Coding 到底是怎么跑的</h1>
+  <p class="sub">从"一句话描述"到"能上线的东西"之间，真实存在的流程、必须过的闸门，以及大多数人踩过的坑。</p>
+  <div class="meta">整理于 2026-10-15 · 基于公开实践总结、工具文档与行业审计数据</div>
+</header>
+
+<section>
+  <div class="callout">
+    <p><span class="k">先记住三句话。</span></p>
+    <p>一、Vibe Coding 的核心是一个循环，不是一次提示词：<strong>描述 → 生成 → 运行 → 审查 → 纠正 → 重复</strong>。</p>
+    <p>二、它是<strong>速度杠杆，不是能力替代</strong>——它放大你已有的判断力，不会给你没有的判断力。</p>
+    <p>三、2026 年真正跑通的人，用的已经不是"纯 vibe"，而是 <strong>规格驱动开发（SDD）</strong>：先把要做什么写成规格，再让 AI 实现。</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">01</span>它到底是什么</h2>
+  <h3>一个循环，叠加一个前提</h3>
+  <p>这个词由 Andrej Karpathy 在 2025 年初提出，原意是"完全跟着感觉走，不看代码只管结果"。一年半过去，它已经从一个段子变成了一套有工程约束的实践。但底层动作没变，就是一个循环：</p>
+  <div class="loop">
+    <div class="step">描述需求</div><div class="arrow">→</div>
+    <div class="step">AI 生成</div><div class="arrow">→</div>
+    <div class="step hi">本地运行</div><div class="arrow">→</div>
+    <div class="step hi">审查改动</div><div class="arrow">→</div>
+    <div class="step">纠正反馈</div><div class="arrow">→</div>
+    <div class="step">重复</div>
+  </div>
+  <p class="quote">关键心态转变：把每一次 AI 产出当成<strong>一次迭代</strong>，而不是一个交付答案。这一步想通了，整个流程就稳了。</p>
+
+  <h4>最重要的一个前提：它在什么场景下成立</h4>
+  <p>决定成败的不是工具，是你对这件事的熟悉度 × 这件事的风险等级：</p>
+  <div class="grid2">
+    <div class="mini yes">
+      <h4>熟悉的 + 低风险 → 放心用</h4>
+      <p>做过的技术栈、原型验证、内部小工具。AI 出错你一眼能看出来，成本也低。</p>
+    </div>
+    <div class="mini yes">
+      <h4>不熟悉的 + 低风险 → 最佳学习方式</h4>
+      <p>用新框架做个不值钱的东西，生成完第二天去读代码，学得比任何教程都快。</p>
+    </div>
+    <div class="mini no">
+      <h4>不熟悉的 + 高风险 → 翻车现场</h4>
+      <p>你不懂的领域里的支付、鉴权、数据库迁移、安全代码。错误长得很正确，你根本看不出来。</p>
+    </div>
+    <div class="mini no">
+      <h4>熟悉的 + 高风险 → 可用，但必须设闸门</h4>
+      <p>能做，但必须过安全扫描和架构审查。速度提上来了，标准不能降。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">02</span>工具怎么选</h2>
+  <h3>不要找"最好的一个"，要组一条链</h3>
+  <p>2026 年的共识已经很清楚：<strong>按项目阶段选工具，而不是选边站</strong>。原型用生成器，生产用能管代码的 IDE agent，复杂改造用终端 agent。</p>
+
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th>阶段</th><th>工具</th><th>定位</th><th>价格参考</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>原型 / MVP</td><td>Lovable</td><td>描述即应用，前端后端数据库一把梭</td><td>$25/月</td></tr>
+        <tr><td>原型 / Demo</td><td>Bolt.new · Replit Agent</td><td>浏览器里直接出可访问链接</td><td>有免费额度</td></tr>
+        <tr><td>界面 / 组件</td><td>v0 (Vercel)</td><td>React/Tailwind UI 质量最好，但没有后端</td><td>免费额度 + 用量计费</td></tr>
+        <tr><td>生产代码</td><td>Cursor</td><td>AI 原生 IDE，改代码、重构、多人协作</td><td>$20/月</td></tr>
+        <tr><td>复杂改造</td><td>Claude Code</td><td>终端 agent，跨文件理解、迁移、调试最强</td><td>$20–200/月</td></tr>
+        <tr><td>大仓库</td><td>Windsurf</td><td>在既有大型代码库中工作</td><td>$15/月起</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>再加一层：规格驱动的骨架（这是 2026 新增的重点）</h4>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th>框架</th><th>特点</th><th>适合谁</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>GitHub Spec Kit</td><td>免费、MIT、纯 Markdown，兼容 30+ 种 agent，不锁定厂商</td><td>默认首选</td></tr>
+        <tr><td>Amazon Kiro</td><td>强制 EARS 格式规格，需求可追溯到代码，有审计轨迹</td><td>需要合规留痕的团队</td></tr>
+        <tr><td>OpenSpec</td><td>免费、仓库内驻留、无需 API Key，带变更追踪</td><td>想完全自主控制</td></tr>
+        <tr><td>BMAD-METHOD</td><td>模拟一整套敏捷团队流程，PRD 拆成超细故事文件</td><td>高复杂度、高风险的正式项目</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:13.5px;color:var(--muted);">Spec Kit 的核心流程只有四步，非常适合直接抄：<code>Spec → Plan → Tasks → Implement</code>。这四个阶段各自产出一份 Markdown 文件，作为下一阶段的输入——本质是给 AI 提供<strong>结构化上下文</strong>，而不是零散提示词。</p>
+</section>
+
+<section>
+  <h2><span class="num">03</span>主流程：五阶段方案</h2>
+  <h3>把这个骨架背下来，比学任何提示词技巧都有用</h3>
+
+  <div class="pipe">
+    <div class="pstage">
+      <div class="pdot">1</div>
+      <div class="pbody">
+        <p class="pt">Specify — 先写规格，别写代码</p>
+        <p class="pd">用自然语言把"要做什么"写成一份可评审的文档。包含：目标、用户是谁、核心场景、验收标准、以及<strong>明确列出不做什么</strong>（out of scope）。这一步人是主角，AI 只做起草。</p>
+        <p class="po">产出：<b>spec.md</b> · 此阶段犯错的修复成本最低</p>
+      </div>
+    </div>
+    <div class="pstage">
+      <div class="pdot">2</div>
+      <div class="pbody">
+        <p class="pt">Plan — 架构先行，先出技术方案</p>
+        <p class="pd">让 AI 输出技术方案：用什么栈、数据怎么存、模块怎么划分、依赖关系是什么、有哪些风险。这一步相当于传统技术选型，人做判断，AI 做起草。</p>
+        <p class="po">产出：<b>plan.md</b> · <strong>检查点：你必须看懂方案并同意关键决策，看不懂就不要往下走</strong></p>
+      </div>
+    </div>
+    <div class="pstage">
+      <div class="pdot">3</div>
+      <div class="pbody">
+        <p class="pt">Tasks — 拆成有序的小任务</p>
+        <p class="pd">把需求拆到尽可能小的单元，一次只让 AI 完成一件事：先数据模型，再列表页，再新增表单。每个任务标注涉及哪些文件。</p>
+        <p class="po">产出：<b>tasks.md</b> · 把"一次性的大不确定性"拆成"多次的小确定性"</p>
+      </div>
+    </div>
+    <div class="pstage">
+      <div class="pdot">4</div>
+      <div class="pbody">
+        <p class="pt">Implement — 小步生成，逐步验收</p>
+        <p class="pd">每个任务完成后<strong>立刻运行、立刻验证</strong>，不要攒一批再测。同时要求 AI 生成自动化测试——这是防止"改一处坏三处"最有效的手段。</p>
+        <p class="po">产出：<b>可运行的功能增量</b> · 每个任务一次 commit</p>
+      </div>
+    </div>
+    <div class="pstage">
+      <div class="pdot">5</div>
+      <div class="pbody">
+        <p class="pt">Converge — 对齐与收敛</p>
+        <p class="pd">跑一遍规格里的验收场景，检查代码是否真的符合规格。处理规格漂移：规格改了要同步代码，代码改了要同步规格。</p>
+        <p class="po">产出：<b>验收通过的功能</b> · 这一步很多人直接跳过，也是 90% 项目出问题的地方</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <p><span class="k">规格的两个反模式。</span>别写太细——单个功能的规格超过约 800 行，AI 在新任务上的效率会明显下降，等于把规格变成了流水账。也别写不可验证的要求："系统要快"是废话，"p95 延迟在 1000 RPS 下低于 200ms"才是规格。</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">04</span>日常六步 SOP</h2>
+  <h3>每次动手，按这个顺序来</h3>
+
+  <h4>① 先定边界和验收标准</h4>
+  <p>开始前花五分钟画个草图、写一段用户流程。写不出来就别开工——写不出来说明你自己没想清楚，AI 只会替你猜错。</p>
+  <p style="font-size:13.5px;color:var(--muted);">差：<code>改一下注册流程</code>　好：<code>把三步注册改成单页；保留 Google 登录不动；姓名/公司/密码放同一表单；沿用现有校验规则</code></p>
+
+  <h4>② 给足上下文，而不是靠 AI 猜</h4>
+  <p>每次提问带上：现有行为、约束条件（比如"不要动数据库结构"）、项目约定、参考示例。成熟做法是在项目根目录维护一个 <code>CONTEXT.md</code> 或 <code>.cursorrules</code>，记录技术栈、目录结构、编码约定，让 AI 每次先读它。</p>
+
+  <h4>③ 一次只改一件事</h4>
+  <p>说清楚"触发条件 + 预期结果"。差：<code>让删除按钮能用</code>；好：<code>点击删除时弹确认框；确认后从列表移除并显示"已删除"提示</code>。一次塞五件事，AI 会五个都做一半。</p>
+
+  <h4>④ 先跑起来，再讨论代码</h4>
+  <p>不要花五个提示词和 AI 争论实现思路，先运行、点一遍、看结果。反馈时给<strong>观察到的现象</strong>，不是你的猜测：</p>
+  <p style="font-size:13.5px;color:var(--muted);">差：<code>状态管理好像有问题</code>　好：<code>删掉最后一条后，空状态要刷新页面才出现</code></p>
+
+  <h4>⑤ 报错就贴原文，别描述</h4>
+  <p>完整复制错误信息贴进去，说"运行时报了这个"。让 AI 看真实输出，比看你的转述快得多。如果迭代 3–4 次还不对，<strong>停下来，用更好的初始提示词重开一轮</strong>，不要在坏代码上继续叠。</p>
+
+  <h4>⑥ 每次通过就提交</h4>
+  <p>节奏是：完成一个完整改动 → 运行 → 审查 → commit → 开始下一个。AI 几秒钟能改几十个文件，一个错误的指令能瞬间制造一大片混乱。版本控制是唯一的救命稻草。</p>
+</section>
+
+<section>
+  <h2><span class="num">05</span>四道必过的闸门</h2>
+  <h3>AI 产出的代码，进生产前必须过这四关</h3>
+  <p>这不是选择题。跑通 vibe coding 的团队在这四道门上没有妥协余地，唯一变化的是草稿到达审查者的速度。</p>
+
+  <div class="gates">
+    <div class="gate">
+      <p class="gt">闸门一 · 自动化安全扫描</p>
+      <p class="gd">所有 AI 生成代码在部署前过扫描，重点查 AI 最容易犯的几类：XSS、注入、硬编码凭证、依赖漏洞。这是基础设施，不是赶工期时可以跳过的步骤。</p>
+    </div>
+    <div class="gate">
+      <p class="gt">闸门二 · 架构审查</p>
+      <p class="gd">由资深工程师确认生成代码符合既有系统设计：是否遵循已有模式、有没有引入不兼容依赖、有没有造成架构漂移。这道门专门防止"系统退化成一堆对话记录的堆叠"。</p>
+    </div>
+    <div class="gate">
+      <p class="gt">闸门三 · 测试覆盖对等</p>
+      <p class="gd">AI 生成代码的测试覆盖要求，和手写代码完全一样，没有例外。因为 AI 擅长写"能通过的测试"，尤其擅长只测正常路径。</p>
+    </div>
+    <div class="gate">
+      <p class="gt">闸门四 · 可追溯文档</p>
+      <p class="gd">每个 AI 生成的模块都记录：用什么提示词生成、当时的上下文、审查时做的架构决策。这是让系统在 12 个月后还能维护的关键投资。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">06</span>上线前检查清单</h2>
+  <h3>点一遍，八项全过再发</h3>
+
+  <div class="check" id="checklist">
+    <label class="ck"><input type="checkbox" data-k="c1"><span class="ct"><b>托管数据库 + 自动备份</b><span>不要用本地 SQLite 或文件存储撑生产。41% 的失败应用栽在这一条。</span></span></label>
+    <label class="ck"><input type="checkbox" data-k="c2"><span class="ct"><b>认证用成熟方案，不要自己写</b><span>Supabase Auth / Clerk / Auth.js 之类，自己手搓鉴权是最常见的漏洞来源。</span></span></label>
+    <label class="ck"><input type="checkbox" data-k="c3"><span class="ct"><b>每个公开端点都有限流</b><span>58% 的失败应用至少有一个暴露端点直连付费 AI 接口。一个爬虫就能烧掉几千块。</span></span></label>
+    <label class="ck"><input type="checkbox" data-k="c4"><span class="ct"><b>所有付费 API 都设了预算告警</b><span>曾有应用 72 小时内因每次页面加载都调大模型，累积 4.7 万美元账单。</span></span></label>
+    <label class="ck"><input type="checkbox" data-k="c5"><span class="ct"><b>装了错误追踪</b><span>Sentry / Axiom 之类，一行的成本。没有它，出事时你只知道用户在骂。</span></span></label>
+    <label class="ck"><input type="checkbox" data-k="c6"><span class="ct"><b>依赖审计跑过一遍</b><span>AI 会推荐不存在的包，攻击者专门抢注这些名字投毒。用 Socket 或 Snyk 过一遍。</span></span></label>
+    <label class="ck"><input type="checkbox" data-k="c7"><span class="ct"><b>关键流程至少一个集成测试</b><span>不用全量覆盖，但主链路（登录 → 核心操作 → 结果落地）必须有。</span></span></label>
+    <label class="ck"><input type="checkbox" data-k="c8"><span class="ct"><b>预发环境与生产一致</b><span>外加部署可回滚、密钥有明确管理方式。没有这些，"最后 5%" 就没完成。</span></span></label>
+  </div>
+  <p style="font-size:13.5px;color:var(--muted);">大部分在生产上崩掉的应用，这八项里漏了六项。</p>
+</section>
+
+<section>
+  <h2><span class="num">07</span>真实数据：代价在哪</h2>
+  <h3>不看这些数字，方案就是空谈</h3>
+
+  <div class="stats">
+    <div class="stat"><div class="n">73%</div><div class="l">AI 生成的生产应用在真实流量下六个月内出现严重故障（Sentry 对 1.8 万个应用的分析）</div></div>
+    <div class="stat"><div class="n">45%</div><div class="l">被抽样的 AI 生成代码引入了 OWASP Top 10 级别漏洞</div></div>
+    <div class="stat"><div class="n">3.2%</div><div class="l">AI 生成提交的密钥泄露率，人类手写代码是 1.5%</div></div>
+    <div class="stat"><div class="n b">27%</div><div class="l">2025–2026 年泄露的密钥中，来自未经人工审查的 AI 代码（GitGuardian）</div></div>
+    <div class="stat"><div class="n b">30–40%</div><div class="l">代码审查强度因"AI 写的看起来挺专业"而下降的幅度</div></div>
+    <div class="stat"><div class="n b">3–10×</div><div class="l">事后"救援工程"（把烂掉的 vibe code 救回来）的成本倍数</div></div>
+  </div>
+
+  <h4>三个典型翻车场景</h4>
+  <ul class="plain">
+    <li><strong>生产库被清空</strong>：有人让 AI 做了个管理工具，包含"清理测试数据"按钮，AI 生成了看起来很合理的 SQL，按钮接到了生产环境，然后被点了。数据库 100% 清空，连唯一的备份也在生产环境里。</li>
+    <li><strong>上线了但没人读得懂</strong>：某创业公司六周做出 MVP，靠 demo 融到了种子轮，然后招不到人——因为包括创始人在内，没人能解释这个架构。代码里没有一致的模块边界，因为 AI 是每次对话各自现编的。重构花了三个月，烧掉半个种子轮。</li>
+    <li><strong>密钥硬编码泄露</strong>：为了让本地测试快点跑通，把 API Key 直接写在脚本里，然后"全部接受"提交进了公开仓库。这是目前最主要的泄露路径之一。</li>
+  </ul>
+  <p>这三个案例的共同点不是模型不行，<strong>是"看起来对"和"真的在生产环境里"之间，缺了一个人工检查点</strong>。</p>
+</section>
+
+<section>
+  <h2><span class="num">08</span>一分钟决策</h2>
+  <h3>先判断你在做哪件事，再决定用多重的方法</h3>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr><th>你的场景</th><th>用什么方法</th><th>严格程度</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>验证一个想法</td><td>Lovable / Bolt 直接生成，能点就行</td><td><span class="tag g">随意</span></td></tr>
+        <tr><td>学习新框架</td><td>生成后第二天认真读代码</td><td><span class="tag g">随意</span></td></tr>
+        <tr><td>内部小工具</td><td>Cursor + 基本测试 + Git</td><td><span class="tag b">中等</span></td></tr>
+        <tr><td>要给人用的产品</td><td>SDD 五阶段 + 四道闸门 + 八项清单</td><td><span class="tag y">严格</span></td></tr>
+        <tr><td>支付 / 鉴权 / 数据迁移</td><td>人工主导设计，AI 只写实现，且必须人工逐行审</td><td><span class="tag r">最严</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout ok">
+    <p><span class="k">最后一句。</span>Vibe coding 的问题从来不是"AI 不行"，而是把<strong>快速生成</strong>当成了<strong>完整交付</strong>。把边界条件、垂直切片、测试和持续审查提前，最后阶段就不会突然承受所有被推迟的工程成本。AI 依然保持速度，但每一步都要以"可验证的用户结果"作为完成标准。</p>
+  </div>
+</section>
+
+<footer>
+  <p>本方案整理自公开的实践总结、工具官方文档与行业审计报告（2026-10 快照）。工具价格与能力更新频繁，订阅前请以官方页面为准。</p>
+  <p>配套建议：在你的项目根目录建两个文件 —— <code>CONTEXT.md</code>（技术栈与约定，给 AI 读）和 <code>CHANGELOG.md</code>（每个功能的验收记录），这两个文件的投入产出比最高。</p>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var KEY = "vibecoding-sop-checklist";
+  var box = document.getElementById("checklist");
+  if(!box) return;
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch(e) { saved = {}; }
+  var inputs = box.querySelectorAll("input[type=checkbox]");
+  for (var i = 0; i < inputs.length; i++) {
+    var el = inputs[i];
+    if (saved[el.dataset.k]) el.checked = true;
+    el.addEventListener("change", function(){
+      var state = {};
+      for (var j = 0; j < inputs.length; j++) {
+        if (inputs[j].checked) state[inputs[j].dataset.k] = 1;
+      }
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {}
+    });
+  }
+})();
+</script>
+</body>
+</html>

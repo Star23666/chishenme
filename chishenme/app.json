@@ -1,0 +1,57 @@
+{
+  "pages": [
+    "pages/library/library",
+    "pages/order/order",
+    "pages/menu/menu",
+    "pages/random/random",
+    "pages/fav/fav",
+    "pages/family/family"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#FF7043",
+    "navigationBarTitleText": "今天吃啥",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#F5F6F8"
+  },
+  "tabBar": {
+    "color": "#8A8F99",
+    "selectedColor": "#FF7043",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/library/library",
+        "text": "菜库",
+        "iconPath": "/images/tab-library.png",
+        "selectedIconPath": "/images/tab-library-on.png"
+      },
+      {
+        "pagePath": "pages/order/order",
+        "text": "点菜",
+        "iconPath": "/images/tab-order.png",
+        "selectedIconPath": "/images/tab-order-on.png"
+      },
+      {
+        "pagePath": "pages/menu/menu",
+        "text": "菜单",
+        "iconPath": "/images/tab-menu.png",
+        "selectedIconPath": "/images/tab-menu-on.png"
+      },
+      {
+        "pagePath": "pages/random/random",
+        "text": "摇一摇",
+        "iconPath": "/images/tab-random.png",
+        "selectedIconPath": "/images/tab-random-on.png"
+      },
+      {
+        "pagePath": "pages/fav/fav",
+        "text": "收藏",
+        "iconPath": "/images/tab-fav.png",
+        "selectedIconPath": "/images/tab-fav-on.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

@@ -1,0 +1,65 @@
+<view class="page">
+
+  <!-- 支出 / 收入 -->
+  <view class="seg {{type === 'income' ? 'inc-mode' : ''}}">
+    <view class="segitem {{type === 'expense' ? 'on' : ''}}" data-t="expense" bindtap="switchType">支出</view>
+    <view class="segitem {{type === 'income' ? 'on' : ''}}" data-t="income" bindtap="switchType">收入</view>
+  </view>
+
+  <!-- 金额 -->
+  <view class="amountbox">
+    <text class="cur">¥</text>
+    <input class="amtinput"
+           type="digit"
+           placeholder="0.00"
+           placeholder-class="amtph"
+           value="{{amountInput}}"
+           bindinput="onAmount"
+           maxlength="10" />
+  </view>
+
+  <!-- 快捷金额 -->
+  <view class="quick {{type === 'income' ? 'inc-mode' : ''}}">
+    <view class="qbtn"
+          wx:for="{{quickList}}"
+          wx:key="*this"
+          data-v="{{item}}"
+          hover-class="qbtn-hover"
+          bindtap="quickPick">{{item}}</view>
+  </view>
+
+  <!-- 分类 -->
+  <view class="sectitle">选择分类</view>
+  <view class="grid">
+    <view class="cell {{catKey === item.key ? 'on' : ''}}"
+          wx:for="{{cats}}"
+          wx:key="key"
+          data-key="{{item.key}}"
+          bindtap="pickCat">
+      <view class="cdot" style="background:{{item.color}}">{{item.initial}}</view>
+      <text class="cname">{{item.name}}</text>
+    </view>
+  </view>
+
+  <!-- 日期 / 备注 -->
+  <view class="form">
+    <view class="frow">
+      <text class="flabel">日期</text>
+      <picker class="fpicker" mode="date" value="{{date}}" bindchange="onDate">
+        <view class="fval">{{date}}</view>
+      </picker>
+    </view>
+    <view class="frow">
+      <text class="flabel">备注</text>
+      <input class="finput"
+             placeholder="可不填，最多 30 字"
+             placeholder-class="fph"
+             value="{{note}}"
+             bindinput="onNote"
+             maxlength="30" />
+    </view>
+  </view>
+
+  <button class="save {{type === 'income' ? 'save-inc' : ''}}" bindtap="save">保存</button>
+
+</view>

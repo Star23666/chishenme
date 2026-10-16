@@ -1,0 +1,138 @@
+.page {
+  padding: 0 24rpx 48rpx;
+}
+
+/* ---------- 汇总三格 ---------- */
+.sumcard {
+  display: flex;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 28rpx 0;
+  margin-top: 12rpx;
+}
+
+.sitem {
+  flex: 1;
+  text-align: center;
+  position: relative;
+}
+
+.sitem.pad {
+  border-left: 1rpx solid #EFF1F4;
+}
+
+.slabel {
+  font-size: 23rpx;
+  color: #8A8F99;
+  margin-bottom: 10rpx;
+}
+
+.sval {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1F2329;
+}
+
+.sval.exp {
+  color: #E8564C;
+}
+
+/* ---------- 面板 ---------- */
+.panel {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 28rpx 28rpx 32rpx;
+  margin-top: 24rpx;
+}
+
+.ptitle {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1F2329;
+  margin-bottom: 24rpx;
+}
+
+/* ---------- 分类排行条 ---------- */
+.bar {
+  margin-bottom: 24rpx;
+}
+
+.bar:last-child {
+  margin-bottom: 0;
+}
+
+.bhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10rpx;
+}
+
+.bname {
+  font-size: 26rpx;
+  color: #4B5563;
+}
+
+.bamt {
+  font-size: 23rpx;
+  color: #8A8F99;
+}
+
+.track {
+  height: 14rpx;
+  background: #F1F3F6;
+  border-radius: 7rpx;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 7rpx;
+  min-width: 6rpx;
+}
+
+.none {
+  text-align: center;
+  color: #9AA0AA;
+  font-size: 26rpx;
+  padding: 40rpx 0;
+}
+
+/* ---------- 每日趋势图 ---------- */
+.chart {
+  display: flex;
+  align-items: flex-end;
+  height: 230rpx;
+}
+
+.col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.barwrap {
+  width: 100%;
+  height: 180rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.barfill {
+  width: 58%;
+  min-height: 4rpx;
+  background: #9DB8FF;
+  border-radius: 4rpx 4rpx 0 0;
+}
+
+.dlabel {
+  font-size: 19rpx;
+  color: #B4B9C2;
+  height: 30rpx;
+  line-height: 30rpx;
+  margin-top: 6rpx;
+}

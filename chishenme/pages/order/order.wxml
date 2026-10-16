@@ -1,0 +1,38 @@
+<!-- 点菜：按分类分组，每行加减份数 -->
+<view class="page">
+
+  <view class="head">
+    <text class="head-num">{{kinds}}</text>
+    <text class="head-txt">道菜已选 · 共 {{total}} 份</text>
+  </view>
+
+  <block wx:for="{{groups}}" wx:key="key" wx:for-item="g">
+    <view class="section-title">{{g.name}}</view>
+    <view class="rows">
+      <view class="row" wx:for="{{g.rows}}" wx:key="id" wx:for-item="r">
+        <image class="row-img" src="{{r.image}}" mode="aspectFill" lazy-load="true"></image>
+
+        <view class="row-mid" data-id="{{r.id}}" bindtap="editNote">
+          <view class="row-name">{{r.name}}</view>
+          <view class="row-note" wx:if="{{r.note}}">{{r.note}}</view>
+          <view class="row-note-empty" wx:else>加备注</view>
+        </view>
+
+        <view class="stepper">
+          <view class="st-btn" wx:if="{{r.qty > 0}}" data-id="{{r.id}}" bindtap="minus">−</view>
+          <view class="st-num" wx:if="{{r.qty > 0}}" data-id="{{r.id}}" bindtap="editNote">{{r.qty}}</view>
+          <view class="st-btn st-plus" data-id="{{r.id}}" bindtap="plus">＋</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view class="float-space"></view>
+  <view class="safe-bottom"></view>
+
+  <view class="float-bar" wx:if="{{kinds > 0}}" bindtap="goMenu">
+    <view class="fb-left">已选 {{kinds}} 种 · {{total}} 份</view>
+    <view class="fb-right">看菜单 →</view>
+  </view>
+
+</view>

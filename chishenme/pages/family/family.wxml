@@ -1,0 +1,114 @@
+<!-- 一起点菜：把菜单从「我一台手机」变成「一个房间共享」 -->
+<view class="page">
+
+  <!-- ============ 1. 云开发还没配 ============ -->
+  <block wx:if="{{!cloud}}">
+    <view class="card pad">
+      <view class="t1">家庭共享还没打开</view>
+      <view class="t2">这一步需要你花几分钟开通云开发（免费额度够家用）。开通之后，家里人在自己手机上点菜，你这边立刻就能看到——这才是你最开始问的那个问题。</view>
+      <view class="steps">
+        <view class="step"><text class="step-n">1</text>用小程序管理员微信登录「微信开发者工具」，点顶部「云开发」，按提示创建环境</view>
+        <view class="step"><text class="step-n">2</text>把环境 ID 填进项目里的 <text class="mono">config.js → CLOUD_ENV</text></view>
+        <view class="step"><text class="step-n">3</text>在云开发控制台建两个集合：<text class="mono">csm_families</text>、<text class="mono">csm_menus</text>，权限都选「所有用户可读，仅创建者可读写」</view>
+        <view class="step"><text class="step-n">4</text>右键 <text class="mono">cloudfunctions/csmMenu</text> → 「上传并部署：云端安装依赖」</view>
+      </view>
+      <view class="t3">完整步骤（含截图位置说明）见项目根目录《今天吃啥-部署清单.md》</view>
+    </view>
+    <view class="safe-bottom"></view>
+  </block>
+
+  <!-- ============ 2. 还没进房间 ============ -->
+  <block wx:elif="{{!fam}}">
+
+    <view class="card pad invite" wx:if="{{inviteCode}}">
+      <view class="invite-title">有人邀请你一起点菜</view>
+      <block wx:if="{{inviteBlocked}}">
+        <view class="warn">{{inviteBlocked}}</view>
+      </block>
+      <block wx:elif="{{inviteErr}}">
+        <view class="warn">{{inviteErr}}</view>
+      </block>
+      <block wx:else>
+        <view class="invite-sub">房间：<text class="strong">{{inviteName || '加载中…'}}</text> · 房间码 <text class="mono">{{inviteCode}}</text></view>
+      </block>
+    </view>
+
+    <view class="tabs">
+      <view class="tab {{tab == 'create' ? 'on' : ''}}" data-tab="create" bindtap="switchTab">建一个家</view>
+      <view class="tab {{tab == 'join' ? 'on' : ''}}" data-tab="join" bindtap="switchTab">加入家人的房间</view>
+    </view>
+
+    <!-- 建房间 -->
+    <view class="card pad" wx:if="{{tab == 'create'}}">
+      <view class="label">我家叫什么</view>
+      <input class="inp" value="{{fName}}" data-field="fName" bindinput="onInput" maxlength="12" placeholder="例如：老王家" />
+
+      <view class="label">我在家里的称呼</view>
+      <input class="inp" value="{{nick}}" data-field="nick" bindinput="onInput" maxlength="8" placeholder="例如：爸爸" />
+
+      <view class="btn-primary {{busy ? 'disabled' : ''}}" bindtap="doCreate">创建房间</view>
+      <view class="hint">创建后会生成一个 6 位房间码，把它告诉家人，他们就能进来一起点菜。</view>
+    </view>
+
+    <!-- 加入房间 -->
+    <view class="card pad" wx:else>
+      <view class="label">房间码</view>
+      <input class="inp code-input" value="{{jCode}}" data-field="jCode" bindinput="onInput" maxlength="6" placeholder="6 位字母数字" />
+
+      <view class="pre" wx:if="{{jPre}}">
+        找到房间「<text class="strong">{{jPre.name}}</text>」 · 已有 {{jPre.memberCount}} 人
+        <text class="warn-inline" wx:if="{{jPre.full}}">（人满了）</text>
+      </view>
+      <view class="pre pre-bad" wx:elif="{{jCode.length == 6}}">没找到这个房间，检查一下字母有没有输错</view>
+
+      <view class="label">我在家里的称呼</view>
+      <input class="inp" value="{{nick}}" data-field="nick" bindinput="onInput" maxlength="8" placeholder="例如：妈妈" />
+
+      <view class="btn-primary {{busy ? 'disabled' : ''}}" bindtap="doJoin">加入房间</view>
+      <view class="hint">房间码由建房间的人提供，一共 6 位，只有大写字母和数字。</view>
+    </view>
+
+    <view class="safe-bottom"></view>
+  </block>
+
+  <!-- ============ 3. 已经在房间里 ============ -->
+  <block wx:else>
+
+    <view class="card room">
+      <view class="room-name">{{fam.name}}</view>
+      <view class="room-sub">把它告诉家人，他们输一次就进来了</view>
+      <view class="code-badge" bindtap="copyCode">{{fam.code}}</view>
+      <view class="room-ops">
+        <view class="op" bindtap="copyCode">复制房间码</view>
+        <button class="op op-share" open-type="share">转发邀请</button>
+      </view>
+    </view>
+
+    <view class="card pad me-bar">
+      <view class="me-left">
+        <view class="me-lbl">我在家里的称呼</view>
+        <view class="me-name">{{fam.myName || '还没设置'}}</view>
+      </view>
+      <view class="me-op" bindtap="doRename">修改</view>
+    </view>
+
+    <view class="section-title">家里人（{{fam.memberCount}}/{{fam.maxMembers}}）</view>
+    <view class="card mems">
+      <view class="mem" wx:for="{{fam.members}}" wx:key="name">
+        <view class="mem-avatar">{{item.initial}}</view>
+        <view class="mem-name">{{item.name}}</view>
+        <view class="mem-tag mem-tag-me" wx:if="{{item.isMe}}">我</view>
+        <view class="mem-tag" wx:elif="{{item.isOwner}}">房主</view>
+      </view>
+    </view>
+
+    <view class="card pad ops2">
+      <view class="btn-primary" bindtap="goMenu">去看今天的菜单</view>
+      <view class="btn-ghost" bindtap="doLeave">退出这个房间</view>
+      <view class="hint" wx:if="{{fam.isOwner}}">你是房主，退出前需要先把房间交给别人（或干脆不再用这个房间）。</view>
+    </view>
+
+    <view class="safe-bottom"></view>
+  </block>
+
+</view>

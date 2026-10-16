@@ -1,0 +1,192 @@
+.page {
+  min-height: 100vh;
+}
+
+/* ---------- 模式切换 ---------- */
+.mode-bar {
+  display: flex;
+  background: var(--c-surface);
+  padding: 16rpx 20rpx 0;
+}
+
+.mode-item {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  font-size: var(--t-body);
+  color: var(--c-ink-3);
+  border-bottom: 4rpx solid transparent;
+}
+
+.mode-item.on {
+  color: var(--c-brand);
+  font-weight: 700;
+  border-bottom-color: var(--c-brand);
+}
+
+/* ---------- 结果舞台 ---------- */
+.stage {
+  min-height: 640rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx 30rpx;
+}
+
+.rolling-box {
+  text-align: center;
+}
+
+/* ★ 全站唯一的「大胆」就用在这里。
+   摇一摇是这个 app 最有性格的功能，视觉高点只给它一处，
+   其他地方（页面标题、卡片标题、按钮）一律压低、保持安静。
+   去掉原来的 letter-spacing：中文加字距在这里只是模板感，不是个性。 */
+.rolling-name {
+  font-size: var(--t-hero);
+  font-weight: 700;
+  color: var(--c-brand);
+}
+
+.rolling-hint {
+  font-size: var(--t-sub);
+  color: var(--c-ink-3);
+  margin-top: 20rpx;
+}
+
+/* ---------- 单道结果 ---------- */
+.result-card {
+  width: 100%;
+  background: var(--c-surface);
+  border-radius: var(--r-panel);
+  overflow: hidden;
+  padding-bottom: 34rpx;
+}
+
+.rc-img {
+  width: 100%;
+  height: 520rpx;
+  display: block;
+  background: var(--c-surface-sunk);
+}
+
+.rc-name {
+  font-size: var(--t-display);
+  font-weight: 700;
+  color: var(--c-ink);
+  text-align: center;
+  margin-top: 28rpx;
+}
+
+.rc-cat {
+  font-size: var(--t-cap);
+  color: var(--c-ink-3);
+  text-align: center;
+  margin-top: 10rpx;
+}
+
+.rc-tips {
+  font-size: var(--t-sub);
+  color: var(--c-ink-2);
+  line-height: 1.7;
+  text-align: center;
+  margin: 22rpx 40rpx 0;
+  padding-top: 22rpx;
+  border-top: 1rpx solid var(--c-line);
+}
+
+/* ---------- 组合结果 ---------- */
+.combo {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.combo-item {
+  width: calc(50% - 10rpx);
+  background: var(--c-surface);
+  border-radius: var(--r-card);
+  overflow: hidden;
+  margin-bottom: 20rpx;
+}
+
+.ci-img {
+  width: 100%;
+  height: 260rpx;
+  display: block;
+  background: var(--c-surface-sunk);
+}
+
+.ci-name {
+  font-size: var(--t-h2);
+  font-weight: 600;
+  color: var(--c-ink);
+  text-align: center;
+  margin-top: 16rpx;
+}
+
+.ci-cat {
+  font-size: var(--t-tag);
+  color: var(--c-ink-3);
+  text-align: center;
+  margin: 6rpx 0 20rpx;
+}
+
+/* ---------- 未摇状态 ---------- */
+.idle {
+  text-align: center;
+}
+
+.idle-title {
+  font-size: var(--t-h1);
+  font-weight: 700;
+  color: var(--c-ink-4);
+}
+
+.idle-desc {
+  font-size: var(--t-sub);
+  color: var(--c-ink-3);
+  margin-top: 16rpx;
+  line-height: 1.7;
+}
+
+/* ---------- 按钮 ---------- */
+.actions {
+  padding: 0 40rpx;
+}
+
+/* 去掉原来的 letter-spacing: 6rpx —— 中文按钮加宽字距是模板感的配方之一 */
+.big-btn {
+  background: var(--c-brand);
+  color: #FFFFFF;
+  font-size: var(--t-h1);
+  font-weight: 700;
+  text-align: center;
+  padding: 30rpx 0;
+  border-radius: var(--r-pill);
+}
+
+.sub-actions {
+  display: flex;
+  margin-top: 20rpx;
+}
+
+.sub-btn {
+  flex: 1;
+  text-align: center;
+  padding: 22rpx 0;
+  border-radius: var(--r-pill);
+  background: var(--c-surface);
+  color: var(--c-ink-2);
+  font-size: var(--t-body);
+  margin-right: 20rpx;
+}
+
+.sub-btn:last-child {
+  margin-right: 0;
+}
+
+.sub-dark {
+  background: var(--c-ink);
+  color: #FFFFFF;
+}

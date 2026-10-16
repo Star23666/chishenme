@@ -1,0 +1,49 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/add/add",
+    "pages/stats/stats",
+    "pages/mine/mine"
+  ],
+  "window": {
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#4F7CFF",
+    "navigationBarTitleText": "一目账",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#F5F6F8"
+  },
+  "tabBar": {
+    "color": "#8A8F99",
+    "selectedColor": "#4F7CFF",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "明细",
+        "iconPath": "images/tab-list.png",
+        "selectedIconPath": "images/tab-list-on.png"
+      },
+      {
+        "pagePath": "pages/add/add",
+        "text": "记一笔",
+        "iconPath": "images/tab-add.png",
+        "selectedIconPath": "images/tab-add-on.png"
+      },
+      {
+        "pagePath": "pages/stats/stats",
+        "text": "统计",
+        "iconPath": "images/tab-stats.png",
+        "selectedIconPath": "images/tab-stats-on.png"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的",
+        "iconPath": "images/tab-mine.png",
+        "selectedIconPath": "images/tab-mine-on.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

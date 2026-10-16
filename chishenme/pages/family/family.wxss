@@ -1,0 +1,379 @@
+.page {
+  min-height: 100vh;
+  padding: 20rpx 0 0;
+}
+
+/* ---------- 通用内边距卡片 ---------- */
+/* 左右留白收窄过一版（30rpx → 20rpx，外边距 20rpx → 16rpx），
+   目的只有一个：把输入框从 325px 撑到 339px（375px 屏）。
+   原来那套留白让输入框看着比屏幕窄一截。 */
+.pad {
+  margin: 16rpx;
+  padding: 34rpx 20rpx;
+}
+
+.t1 {
+  font-size: var(--t-h1);
+  font-weight: 700;
+  color: var(--c-ink);
+}
+
+.t2 {
+  font-size: var(--t-sub);
+  color: var(--c-ink-2);
+  line-height: 1.75;
+  margin-top: 16rpx;
+}
+
+.t3 {
+  font-size: var(--t-cap);
+  color: var(--c-ink-3);
+  margin-top: 24rpx;
+  line-height: 1.6;
+}
+
+.strong {
+  color: var(--c-ink);
+  font-weight: 600;
+}
+
+.mono {
+  font-family: Menlo, Consolas, monospace;
+  font-size: var(--t-cap);
+  color: var(--c-brand);
+}
+
+/* ---------- 未配云开发时的步骤清单 ---------- */
+.steps {
+  margin-top: 26rpx;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  font-size: var(--t-sub);
+  color: var(--c-ink-2);
+  line-height: 1.7;
+  padding: 14rpx 0;
+}
+
+.step-n {
+  flex-shrink: 0;
+  width: 36rpx;
+  height: 36rpx;
+  line-height: 36rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: var(--c-brand-tint);
+  color: var(--c-brand);
+  font-size: var(--t-tag);
+  font-weight: 700;
+  margin-right: 16rpx;
+  margin-top: 4rpx;
+}
+
+/* ---------- 邀请提示 ---------- */
+.invite {
+  background: var(--c-brand-tint);
+}
+
+.invite-title {
+  font-size: var(--t-h2);
+  font-weight: 700;
+  color: var(--c-brand);
+}
+
+.invite-sub {
+  font-size: var(--t-sub);
+  color: var(--c-ink-2);
+  margin-top: 14rpx;
+  line-height: 1.7;
+}
+
+.warn {
+  font-size: var(--t-sub);
+  color: var(--c-danger);
+  line-height: 1.7;
+  margin-top: 14rpx;
+}
+
+.warn-inline {
+  color: var(--c-danger);
+}
+
+/* ---------- 两个 tab ---------- */
+/* 分段控件。左右边距跟卡片对齐（都是 16rpx）。
+   选中态用「白底 + 一根细边」立起来，不用投影 ——
+   「每个元素底下垫同一层浅灰投影」正是模板感的配方之一。 */
+.tabs {
+  display: flex;
+  margin: 20rpx 16rpx 0;
+  background: var(--c-surface-sunk);
+  border-radius: var(--r-pill);
+  padding: 6rpx;
+}
+
+/* box-sizing 不能省：选中态会多一根 2rpx 边框，
+   不写的话选中时整个 tab 会比另一个高 4rpx，切换时看得见跳动。 */
+.tab {
+  flex: 1;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: var(--t-body);
+  font-weight: 500;
+  color: var(--c-ink-2);
+  padding: 20rpx 0;
+  border-radius: var(--r-pill);
+  transition: color .18s;
+}
+
+.tab.on {
+  background: var(--c-surface);
+  border: 2rpx solid var(--c-line);
+  color: var(--c-brand);
+  font-weight: 600;
+}
+
+/* ---------- 表单 ---------- */
+/* 标签：加一点字重比单纯加深颜色更「有身份」 */
+.label {
+  font-size: var(--t-sub);
+  font-weight: 500;
+  color: var(--c-ink-2);
+  margin: 30rpx 0 16rpx;
+}
+
+/* ★★★ height 这一行绝对不要删 —— 这是本项目最隐蔽的一个坑。
+
+   微信 <input> 的基础库默认样式是：
+     input { display: block; height: 1.4rem; min-height: 1.4rem;
+             overflow: hidden; white-space: nowrap; }
+   而下面写了 box-sizing: border-box，于是「上下 padding」是要在 22.4px 里扣的：
+     24rpx(12px) × 2 = 24px  >  22.4px   →   内容区被挤成负值  →  **输入的文字整行被裁掉**
+
+   症状极具迷惑性：**开发者工具模拟器一切正常，只有真机上看不到自己输入的字**
+   （浏览器里 <input> 没有默认高度，所以复刻渲染也量不出来）。412 项自动检查同样查不到。
+
+   正确做法：显式写 height，垂直居中交给组件自身，**不要再写上下 padding**。
+   wxml-check.js 里有断言锁住这条。 */
+
+/* 白底 + 一根细边：卡片是白的，灰底其实只有 4 个色阶差，
+   在真机屏幕上几乎看不出边界，加上边框后输入区一眼就能认出「这里能打字」。 */
+.inp {
+  background: var(--c-surface);
+  border: 2rpx solid var(--c-line-strong);
+  border-radius: var(--r-card);
+  height: 104rpx;
+  padding: 0 28rpx;
+  font-size: var(--t-h2);
+  color: var(--c-ink);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 房间码是这一页最需要「被认出来」的输入框，所以单独给它一层暖底：
+   淡橙背景 + 淡橙边框，跟旁边两个中性色的框拉开层次，
+   眼睛先落到这里 —— 这是整页唯一的视觉重点，不靠加大字号硬撑。 */
+.code-input {
+  font-size: var(--t-display);
+  font-weight: 700;
+  letter-spacing: 10rpx;
+  text-align: center;
+  color: var(--c-brand);
+  background: #FFF8F5;
+  border-color: var(--c-brand-line);
+  font-family: Menlo, Consolas, monospace;
+}
+
+.pre {
+  font-size: var(--t-cap);
+  color: var(--c-ink-2);
+  margin-top: 18rpx;
+  line-height: 1.6;
+}
+
+.pre-bad {
+  color: var(--c-danger);
+}
+
+.hint {
+  font-size: var(--t-cap);
+  color: var(--c-ink-3);
+  line-height: 1.7;
+  margin-top: 22rpx;
+}
+
+/* 表单主按钮：输入框高 52px，按钮也加高到 46px，两边对齐，别头重脚轻。
+   只在本页覆盖，不动 app.wxss 的全局按钮（别的页面不需要变）。 */
+.card .btn-primary {
+  margin-top: 44rpx;
+  padding: 28rpx 0;
+}
+
+/* ---------- 房间卡 ----------
+   去掉原来的 linear-gradient(160deg,...) —— 渐变在这里没承担任何信息，
+   只是装饰，属于模板感的配方之一。换成一块实色橙，反而更干脆、更像一块牌子。 */
+.room {
+  margin: 20rpx;
+  padding: 44rpx 30rpx 30rpx;
+  text-align: center;
+  background: var(--c-brand);
+}
+
+.room-name {
+  font-size: var(--t-h1);
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.room-sub {
+  font-size: var(--t-cap);
+  color: rgba(255, 255, 255, 0.88);
+  margin-top: 12rpx;
+}
+
+/* 全页最需要念给别人听的一串字符，所以给它最大的白底反差。
+   原来是「半透明白底 + 白字」，改成「白底 + 主色字」：字本身变成橙色，读起来更清楚。 */
+.code-badge {
+  display: inline-block;
+  margin: 30rpx 0 10rpx;
+  padding: 20rpx 46rpx;
+  background: #FFFFFF;
+  border-radius: var(--r-card);
+  font-family: Menlo, Consolas, monospace;
+  font-size: var(--t-big);
+  font-weight: 700;
+  letter-spacing: 10rpx;
+  color: var(--c-brand);
+}
+
+.room-ops {
+  display: flex;
+  margin-top: 26rpx;
+}
+
+/* 橙色块上的次要按钮：白描边 + 透明底。
+   比原来的「半透明白填充」更利落，也避免「叠半透明当装饰」。 */
+.op {
+  flex: 1;
+  margin: 0 10rpx;
+  padding: 20rpx 0;
+  border-radius: var(--r-pill);
+  border: 2rpx solid rgba(255, 255, 255, 0.55);
+  color: #FFFFFF;
+  font-size: var(--t-sub);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.op-share {
+  background: #FFFFFF;
+  border-color: #FFFFFF;
+  color: var(--c-brand);
+}
+
+.op-share::after {
+  border: none;
+}
+
+/* ---------- 我的称呼 ---------- */
+.me-bar {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 30rpx;
+}
+
+.me-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.me-lbl {
+  font-size: var(--t-tag);
+  color: var(--c-ink-3);
+}
+
+.me-name {
+  font-size: var(--t-h2);
+  font-weight: 600;
+  color: var(--c-ink);
+  margin-top: 8rpx;
+}
+
+.me-op {
+  flex-shrink: 0;
+  font-size: var(--t-sub);
+  color: var(--c-brand);
+  background: var(--c-brand-tint);
+  border-radius: var(--r-pill);
+  padding: 12rpx 30rpx;
+}
+
+/* ---------- 成员列表 ---------- */
+.mems {
+  margin: 0 20rpx;
+}
+
+.mem {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 30rpx;
+  border-bottom: 1rpx solid var(--c-line);
+}
+
+.mem:last-child {
+  border-bottom: none;
+}
+
+.mem-avatar {
+  width: 66rpx;
+  height: 66rpx;
+  line-height: 66rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: var(--c-brand-tint);
+  color: var(--c-brand);
+  font-size: var(--t-body);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.mem-name {
+  flex: 1;
+  min-width: 0;
+  padding: 0 20rpx;
+  font-size: var(--t-h2);
+  color: var(--c-ink);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mem-tag {
+  flex-shrink: 0;
+  font-size: var(--t-tag);
+  color: var(--c-ink-3);
+  background: var(--c-surface-sunk);
+  border-radius: var(--r-pill);
+  padding: 6rpx 18rpx;
+}
+
+.mem-tag-me {
+  color: #FFFFFF;
+  background: var(--c-brand);
+}
+
+/* ---------- 房间内操作 ---------- */
+.ops2 {
+  margin: 30rpx 20rpx 0;
+  padding: 34rpx 30rpx;
+}
+
+.btn-ghost {
+  margin-top: 22rpx;
+  text-align: center;
+  font-size: var(--t-body);
+  color: var(--c-danger);
+  padding: 20rpx 0;
+}

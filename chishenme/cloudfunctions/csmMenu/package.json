@@ -1,0 +1,9 @@
+{
+  "name": "csmMenu",
+  "version": "1.0.0",
+  "description": "今天吃啥 · 家庭菜单云函数（一个函数按 action 分发）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

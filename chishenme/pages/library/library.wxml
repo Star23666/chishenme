@@ -1,0 +1,59 @@
+<!-- 菜库：分类筛选 + 卡片网格 + 详情弹层 -->
+<view class="page">
+
+  <scroll-view class="cat-bar" scroll-x="true" scroll-with-animation="true">
+    <view
+      wx:for="{{cats}}"
+      wx:key="key"
+      class="cat-item {{activeCat === item.key ? 'on' : ''}}"
+      data-cat="{{item.key}}"
+      bindtap="switchCat"
+    >{{item.name}}</view>
+  </scroll-view>
+
+  <view class="grid">
+    <view
+      class="dish-card"
+      wx:for="{{list}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="openDetail"
+      bindlongpress="tapLong"
+    >
+      <image class="dish-img" src="{{item.image}}" mode="aspectFill" lazy-load="true"></image>
+      <view class="dish-meta">
+        <view class="dish-name">{{item.name}}</view>
+        <view class="dish-main">{{item.main}}</view>
+      </view>
+      <view class="fav-dot" wx:if="{{item.fav}}">★</view>
+    </view>
+  </view>
+
+  <view class="tip">长按菜品可收藏 / 取消收藏 · 本菜库共 {{total}} 道</view>
+  <view class="safe-bottom"></view>
+
+  <view class="mask" wx:if="{{detailVisible}}" bindtap="closeDetail">
+    <view class="sheet" catchtap="noop">
+      <image class="sheet-img" src="{{detail.image}}" mode="aspectFill"></image>
+      <view class="sheet-body">
+        <view class="sheet-head">
+          <text class="sheet-name">{{detail.name}}</text>
+          <text class="sheet-cat">{{detail.catName}}</text>
+        </view>
+        <view class="sheet-row">
+          <text class="k">主料</text>
+          <text class="v">{{detail.main}}</text>
+        </view>
+        <view class="sheet-row">
+          <text class="k">要点</text>
+          <text class="v">{{detail.tips}}</text>
+        </view>
+      </view>
+      <view class="sheet-actions">
+        <view class="act-fav" bindtap="toggleFavInDetail">{{detail.fav ? '★ 已收藏' : '☆ 收藏'}}</view>
+        <view class="act-add" bindtap="addCurrent">加入今日菜单</view>
+      </view>
+    </view>
+  </view>
+
+</view>

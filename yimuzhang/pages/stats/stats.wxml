@@ -1,0 +1,56 @@
+<view class="page">
+
+  <!-- 月份切换 -->
+  <view class="monthbar">
+    <view class="mbtn" bindtap="prevMonth">‹</view>
+    <view class="mtext">{{monthText}}</view>
+    <view class="mbtn {{isCurrentMonth ? 'disabled' : ''}}" bindtap="nextMonth">›</view>
+  </view>
+
+  <!-- 汇总 -->
+  <view class="sumcard">
+    <view class="sitem">
+      <view class="slabel">本月支出</view>
+      <view class="sval exp">{{totalText}}</view>
+    </view>
+    <view class="sitem pad">
+      <view class="slabel">日均支出</view>
+      <view class="sval">{{avgText}}</view>
+    </view>
+    <view class="sitem pad">
+      <view class="slabel">单日最高</view>
+      <view class="sval">{{peakText}}</view>
+    </view>
+  </view>
+
+  <!-- 分类排行 -->
+  <view class="panel">
+    <view class="ptitle">支出分类排行</view>
+    <block wx:if="{{cats.length > 0}}">
+      <view class="bar" wx:for="{{cats}}" wx:key="key">
+        <view class="bhead">
+          <text class="bname">{{item.name}}</text>
+          <text class="bamt">¥{{item.amountText}} · {{item.percent}}%</text>
+        </view>
+        <view class="track">
+          <view class="fill" style="width:{{item.percent}}%;background:{{item.color}}"></view>
+        </view>
+      </view>
+    </block>
+    <view class="none" wx:else>本月还没有支出记录</view>
+  </view>
+
+  <!-- 每日趋势 -->
+  <view class="panel">
+    <view class="ptitle">每日支出趋势</view>
+    <view class="chart">
+      <view class="col" wx:for="{{days}}" wx:key="day">
+        <view class="barwrap">
+          <view class="barfill" style="height:{{item.h}}%"></view>
+        </view>
+        <text class="dlabel">{{item.label}}</text>
+      </view>
+    </view>
+  </view>
+
+</view>

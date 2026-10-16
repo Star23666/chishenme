@@ -1,0 +1,59 @@
+<!-- 摇一摇：随机一道 / 三菜一汤 -->
+<view class="page">
+
+  <view class="mode-bar">
+    <view class="mode-item {{mode === 'one' ? 'on' : ''}}" data-mode="one" bindtap="switchMode">随机一道</view>
+    <view class="mode-item {{mode === 'combo' ? 'on' : ''}}" data-mode="combo" bindtap="switchMode">三菜一汤</view>
+  </view>
+
+  <scroll-view class="cat-bar" scroll-x="true" wx:if="{{mode === 'one'}}">
+    <view
+      wx:for="{{cats}}"
+      wx:key="key"
+      class="cat-item {{activeCat === item.key ? 'on' : ''}}"
+      data-cat="{{item.key}}"
+      bindtap="switchCat"
+    >{{item.name}}</view>
+  </scroll-view>
+
+  <view class="stage">
+
+    <view class="rolling-box" wx:if="{{rolling}}">
+      <view class="rolling-name">{{rollName}}</view>
+      <view class="rolling-hint">正在摇…</view>
+    </view>
+
+    <view class="result-card" wx:if="{{!rolling && mode === 'one' && hasResult}}">
+      <image class="rc-img" src="{{result.image}}" mode="aspectFill"></image>
+      <view class="rc-name">{{result.name}}</view>
+      <view class="rc-cat">{{result.catName}} · {{result.main}}</view>
+      <view class="rc-tips">{{result.tips}}</view>
+    </view>
+
+    <view class="combo" wx:if="{{!rolling && mode === 'combo' && hasResult}}">
+      <view class="combo-item" wx:for="{{combo}}" wx:key="id">
+        <image class="ci-img" src="{{item.image}}" mode="aspectFill"></image>
+        <view class="ci-name">{{item.name}}</view>
+        <view class="ci-cat">{{item.catName}}</view>
+      </view>
+    </view>
+
+    <view class="idle" wx:if="{{!rolling && !hasResult}}">
+      <view class="idle-title">还没摇</view>
+      <view class="idle-desc">{{mode === 'one' ? '看看今天注定吃哪一道' : '自动配好 1 荤 + 1 素 + 1 汤 + 1 任意'}}</view>
+    </view>
+
+  </view>
+
+  <view class="actions">
+    <view class="big-btn" bindtap="shake">{{rolling ? '摇一摇中…' : (hasResult ? '再摇一次' : '摇一摇')}}</view>
+
+    <view class="sub-actions" wx:if="{{!rolling && hasResult}}">
+      <view class="sub-btn" wx:if="{{mode === 'one'}}" bindtap="addOne">加入菜单</view>
+      <view class="sub-btn" wx:if="{{mode === 'combo'}}" bindtap="addCombo">全部加入菜单</view>
+      <view class="sub-btn sub-dark" bindtap="goMenu">看菜单</view>
+    </view>
+  </view>
+
+  <view class="safe-bottom"></view>
+</view>

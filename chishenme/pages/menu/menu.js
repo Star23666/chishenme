@@ -1,0 +1,128 @@
+var app = getApp()
+var fmt = require('../../utils/format.js')
+
+Page({
+
+  data: {
+    list: [],
+    stats: { kinds: 0, total: 0, meat: 0, veg: 0, soup: 0, staple: 0, cold: 0 },
+    dateText: '',
+    empty: true,
+    cloud: false,   // 云开发是否可用
+    fam: null       // 当前家庭（云模式才有）
+  },
+
+  onLoad: function () {
+    // 订阅 app 级的实时推送：家人在别处点了菜，这一页会自动刷新。
+    // 注册一次就够（菜单是 tabBar 页，一直活着），所以放在 onLoad 而不是 onShow，
+    // 否则来回切 tab 会把同一个回调重复塞进订阅列表。
+    var that = this
+    this._onMenuChange = function () { that.refresh() }
+    app.onMenuChange(this._onMenuChange)
+  },
+
+  onUnload: function () {
+    app.offMenuChange(this._onMenuChange)
+  },
+
+  onShow: function () {
+    this.refresh()
+  },
+
+  refresh: function () {
+    var list = app.menu()
+    var today = fmt.todayStr()
+    this.setData({
+      list: list,
+      stats: app.menuStats(),
+      dateText: fmt.dateLabel(today) + ' · ' + fmt.weekday(today),
+      empty: list.length === 0,
+      cloud: app.isCloud(),
+      fam: app.family()
+    })
+  },
+
+  minus: function (e) {
+    app.stepQty(e.currentTarget.dataset.id, -1)
+    this.refresh()
+  },
+
+  remove: function (e) {
+    var id = e.currentTarget.dataset.id
+    var dish = app.dishById(id)
+    var that = this
+    wx.showModal({
+      title: '移出菜单',
+      content: '把「' + (dish ? dish.name : '这道菜') + '」从今日菜单移除？',
+      success: function (res) {
+        if (!res.confirm) return
+        app.removeFromMenu(id)
+        that.refresh()
+      }
+    })
+  },
+
+  clearAll: function () {
+    var that = this
+    wx.showModal({
+      title: '清空今日菜单',
+      content: this.data.fam
+        ? '会把这个房间今天点的菜全部清掉，家里其他人也看不到了。确定吗？'
+        : '菜单里的菜会全部清掉，确定吗？',
+      success: function (res) {
+        if (!res.confirm) return
+        app.clearMenu()
+        that.refresh()
+        wx.showToast({ title: '已清空', icon: 'none' })
+      }
+    })
+  },
+
+  /** 把菜单复制成文字，方便粘到家庭群里 */
+  copyText: function () {
+    wx.setClipboardData({
+      data: app.menuText(),
+      success: function () {
+        wx.showToast({ title: '菜单已复制', icon: 'success' })
+      }
+    })
+  },
+
+  goLibrary: function () {
+    wx.switchTab({ url: '/pages/library/library' })
+  },
+
+  goRandom: function () {
+    wx.switchTab({ url: '/pages/random/random' })
+  },
+
+  goFamily: function () {
+    wx.navigateTo({ url: '/pages/family/family' })
+  },
+
+  onShareAppMessage: function () {
+    var list = this.data.list
+    var fam = this.data.fam
+    var names = []
+    for (var i = 0; i < list.length && i < 5; i++) names.push(list[i].name)
+    var title = list.length
+      ? ('今晚吃：' + names.join('、') + (list.length > 5 ? ' 等 ' + list.length + ' 道菜' : ''))
+      : '今天吃啥？一起点菜'
+
+    // 已经建了房间：分享链接带上房间码，家人点一下就能进来一起点
+    if (fam && fam.code) {
+      return {
+        title: title + '｜' + fam.name + '一起点',
+        path: '/pages/family/family?room=' + fam.code
+      }
+    }
+    return { title: title, path: '/pages/library/library' }
+  },
+
+  onShareTimeline: function () {
+    var list = this.data.list
+    return {
+      title: list.length ? ('今晚吃 ' + list.length + ' 道菜，一起点') : '今天吃啥？'
+    }
+  }
+})

@@ -1,0 +1,11 @@
+# 统一换行符：仓库里一律存 LF。
+# 不写这一行的话，Windows 上每次 add 都会刷 80 多条
+# "LF will be replaced by CRLF" 警告，看着像出错了其实没事。
+* text=auto eol=lf
+
+# 图片一律按二进制处理，git 不会去 diff 它们
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary

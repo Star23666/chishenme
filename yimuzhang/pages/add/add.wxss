@@ -1,0 +1,214 @@
+.page {
+  padding: 24rpx 24rpx 60rpx;
+}
+
+/* ---------- 支出/收入 切换 ---------- */
+.seg {
+  display: flex;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 8rpx;
+}
+
+.segitem {
+  flex: 1;
+  text-align: center;
+  padding: 18rpx 0;
+  font-size: 29rpx;
+  color: #6B7280;
+  border-radius: 12rpx;
+}
+
+.segitem.on {
+  background: #4F7CFF;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.seg.inc-mode .segitem.on {
+  background: #2FA36B;
+}
+
+/* ---------- 金额输入 ---------- */
+.amountbox {
+  display: flex;
+  align-items: center;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 26rpx 32rpx;
+  margin-top: 20rpx;
+}
+
+.cur {
+  font-size: 44rpx;
+  color: #1F2329;
+  font-weight: 600;
+  margin-right: 18rpx;
+}
+
+.amtinput {
+  flex: 1;
+  height: 84rpx;
+  line-height: 84rpx;
+  font-size: 60rpx;
+  font-weight: 600;
+  color: #1F2329;
+}
+
+.amtph {
+  color: #C8CDD6;
+  font-weight: 400;
+}
+
+/* ---------- 快捷金额 ---------- */
+.quick {
+  display: flex;
+  margin-top: 16rpx;
+}
+
+.qbtn {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  margin-right: 14rpx;
+  background: #FFFFFF;
+  border-radius: 12rpx;
+  font-size: 27rpx;
+  font-weight: 500;
+  color: #4F7CFF;
+}
+
+.qbtn:last-child {
+  margin-right: 0;
+}
+
+.qbtn-hover {
+  background: #EEF3FF;
+}
+
+.quick.inc-mode .qbtn {
+  color: #2FA36B;
+}
+
+.quick.inc-mode .qbtn-hover {
+  background: #EAF7F1;
+}
+
+/* ---------- 分类网格 ---------- */
+.sectitle {
+  font-size: 25rpx;
+  color: #8A8F99;
+  margin: 34rpx 0 16rpx 10rpx;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 12rpx;
+}
+
+.cell {
+  width: 25%;
+  box-sizing: border-box;
+  padding: 20rpx 4rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 14rpx;
+}
+
+.cell.on {
+  background: #EEF3FF;
+}
+
+.cdot {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  font-size: 26rpx;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.cname {
+  font-size: 24rpx;
+  color: #4B5563;
+}
+
+.cell.on .cname {
+  color: #4F7CFF;
+  font-weight: 600;
+}
+
+/* ---------- 日期 / 备注 ---------- */
+.form {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  margin-top: 24rpx;
+  overflow: hidden;
+}
+
+.frow {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 30rpx;
+  border-bottom: 1rpx solid #F0F1F4;
+}
+
+.frow:last-child {
+  border-bottom: none;
+}
+
+.flabel {
+  font-size: 28rpx;
+  color: #4B5563;
+  width: 120rpx;
+  flex: 0 0 120rpx;
+}
+
+.fpicker {
+  flex: 1;
+}
+
+.fval {
+  text-align: right;
+  font-size: 28rpx;
+  color: #4F7CFF;
+}
+
+.finput {
+  flex: 1;
+  font-size: 28rpx;
+  text-align: right;
+  height: 44rpx;
+}
+
+.fph {
+  color: #C8CDD6;
+}
+
+/* ---------- 保存按钮 ---------- */
+.save {
+  margin-top: 48rpx;
+  background: #4F7CFF;
+  color: #FFFFFF;
+  font-size: 32rpx;
+  font-weight: 600;
+  border-radius: 44rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+}
+
+.save.save-inc {
+  background: #2FA36B;
+}
+
+.save::after {
+  border: none;
+}

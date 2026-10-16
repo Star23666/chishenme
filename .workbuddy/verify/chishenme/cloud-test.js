@@ -1,0 +1,769 @@
+/**
+ * 今天吃啥 · 云函数离线测试
+ *
+ * 云函数里跑着这个项目**唯一可信的那部分逻辑**（谁在哪个房间、能不能点、
+ * 份数怎么算、房间码会不会撞车）。它偏偏是平时最难验证的：
+ * 要连真实云环境、要真机、要多个微信号。
+ *
+ * 做法：用 Module._load 拦截 `require('wx-server-sdk')`，塞一个内存假数据库进去，
+ * 然后 require 真实的 cloudfunctions/csmMenu/index.js。
+ * 跑的是生产代码，一行都没改；只是把数据库换成了内存里的数组。
+ *
+ * 运行： node .workbuddy/verify/chishenme/cloud-test.js
+ */
+
+var path = require('path')
+var fs = require('fs')
+var Module = require('module')
+
+var ROOT = path.resolve(__dirname, '..', '..', '..')
+var CF_DIR = path.join(ROOT, 'chishenme', 'cloudfunctions', 'csmMenu')
+
+/* ============================================================
+ * 一、内存假数据库
+ * ============================================================ */
+
+var store = {}
+var idSeq = 0
+
+function resetStore() {
+  for (var k in store) delete store[k]
+  idSeq = 0
+}
+
+function col(name) {
+  if (!store[name]) store[name] = []
+  return store[name]
+}
+
+function newId() {
+  idSeq++
+  return 'doc_' + idSeq
+}
+
+/* ---------- 取值 / 赋值（支持 'a.b' 这种点号路径） ---------- */
+
+function getPath(obj, key) {
+  var parts = String(key).split('.')
+  var cur = obj
+  for (var i = 0; i < parts.length; i++) {
+    if (cur === null || cur === undefined) return undefined
+    cur = cur[parts[i]]
+  }
+  return cur
+}
+
+function setPath(obj, key, val) {
+  var parts = String(key).split('.')
+  var cur = obj
+  for (var i = 0; i < parts.length - 1; i++) {
+    if (cur[parts[i]] === undefined || cur[parts[i]] === null) cur[parts[i]] = {}
+    cur = cur[parts[i]]
+  }
+  cur[parts[parts.length - 1]] = val
+}
+
+/* ---------- 数据库指令（模拟 db.command） ---------- */
+
+var command = {
+  all: function (arr) { return { __op: 'all', v: arr } },
+  lt: function (v) { return { __op: 'lt', v: v } },
+  inc: function (n) { return { __op: 'inc', v: n } },
+  addToSet: function (v) { return { __op: 'addToSet', v: v } },
+  pull: function (v) { return { __op: 'pull', v: v } }
+}
+
+/* ---------- 条件匹配 ---------- */
+
+function matchDoc(doc, cond) {
+  for (var k in cond) {
+    if (!Object.prototype.hasOwnProperty.call(cond, k)) continue
+    var want = cond[k]
+    var got = getPath(doc, k)
+
+    if (want && want.__op) {
+      if (want.__op === 'all') {
+        if (!Array.isArray(got)) return false
+        for (var i = 0; i < want.v.length; i++) {
+          if (got.indexOf(want.v[i]) < 0) return false
+        }
+      } else if (want.__op === 'lt') {
+        if (!(got < want.v)) return false
+      } else {
+        // 把比较指令用在 where 里不是合法用法，直接不匹配
+        return false
+      }
+    } else if (got !== want) {
+      return false
+    }
+  }
+  return true
+}
+
+/* ---------- 更新 ---------- */
+
+function applyUpdate(doc, patch) {
+  for (var k in patch) {
+    if (!Object.prototype.hasOwnProperty.call(patch, k)) continue
+    var v = patch[k]
+    if (v && v.__op) {
+      var cur = getPath(doc, k)
+      if (v.__op === 'inc') {
+        var n = typeof cur === 'number' ? cur : 0
+        setPath(doc, k, n + v.v)
+      } else if (v.__op === 'addToSet') {
+        var arr = Array.isArray(cur) ? cur.slice() : []
+        if (arr.indexOf(v.v) < 0) arr.push(v.v)
+        setPath(doc, k, arr)
+      } else if (v.__op === 'pull') {
+        var a2 = Array.isArray(cur) ? cur.slice() : []
+        var idx = a2.indexOf(v.v)
+        if (idx >= 0) a2.splice(idx, 1)
+        setPath(doc, k, a2)
+      } else {
+        setPath(doc, k, v)
+      }
+    } else {
+      setPath(doc, k, v)
+    }
+  }
+}
+
+/* ---------- 查询 / 文档引用 ---------- */
+
+function makeQuery(name, cond) {
+  var q = {
+    _limit: 0,
+    _order: null,
+    where: function (c) { return makeQuery(name, c) },
+    limit: function (n) { q._limit = n; return q },
+    orderBy: function (field, dir) { q._order = { field: field, dir: dir }; return q },
+    get: function () {
+      var rows = col(name).filter(function (d) { return matchDoc(d, cond) })
+      if (q._order) {
+        var f = q._order.field
+        var sign = q._order.dir === 'desc' ? -1 : 1
+        rows = rows.slice().sort(function (a, b) {
+          var x = getPath(a, f), y = getPath(b, f)
+          if (x === y) return 0
+          return (x < y ? -1 : 1) * sign
+        })
+      }
+      if (q._limit) rows = rows.slice(0, q._limit)
+      return Promise.resolve({ data: rows.map(clone) })
+    },
+    count: function () {
+      var n = col(name).filter(function (d) { return matchDoc(d, cond) }).length
+      return Promise.resolve({ total: n })
+    },
+    remove: function () {
+      var arr = col(name)
+      var keep = []
+      var removed = 0
+      for (var i = 0; i < arr.length; i++) {
+        if (matchDoc(arr[i], cond)) removed++
+        else keep.push(arr[i])
+      }
+      store[name] = keep
+      return Promise.resolve({ stats: { removed: removed } })
+    }
+  }
+  return q
+}
+
+function makeDoc(name, id) {
+  return {
+    get: function () {
+      var found = col(name).filter(function (d) { return d._id === id })[0]
+      if (!found) return Promise.reject(new Error('document does not exist'))
+      return Promise.resolve({ data: clone(found) })
+    },
+    update: function (opt) {
+      var found = col(name).filter(function (d) { return d._id === id })[0]
+      if (!found) return Promise.reject(new Error('document does not exist'))
+      applyUpdate(found, (opt && opt.data) || {})
+      return Promise.resolve({ stats: { updated: 1 } })
+    },
+    remove: function () {
+      store[name] = col(name).filter(function (d) { return d._id !== id })
+      return Promise.resolve({ stats: { removed: 1 } })
+    }
+  }
+}
+
+function clone(o) {
+  return JSON.parse(JSON.stringify(o))
+}
+
+/* ---------- 假的 wx-server-sdk ---------- */
+
+var currentOpenid = 'user_default'
+
+function makeSdk() {
+  function database() {
+    return {
+      command: command,
+      collection: function (name) {
+        return {
+          where: function (cond) { return makeQuery(name, cond) },
+          doc: function (id) { return makeDoc(name, id) },
+          add: function (opt) {
+            var doc = clone((opt && opt.data) || {})
+            doc._id = newId()
+            col(name).push(doc)
+            return Promise.resolve({ _id: doc._id })
+          },
+          get: function () { return makeQuery(name, {}).get() },
+          count: function () { return makeQuery(name, {}).count() }
+        }
+      }
+    }
+  }
+
+  return {
+    DYNAMIC_CURRENT_ENV: '__DYNAMIC_CURRENT_ENV__',
+    init: function () {},
+    database: database,
+    getWXContext: function () { return { OPENID: currentOpenid, APPID: 'wxtest' } }
+  }
+}
+
+var sdk = makeSdk()
+
+/* 拦截 require('wx-server-sdk')，把假货塞进去 */
+var origLoad = Module._load
+Module._load = function (request, parent, isMain) {
+  if (request === 'wx-server-sdk') return sdk
+  return origLoad.apply(this, arguments)
+}
+
+/* 现在 require 真实云函数 */
+var cf = require(path.join(CF_DIR, 'index.js'))
+
+/** 以某个用户身份调云函数 */
+function call(openid, action, payload) {
+  currentOpenid = openid
+  return cf.main({ action: action, payload: payload || {} })
+}
+
+/* ============================================================
+ * 二、断言机
+ * ============================================================ */
+
+var pass = 0
+var fail = 0
+var failures = []
+var section = ''
+
+function S(t) { section = t; console.log('\n' + t) }
+
+function ok(name, cond, extra) {
+  if (cond) {
+    pass++
+    console.log('  \u2713 ' + name)
+  } else {
+    fail++
+    failures.push(section + ' \u203a ' + name + (extra ? '  [' + extra + ']' : ''))
+    console.log('  \u2717 ' + name + (extra ? '  [' + extra + ']' : ''))
+  }
+}
+
+function eq(name, actual, expected) {
+  ok(name, actual === expected, '期望 ' + JSON.stringify(expected) + '，实际 ' + JSON.stringify(actual))
+}
+
+/* 冻结时间的小工具 */
+var REAL_NOW = Date.now
+function freeze(iso) {
+  var t = Date.parse(iso)
+  Date.now = function () { return t }
+}
+function unfreeze() {
+  Date.now = REAL_NOW
+}
+
+/* ============================================================
+ * 三、测试
+ * ============================================================ */
+
+async function run() {
+
+  /* ---------- 负向对照：证明这套断言不是「永远绿」 ---------- */
+  S('0. 负向对照（证明测试机真的会失败）')
+  {
+    var p0 = pass, f0 = fail
+    ok('[故意失败] 1 === 2', 1 === 2)
+    var detected = (fail === f0 + 1 && pass === p0)
+    // 把这条故意的失败撤掉，不计入总数
+    fail = f0
+    failures.pop()
+    ok('故意写错的断言会被计入失败（说明不是假测试）', detected)
+  }
+
+  /* ---------- A. 时区：云函数跑在 UTC ---------- */
+  S('A. 时区：晚上点的菜不能算成明天')
+  {
+    resetStore()
+
+    // 北京时间 2026-10-16 01:00 = UTC 2026-10-15 17:00
+    // 如果云函数用本地时区算日期，这里会存成 2026-10-15（差一天）
+    freeze('2026-10-15T17:00:00Z')
+    await call('u_a', 'createFamily', { name: '甲家', nickname: '爸爸' })
+    await call('u_a', 'addDish', { dishId: 'hongshaorou' })
+    var menuDocs = col('csm_menus')
+    eq('北京时间凌晨 1 点下的单，日期是北京的今天', menuDocs[0].date, '2026-10-16')
+
+    // 北京时间 2026-10-15 23:00 = UTC 2026-10-15 15:00（两边同一天，不该出错）
+    resetStore()
+    freeze('2026-10-15T15:00:00Z')
+    await call('u_b', 'createFamily', { name: '乙家', nickname: '妈妈' })
+    await call('u_b', 'addDish', { dishId: 'fanqiechaodan' })
+    eq('北京时间晚上 11 点下的单，日期还是当天', col('csm_menus')[0].date, '2026-10-15')
+
+    // 北京 2026-10-16 07:59 = UTC 2026-10-15 23:59，仍然差一天
+    resetStore()
+    freeze('2026-10-15T23:59:00Z')
+    await call('u_c', 'createFamily', { name: '丙家', nickname: '孩子' })
+    await call('u_c', 'addDish', { dishId: 'danchaofan' })
+    eq('北京时间早上 7:59 下的单，日期是北京今天', col('csm_menus')[0].date, '2026-10-16')
+
+    unfreeze()
+  }
+
+  /* ---------- B. 房间码 ---------- */
+  S('B. 房间码')
+  {
+    resetStore()
+    var codes = {}
+    for (var i = 0; i < 12; i++) {
+      var r = await call('code_u' + i, 'createFamily', { name: '家' + i, nickname: '我' })
+      ok('第 ' + (i + 1) + ' 个房间创建成功', r.ok === true, r.msg)
+      codes[r.data.code] = true
+    }
+    eq('12 个房间码互不相同', Object.keys(codes).length, 12)
+
+    var all = Object.keys(codes)
+    var lenOk = all.every(function (c) { return c.length === 6 })
+    ok('房间码都是 6 位', lenOk)
+
+    // 去掉 0 O 1 I 就是为了防止「我念给你听你听错」
+    var alphabetOk = all.every(function (c) { return /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]+$/.test(c) })
+    ok('房间码里没有容易看错的 0 O 1 I', alphabetOk)
+  }
+
+  /* ---------- C. 家庭成员的增删与幂等 ---------- */
+  S('C. 家庭成员')
+  {
+    resetStore()
+    var created = await call('owner1', 'createFamily', { name: '老王家', nickname: '爸爸' })
+    var code = created.data.code
+
+    eq('创建者是房主', created.data.isOwner, true)
+    eq('创建后成员数 1', created.data.memberCount, 1)
+    eq('创建者自己的称呼对', created.data.myName, '爸爸')
+
+    // 幂等：同一个人再建一次，应该返回原来的房间，而不是建第二个
+    var again = await call('owner1', 'createFamily', { name: '随便改个名', nickname: '啊' })
+    eq('重复 createFamily 是幂等的', again.data.code, code)
+    eq('重复创建不会改名', again.data.name, '老王家')
+
+    var joined = await call('member1', 'joinFamily', { code: code, nickname: '妈妈' })
+    eq('别人能用房间码加入', joined.ok, true)
+    eq('加入后成员数 2', joined.data.memberCount, 2)
+    eq('加入者的称呼是自己填的', joined.data.myName, '妈妈')
+
+    // 幂等：同一个人重复加入同一房间
+    var join2 = await call('member1', 'joinFamily', { code: code, nickname: '妈妈' })
+    eq('重复加入同一房间不报错', join2.ok, true)
+    eq('重复加入不会重复计成员', join2.data.memberCount, 2)
+
+    // 一个人不能同时在两个房间
+    var other = await call('owner2', 'createFamily', { name: '别家', nickname: '我' })
+    var cross = await call('member1', 'joinFamily', { code: other.data.code, nickname: '妈妈' })
+    eq('已在 A 房间就不能再加入 B 房间', cross.ok, false)
+    ok('提示语说清楚要先退出', /退出/.test(cross.msg || ''), cross.msg)
+
+    // 小写房间码
+    var lower = await call('member2', 'joinFamily', { code: code.toLowerCase(), nickname: '孩子' })
+    eq('房间码输小写也能进', lower.ok, true)
+
+    // 预览
+    var peek = await call('outsider', 'peekFamily', { code: code })
+    eq('预览能看到房间名', peek.data.name, '老王家')
+    eq('预览能看到人数', peek.data.memberCount, 3)
+    eq('预览不会暴露 openid', JSON.stringify(peek.data).indexOf('owner1'), -1)
+
+    // 不存在的房间
+    var notFound = await call('outsider', 'peekFamily', { code: 'ZZZZZZ' })
+    eq('不存在的房间码报错', notFound.ok, false)
+
+    // 长度不对
+    var shortCode = await call('outsider', 'peekFamily', { code: 'ABC' })
+    eq('房间码长度不对报错', shortCode.ok, false)
+    ok('提示语说明了是 6 位', /6\s*位/.test(shortCode.msg || ''), shortCode.msg)
+
+    // 满员
+    var fam = col('csm_families')[0]
+    for (var m = 0; m < 12; m++) {
+      await call('filler_' + m, 'joinFamily', { code: code, nickname: '家人' + m })
+    }
+    var famNow = col('csm_families').filter(function (f) { return f._id === fam._id })[0]
+    eq('填充后正好 15 人', famNow.members.length, 15)
+    var overflow = await call('too_late', 'joinFamily', { code: code, nickname: '多余的人' })
+    eq('第 16 个人进不来', overflow.ok, false)
+    ok('提示语说明人满了', /满/.test(overflow.msg || ''), overflow.msg)
+
+    // 幽灵成员：members 里有 openid，但 nicknames 里没有
+    famNow.members.push('ghost_openid')
+    var withGhost = await call('owner1', 'myFamily', {})
+    var ghost = withGhost.data.members.filter(function (x) { return x.name === '家人' })[0]
+    ok('没有称呼的成员显示为「家人」而不是空白', !!ghost)
+    eq('幽灵成员不是房主', ghost ? ghost.isOwner : null, false)
+
+    // 退出
+    var leaveOwner = await call('owner1', 'leaveFamily', {})
+    eq('房主不能退出（否则房间会变孤儿）', leaveOwner.ok, false)
+    ok('提示语说明了原因', /创建者/.test(leaveOwner.msg || ''), leaveOwner.msg)
+
+    var leaveMember = await call('member1', 'leaveFamily', {})
+    eq('普通成员可以退出', leaveMember.ok, true)
+    var afterLeave = await call('member1', 'myFamily', {})
+    eq('退出后就查不到家庭了', afterLeave.data, null)
+
+    var leaveAgain = await call('member1', 'leaveFamily', {})
+    eq('没在家庭里时退出也不报错', leaveAgain.ok, true)
+  }
+
+  /* ---------- D. 没加入家庭不能点菜 ---------- */
+  S('D. 权限：没进房间不能点菜')
+  {
+    resetStore()
+    var r1 = await call('nobody', 'addDish', { dishId: 'hongshaorou' })
+    eq('没加入家庭时加菜被拒绝', r1.ok, false)
+    eq('拒绝原因是 NO_FAMILY', r1.msg, 'NO_FAMILY')
+
+    var r2 = await call('nobody', 'setQty', { dishId: 'hongshaorou', qty: 3 })
+    eq('没加入家庭时改份数被拒绝', r2.ok, false)
+
+    var r3 = await call('nobody', 'setNote', { dishId: 'hongshaorou', note: '辣' })
+    eq('没加入家庭时改备注被拒绝', r3.ok, false)
+
+    var r4 = await call('nobody', 'clearMenu', {})
+    eq('没加入家庭时清空被拒绝', r4.ok, false)
+
+    var r5 = await call('nobody', 'listMenu', {})
+    eq('没加入家庭时拉菜单被拒绝', r5.ok, false)
+  }
+
+  /* ---------- E. 加菜 / 份数 ---------- */
+  S('E. 加菜与份数')
+  {
+    resetStore()
+    await call('a1', 'createFamily', { name: '测试家', nickname: '甲' })
+    await call('a2', 'joinFamily', { code: col('csm_families')[0].code, nickname: '乙' })
+
+    var r = await call('a1', 'addDish', { dishId: 'hongshaorou' })
+    eq('加菜成功', r.ok, true)
+    var docs = col('csm_menus')
+    eq('菜单里有 1 条记录', docs.length, 1)
+    eq('份数是 1', docs[0].qty, 1)
+    eq('记录了是谁点的', JSON.stringify(docs[0].byNames), JSON.stringify(['甲']))
+    eq('写上了房间码', docs[0].familyCode, col('csm_families')[0].code)
+
+    // 同一个人再加同一道 → 份数 +1，但 byNames 不该重复
+    await call('a1', 'addDish', { dishId: 'hongshaorou' })
+    eq('再加一次不会新增记录', col('csm_menus').length, 1)
+    eq('份数变成 2', col('csm_menus')[0].qty, 2)
+    eq('同一个人点两次，名字不重复', JSON.stringify(col('csm_menus')[0].byNames), JSON.stringify(['甲']))
+
+    // 另一个人加同一道 → 份数 +1，名字要并进去
+    await call('a2', 'addDish', { dishId: 'hongshaorou' })
+    eq('两个人点同一道，份数变 3', col('csm_menus')[0].qty, 3)
+    eq('两个人的名字都在', JSON.stringify(col('csm_menus')[0].byNames), JSON.stringify(['甲', '乙']))
+
+    // 备注只在第一次写的时候带上
+    await call('a1', 'addDish', { dishId: 'mapodoufu', note: '少放辣' })
+    var tofu = col('csm_menus').filter(function (d) { return d.dishId === 'mapodoufu' })[0]
+    eq('新加的菜带上了备注', tofu.note, '少放辣')
+
+    // setQty
+    await call('a1', 'setQty', { dishId: 'hongshaorou', qty: 5 })
+    eq('改份数生效', col('csm_menus').filter(function (d) { return d.dishId === 'hongshaorou' })[0].qty, 5)
+
+    await call('a1', 'setQty', { dishId: 'hongshaorou', qty: 0 })
+    eq('份数 0 等于移除', col('csm_menus').filter(function (d) { return d.dishId === 'hongshaorou' }).length, 0)
+
+    await call('a1', 'setQty', { dishId: 'gongbaojiding', qty: 3 })
+    eq('对不在菜单里的菜直接设份数会新建', col('csm_menus').filter(function (d) { return d.dishId === 'gongbaojiding' })[0].qty, 3)
+
+    await call('a1', 'setQty', { dishId: 'meiyouzhedaocai', qty: 0 })
+    eq('对不存在的菜设 0 份不报错也不写入', col('csm_menus').filter(function (d) { return d.dishId === 'meiyouzhedaocai' }).length, 0)
+
+    // setNote
+    var nr = await call('a2', 'setNote', { dishId: 'gongbaojiding', note: '多做一份' })
+    eq('改备注成功', nr.ok, true)
+    eq('备注写进去了', col('csm_menus').filter(function (d) { return d.dishId === 'gongbaojiding' })[0].note, '多做一份')
+
+    var nr2 = await call('a2', 'setNote', { dishId: 'buzai', note: 'x' })
+    eq('对不在菜单里的菜改备注会报错', nr2.ok, false)
+  }
+
+  /* ---------- F. 非法输入 ---------- */
+  S('F. 非法输入与边界')
+  {
+    resetStore()
+    await call('b1', 'createFamily', { name: '边界家', nickname: '甲' })
+
+    await call('b1', 'addDish', { dishId: 'culiubaicai', qty: 'abc' })
+    eq('份数传字符串按 1 处理', col('csm_menus')[0].qty, 1)
+
+    await call('b1', 'addDish', { dishId: 'culiubaicai', qty: -5 })
+    eq('份数传负数按 1 处理', col('csm_menus')[0].qty, 2)
+
+    await call('b1', 'addDish', { dishId: 'culiubaicai', qty: 999999 })
+    eq('份数超上限被夹到 99', col('csm_menus')[0].qty, 99)
+
+    // 已经封顶之后再点：份数不能再涨，但「谁点的」必须记上，
+    // 否则第二个人点了这道菜，别人完全看不出来。
+    await call('b1_friend', 'joinFamily', {
+      code: col('csm_families').filter(function (f) { return f.nicknames && f.nicknames['b1'] })[0].code,
+      nickname: '友'
+    })
+    await call('b1_friend', 'addDish', { dishId: 'culiubaicai', qty: 50 })
+    eq('封顶之后再点，份数仍然是 99', col('csm_menus')[0].qty, 99)
+    ok('但第二个人被记进了 byNames',
+      col('csm_menus')[0].byNames.indexOf('友') >= 0,
+      JSON.stringify(col('csm_menus')[0].byNames))
+
+    await call('b1', 'setQty', { dishId: 'culiubaicai', qty: 9999 })
+    eq('setQty 超上限也被夹到 99', col('csm_menus')[0].qty, 99)
+
+    var noDish = await call('b1', 'addDish', { dishId: '' })
+    eq('菜名为空被拒绝', noDish.ok, false)
+
+    var badQty = await call('b1', 'setQty', { dishId: 'culiubaicai', qty: 'x' })
+    eq('setQty 传非数字被拒绝', badQty.ok, false)
+
+    // 超长文本要截断，不能无脑塞进数据库
+    await call('b1', 'addDish', { dishId: 'liangbanhuanggua', note: '这是一段特别特别特别特别长的备注文字' })
+    var noteDoc = col('csm_menus').filter(function (d) { return d.dishId === 'liangbanhuanggua' })[0]
+    ok('超长备注被截断到 20 字以内', noteDoc.note.length <= 20, 'length=' + noteDoc.note.length)
+
+    // 建房间时名字和称呼超长
+    resetStore()
+    var longName = 'x'.repeat(50)
+    var longNick = 'y'.repeat(50)
+    var created = await call('b2', 'createFamily', { name: longName, nickname: longNick })
+    var fam = col('csm_families')[0]
+    ok('家庭名被截断到 12 字以内', fam.name.length <= 12, 'length=' + fam.name.length)
+    ok('称呼被截断到 8 字以内', fam.nicknames['b2'].length <= 8, 'length=' + fam.nicknames['b2'].length)
+
+    // 空名字、空称呼都有兜底
+    resetStore()
+    await call('b3', 'createFamily', { name: '', nickname: '' })
+    var fam2 = col('csm_families')[0]
+    eq('不填家庭名有默认值', fam2.name, '我的家')
+    eq('不填称呼有默认值', fam2.nicknames['b3'], '我')
+
+    // 未知 action
+    var unknown = await call('b3', 'dropDatabase', {})
+    eq('未知 action 被拒绝', unknown.ok, false)
+    ok('报错里带上 action 名，便于排查', /dropDatabase/.test(unknown.msg || ''), unknown.msg)
+
+    // 拿不到 openid
+    currentOpenid = ''
+    var noId = await cf.main({ action: 'myFamily', payload: {} })
+    eq('拿不到 openid 时直接拒绝', noId.ok, false)
+    currentOpenid = 'b3'
+  }
+
+  /* ---------- G. 查询注入尝试（结构化匹配，不是拼字符串） ---------- */
+  S('G. 注入尝试不会越权')
+  {
+    resetStore()
+    var mine = await call('inj_owner', 'createFamily', { name: '真家', nickname: '我' })
+    var myCode = mine.data.code
+    await call('inj_owner', 'addDish', { dishId: 'hongshaorou' })
+
+    var attacks = ["' OR '1'='1", '" OR ""="', 'AAAAAA\' OR \'x', '{code:{$ne:null}}', 'ABC%', '\\u0027']
+    for (var i = 0; i < attacks.length; i++) {
+      var a = attacks[i]
+      var peek = await call('attacker', 'peekFamily', { code: a })
+      eq('注入串 peekFamily 被拒：' + JSON.stringify(a), peek.ok, false)
+
+      var join = await call('attacker', 'joinFamily', { code: a, nickname: '坏人' })
+      eq('注入串 joinFamily 被拒：' + JSON.stringify(a), join.ok, false)
+    }
+
+    // 攻击者始终没有拿到任何数据
+    var famAfter = col('csm_families').filter(function (f) { return f.code === myCode })[0]
+    eq('攻击者没能混进房间', famAfter.members.length, 1)
+    eq('攻击者没能看到菜单', (await call('attacker', 'listMenu', {})).ok, false)
+
+    // 长度校验是第一道闸：6 位以外的输入根本不进查询
+    var tooLong = await call('attacker', 'joinFamily', { code: 'A'.repeat(200), nickname: 'x' })
+    eq('超长房间码被长度校验挡住', tooLong.ok, false)
+  }
+
+  /* ---------- H. 房间隔离 ---------- */
+  S('H. 两个家庭互不干扰')
+  {
+    resetStore()
+    var f1 = await call('h1', 'createFamily', { name: '一号家', nickname: '甲' })
+    var f2 = await call('h2', 'createFamily', { name: '二号家', nickname: '乙' })
+
+    await call('h1', 'addDish', { dishId: 'hongshaorou' })
+    await call('h1', 'addDish', { dishId: 'hongshaorou' })
+    await call('h2', 'addDish', { dishId: 'ganbiansijidou' })
+
+    var l1 = await call('h1', 'listMenu', {})
+    var l2 = await call('h2', 'listMenu', {})
+    eq('一号家只看到自己的菜', l1.data.list.length, 1)
+    eq('二号家只看到自己的菜', l2.data.list.length, 1)
+    eq('一号家的份数没被串', l1.data.list[0].qty, 2)
+    eq('二号家的菜不是一号家的', l2.data.list[0].dishId, 'ganbiansijidou')
+
+    // 清空只清自己家
+    await call('h1', 'clearMenu', {})
+    eq('清空后一号家没菜了', (await call('h1', 'listMenu', {})).data.list.length, 0)
+    eq('二号家的菜还在', (await call('h2', 'listMenu', {})).data.list.length, 1)
+
+    // 非房主也能清空（用户明确选择「谁都能清空」）
+    await call('h1', 'addDish', { dishId: 'danchaofan' })
+    await call('h1_guest', 'joinFamily', { code: f1.data.code, nickname: '客人' })
+    var clearByGuest = await call('h1_guest', 'clearMenu', {})
+    eq('非房主也能清空菜单（这是用户明确要的）', clearByGuest.ok, true)
+    eq('清空确实生效了', (await call('h1', 'listMenu', {})).data.list.length, 0)
+    // 二号家不受影响
+    eq('二号家仍然没被影响', (await call('h2', 'listMenu', {})).data.list.length, 1)
+  }
+
+  /* ---------- I. 跨天隔离与旧数据清理 ---------- */
+  S('I. 跨天与旧数据')
+  {
+    resetStore()
+    freeze('2026-10-15T04:00:00Z')   // 北京 10-15 12:00
+    await call('d1', 'createFamily', { name: '跨天家', nickname: '甲' })
+    await call('d1', 'addDish', { dishId: 'hongshaorou' })
+    eq('今天有菜', (await call('d1', 'listMenu', {})).data.list.length, 1)
+
+    // 把时间推到第二天中午
+    freeze('2026-10-16T04:00:00Z')
+    eq('第二天看不到昨天的菜', (await call('d1', 'listMenu', {})).data.list.length, 0)
+
+    // 第二天点了新菜，两条记录并存（按 date 区分）
+    await call('d1', 'addDish', { dishId: 'gongbaojiding' })
+    eq('数据库里两个日期各一条', col('csm_menus').length, 2)
+    eq('接口只返回今天那条', (await call('d1', 'listMenu', {})).data.list[0].dishId, 'gongbaojiding')
+
+    // 抽样清理：Math.random 固定成 0 → 一定触发
+    // 清的是 date < (今天 - 3 天)，所以在 10-19 这天跑，10-15 会被清、10-16 不会
+    var realRandom = Math.random
+    Math.random = function () { return 0 }
+    freeze('2026-10-19T04:00:00Z')
+    await call('d1', 'addDish', { dishId: 'danchaofan' })
+    Math.random = realRandom
+
+    var dates = col('csm_menus').map(function (d) { return d.date })
+    ok('超过 3 天的旧菜单被清掉了', dates.indexOf('2026-10-15') < 0, dates.join(','))
+    ok('刚好满 3 天的记录还在（阈值是「超过 3 天」）', dates.indexOf('2026-10-16') >= 0, dates.join(','))
+    ok('今天的记录也在', dates.indexOf('2026-10-19') >= 0, dates.join(','))
+
+    unfreeze()
+  }
+
+  /* ---------- J. 改称呼 ---------- */
+  S('J. 改称呼')
+  {
+    resetStore()
+    var c = await call('r1', 'createFamily', { name: '称呼家', nickname: '爸爸' })
+    await call('r2', 'joinFamily', { code: c.data.code, nickname: '妈妈' })
+
+    var rn = await call('r2', 'renameSelf', { nickname: '妈妈大人' })
+    eq('改称呼成功', rn.ok, true)
+    eq('返回值里我的称呼已更新', rn.data.myName, '妈妈大人')
+
+    var fam = await call('r1', 'myFamily', {})
+    var names = fam.data.members.map(function (m) { return m.name })
+    ok('房主看到的成员名单里名字也更新了', names.indexOf('妈妈大人') >= 0, names.join(','))
+
+    var empty = await call('r2', 'renameSelf', { nickname: '' })
+    eq('称呼不能改成空', empty.ok, false)
+
+    var rn2 = await call('r2', 'renameSelf', { nickname: 'x'.repeat(30) })
+    ok('改称呼也会截断', rn2.data.myName.length <= 8, 'length=' + rn2.data.myName.length)
+
+    var outsider = await call('r3', 'renameSelf', { nickname: '路人' })
+    eq('不在家庭里的人改称呼会被拒', outsider.ok, false)
+  }
+
+  /* ---------- K. addMany 与 listMenu 排序 ---------- */
+  S('K. 一次加多道 / 排序')
+  {
+    resetStore()
+    await call('m1', 'createFamily', { name: '多道家', nickname: '甲' })
+
+    var many = await call('m1', 'addMany', { dishIds: ['hongshaorou', 'jiachangdoufu', 'fanqiedantang', 'danchaofan'] })
+    eq('addMany 成功', many.ok, true)
+    eq('4 道菜都进去了', col('csm_menus').length, 4)
+
+    var l = await call('m1', 'listMenu', {})
+    eq('listMenu 返回 4 条', l.data.list.length, 4)
+    var first = l.data.list[0].dishId
+    ok('按加入时间升序返回（第一条是最早加的）', first === 'hongshaorou', first)
+
+    var tooMany = await call('m1', 'addMany', { dishIds: new Array(11).fill('x') })
+    eq('一次最多 10 道', tooMany.ok, false)
+
+    var emptyMany = await call('m1', 'addMany', { dishIds: [] })
+    eq('空数组被拒绝', emptyMany.ok, false)
+
+    // 重复的 id 应该累加份数而不是建两条
+    resetStore()
+    await call('m2', 'createFamily', { name: '重复家', nickname: '乙' })
+    await call('m2', 'addMany', { dishIds: ['jiaozi', 'jiaozi', 'jiaozi'] })
+    eq('重复 id 只建一条记录', col('csm_menus').length, 1)
+    eq('重复 id 累加成 3 份', col('csm_menus')[0].qty, 3)
+  }
+
+  /* ---------- L. 客户端 watch 依赖的形状 ---------- */
+  S('L. watch 能读到的字段')
+  {
+    resetStore()
+    await call('w1', 'createFamily', { name: '同步家', nickname: '甲' })
+    await call('w1', 'addDish', { dishId: 'shouzhuabing' })
+    await call('w1', 'addDish', { dishId: 'shouzhuabing' })
+
+    var doc = col('csm_menus')[0]
+    // watch 是把原始文档推给客户端的，客户端靠这三个字段判断「这条要不要显示」
+    ok('文档有 familyCode（watch 的过滤条件）', typeof doc.familyCode === 'string' && doc.familyCode.length === 6, doc.familyCode)
+    ok('文档有 date（客户端按北京时间筛今天）', /^\d{4}-\d{2}-\d{2}$/.test(doc.date), doc.date)
+    ok('文档有 dishId（客户端拿它拼菜名和图片）', typeof doc.dishId === 'string', doc.dishId)
+    ok('文档有 qty', typeof doc.qty === 'number', doc.qty)
+    ok('文档有 byNames（显示「谁点的」）', Array.isArray(doc.byNames), JSON.stringify(doc.byNames))
+    ok('文档有 addedAt（客户端排序用）', typeof doc.addedAt === 'number', doc.addedAt)
+
+    // 关键：文档不能带 _openid，否则「仅创建者可写」的权限下客户端能改它
+    ok('菜单文档不带 _openid（这样客户端在「仅创建者可写」下写不了）',
+      doc._openid === undefined, String(doc._openid))
+
+    var famDoc = col('csm_families')[0]
+    ok('家庭文档也不带 _openid', famDoc._openid === undefined, String(famDoc._openid))
+  }
+
+  /* ---------- 汇总 ---------- */
+  console.log('\n' + '='.repeat(56))
+  console.log('  通过 ' + pass + ' 项，失败 ' + fail + ' 项')
+  if (fail) {
+    console.log('\n  失败清单：')
+    for (var i = 0; i < failures.length; i++) console.log('    - ' + failures[i])
+  }
+  console.log('='.repeat(56))
+  process.exit(fail ? 1 : 0)
+}
+
+run().catch(function (e) {
+  console.error('\n测试脚本自己崩了：')
+  console.error(e && e.stack ? e.stack : e)
+  process.exit(1)
+})

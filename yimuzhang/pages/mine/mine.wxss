@@ -1,0 +1,140 @@
+.page {
+  padding: 0 24rpx 60rpx;
+}
+
+/* ---------- 顶部 ---------- */
+.hero {
+  padding: 60rpx 0 40rpx;
+  text-align: center;
+}
+
+.logo {
+  font-size: 46rpx;
+  font-weight: 600;
+  color: #1F2329;
+  letter-spacing: 4rpx;
+}
+
+.slogan {
+  font-size: 24rpx;
+  color: #9AA0AA;
+  margin-top: 14rpx;
+}
+
+/* ---------- 数字卡 ---------- */
+.statcard {
+  display: flex;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 32rpx 0;
+}
+
+.sitem {
+  flex: 1;
+  text-align: center;
+}
+
+.sitem.pad {
+  border-left: 1rpx solid #EFF1F4;
+}
+
+.sn {
+  font-size: 46rpx;
+  font-weight: 600;
+  color: #4F7CFF;
+  line-height: 1.2;
+}
+
+.sl {
+  font-size: 23rpx;
+  color: #8A8F99;
+  margin-top: 8rpx;
+}
+
+/* ---------- 金额卡 ---------- */
+.moneycard {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  margin-top: 20rpx;
+  padding: 8rpx 30rpx;
+}
+
+.mrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid #F0F1F4;
+}
+
+.mrow:last-child {
+  border-bottom: none;
+}
+
+.mlabel {
+  font-size: 28rpx;
+  color: #4B5563;
+}
+
+.mval {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1F2329;
+}
+
+.mval.exp {
+  color: #E8564C;
+}
+
+.mval.inc {
+  color: #2FA36B;
+}
+
+/* ---------- 操作项 ---------- */
+.cells {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  margin-top: 20rpx;
+  overflow: hidden;
+}
+
+.cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #F0F1F4;
+}
+
+.cell:last-child {
+  border-bottom: none;
+}
+
+.ct {
+  font-size: 28rpx;
+  color: #1F2329;
+}
+
+.cell.danger .ct {
+  color: #E8564C;
+}
+
+.ca {
+  font-size: 24rpx;
+  color: #9AA0AA;
+}
+
+/* ---------- 说明 ---------- */
+.tip {
+  font-size: 23rpx;
+  color: #9AA0AA;
+  line-height: 1.7;
+  padding: 34rpx 12rpx 0;
+}
+
+.ver {
+  text-align: center;
+  font-size: 22rpx;
+  color: #C8CDD6;
+  padding-top: 50rpx;
+}

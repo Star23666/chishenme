@@ -1,0 +1,84 @@
+<!-- 今日菜单：清单 + 统计 + 转发 -->
+<view class="page">
+
+  <view class="hero">
+    <view class="hero-date">{{dateText}}</view>
+    <view class="hero-title">今天吃这些</view>
+    <view class="hero-stats">
+      <view class="hs">
+        <text class="hs-n">{{stats.total}}</text>
+        <text class="hs-l">共几道</text>
+      </view>
+      <view class="hs">
+        <text class="hs-n">{{stats.meat}}</text>
+        <text class="hs-l">荤菜</text>
+      </view>
+      <view class="hs">
+        <text class="hs-n">{{stats.veg}}</text>
+        <text class="hs-l">素菜</text>
+      </view>
+      <view class="hs">
+        <text class="hs-n">{{stats.soup}}</text>
+        <text class="hs-l">汤羹</text>
+      </view>
+      <view class="hs">
+        <text class="hs-n">{{stats.staple}}</text>
+        <text class="hs-l">主食</text>
+      </view>
+      <view class="hs">
+        <text class="hs-n">{{stats.cold}}</text>
+        <text class="hs-l">凉菜</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 家庭状态条：只有配了云开发才出现，本地模式下这一页和以前一模一样 -->
+  <view class="fbar" wx:if="{{cloud}}" bindtap="goFamily">
+    <view class="fbar-l">
+      <text class="fbar-dot"></text>
+      <text wx:if="{{fam}}">{{fam.name}} · {{fam.memberCount}} 人共享</text>
+      <text wx:else>还没和家人连上，点这里设置</text>
+    </view>
+    <view class="fbar-r">{{fam ? fam.code : '去建房间'}} ›</view>
+  </view>
+
+  <view class="empty" wx:if="{{empty}}">
+    <view class="empty-title">今天还没点菜</view>
+    <view class="empty-desc">去「点菜」挑几道，<br />或者去「摇一摇」让天意决定</view>
+    <view class="empty-btns">
+      <view class="eb" bindtap="goLibrary">去点菜</view>
+      <view class="eb eb-dark" bindtap="goRandom">摇一摇</view>
+    </view>
+  </view>
+
+  <block wx:else>
+    <view class="mlist">
+      <view class="mitem" wx:for="{{list}}" wx:key="dishId">
+        <image class="mitem-img" src="{{item.image}}" mode="aspectFill"></image>
+        <view class="mitem-mid">
+          <view class="mitem-name">
+            {{item.name}}<text class="mitem-qty" wx:if="{{item.qty > 1}}"> ×{{item.qty}}</text>
+          </view>
+          <view class="mitem-cat">{{item.catName}}</view>
+          <view class="mitem-by" wx:if="{{item.hasBy}}">{{item.byText}} 点的</view>
+          <view class="mitem-note" wx:if="{{item.note}}">备注：{{item.note}}</view>
+        </view>
+        <view class="mitem-ops">
+          <view class="mo-btn" wx:if="{{item.qty > 1}}" data-id="{{item.dishId}}" bindtap="minus">减一份</view>
+          <view class="mo-btn mo-del" data-id="{{item.dishId}}" bindtap="remove">移除</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="ops">
+      <view class="op-btn" bindtap="copyText">复制菜单文字</view>
+      <button class="op-btn op-share" open-type="share">转发给家人</button>
+      <view class="op-btn op-danger" bindtap="clearAll">清空菜单</view>
+    </view>
+
+    <view class="foot-tip" wx:if="{{fam}}">家人在自己手机上点的菜，这里会自动出现，不用刷新</view>
+    <view class="foot-tip" wx:else>转发出去了，家里人点开就能看到这个菜库</view>
+  </block>
+
+  <view class="safe-bottom"></view>
+</view>

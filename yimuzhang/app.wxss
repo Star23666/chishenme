@@ -1,0 +1,56 @@
+/* ===== 一目账 · 全局样式 ===== */
+
+page {
+  background: #F5F6F8;
+  color: #1F2329;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 28rpx;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 月份切换条（明细页 / 统计页共用） */
+.monthbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx 0 4rpx;
+}
+
+.monthbar .mbtn {
+  width: 64rpx;
+  height: 64rpx;
+  line-height: 62rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: #FFFFFF;
+  color: #4F7CFF;
+  font-size: 36rpx;
+  font-weight: 600;
+}
+
+.monthbar .mbtn.disabled {
+  color: #CCD2DB;
+}
+
+.monthbar .mtext {
+  min-width: 280rpx;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+}
+
+/* 空状态 */
+.empty {
+  padding: 140rpx 60rpx;
+  text-align: center;
+  color: #9AA0AA;
+  font-size: 27rpx;
+}
+
+.empty .etitle {
+  font-size: 30rpx;
+  color: #6B7280;
+  margin-bottom: 10rpx;
+}

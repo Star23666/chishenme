@@ -1,0 +1,224 @@
+.page {
+  min-height: 100vh;
+}
+
+/* ---------- 顶部：全站唯一的视觉高点 ----------
+   一页只允许一个重音，就是这里。原设计在橙色块里又套了一个
+   rgba(255,255,255,.16) 的半透明盒子来装统计数字 —— 那属于「叠一层半透明当装饰」，
+   是模板感来源之一。改成三根发丝分隔线：分隔线本身在说「这是三个并列的数」，
+   是信息，不是装饰。 */
+.hero {
+  background: var(--c-brand);
+  padding: 30rpx 30rpx 40rpx;
+}
+
+.hero-date {
+  font-size: var(--t-cap);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.hero-title {
+  font-size: var(--t-display);
+  font-weight: 700;
+  color: #FFFFFF;
+  margin: 10rpx 0 30rpx;
+}
+
+.hero-stats {
+  display: flex;
+}
+
+.hs {
+  flex: 1;
+  text-align: center;
+  border-left: 1rpx solid rgba(255, 255, 255, 0.3);
+}
+
+.hs:first-child {
+  border-left: none;
+}
+
+.hs-n {
+  display: block;
+  font-size: var(--t-h2);
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.hs-l {
+  display: block;
+  font-size: var(--t-tag);
+  color: rgba(255, 255, 255, 0.82);
+  margin-top: 6rpx;
+}
+
+/* ---------- 家庭状态条 ----------
+   不再做成「白底圆角卡片」—— 全站已经全是卡片了，再多一个就看不出层级。
+   改成通栏状态条：一根主色竖线 + 不做圆角，读起来是「状态」而不是「一张内容卡」。 */
+.fbar {
+  display: flex;
+  align-items: center;
+  margin: 20rpx 0 0;
+  padding: 24rpx 30rpx;
+  background: var(--c-brand-tint);
+  border-left: 6rpx solid var(--c-brand);
+}
+
+.fbar-l {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  font-size: var(--t-sub);
+  color: var(--c-ink-2);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fbar-dot {
+  flex-shrink: 0;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: var(--c-ok);
+  margin-right: 14rpx;
+}
+
+.fbar-r {
+  flex-shrink: 0;
+  font-size: var(--t-cap);
+  color: var(--c-brand);
+  font-weight: 600;
+  margin-left: 16rpx;
+}
+
+/* ---------- 菜单列表 ---------- */
+.mlist {
+  background: var(--c-surface);
+  margin: 20rpx;
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+
+.mitem {
+  display: flex;
+  align-items: center;
+  padding: 22rpx 24rpx;
+  border-bottom: 1rpx solid var(--c-line);
+}
+
+.mitem:last-child {
+  border-bottom: none;
+}
+
+.mitem-img {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: var(--r-item);
+  background: var(--c-surface-sunk);
+  flex-shrink: 0;
+}
+
+.mitem-mid {
+  flex: 1;
+  min-width: 0;
+  padding: 0 20rpx;
+}
+
+.mitem-name {
+  font-size: var(--t-h2);
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.mitem-qty {
+  font-size: var(--t-cap);
+  color: var(--c-brand);
+  font-weight: 600;
+}
+
+.mitem-cat {
+  font-size: var(--t-tag);
+  color: var(--c-ink-3);
+  margin-top: 8rpx;
+}
+
+.mitem-by {
+  font-size: var(--t-cap);
+  color: var(--c-ok);
+  margin-top: 8rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mitem-note {
+  font-size: var(--t-cap);
+  color: var(--c-brand);
+  margin-top: 8rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mitem-ops {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.mo-btn {
+  font-size: var(--t-cap);
+  color: var(--c-ink-2);
+  background: var(--c-surface-sunk);
+  border-radius: var(--r-pill);
+  padding: 10rpx 24rpx;
+  margin-bottom: 12rpx;
+}
+
+.mo-btn:last-child {
+  margin-bottom: 0;
+}
+
+.mo-del {
+  color: var(--c-danger);
+  background: #FBEDEC;
+}
+
+/* ---------- 操作区 ---------- */
+.ops {
+  padding: 10rpx 20rpx 0;
+}
+
+.op-btn {
+  background: var(--c-surface);
+  border-radius: var(--r-pill);
+  padding: 24rpx 0;
+  text-align: center;
+  font-size: var(--t-body);
+  color: var(--c-ink-2);
+  margin-bottom: 20rpx;
+}
+
+.op-share {
+  background: var(--c-brand);
+  color: #FFFFFF;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.op-share::after {
+  border: none;
+}
+
+.op-danger {
+  color: var(--c-danger);
+}
+
+.foot-tip {
+  text-align: center;
+  font-size: var(--t-cap);
+  color: var(--c-ink-3);
+  padding: 10rpx 40rpx 0;
+  line-height: 1.7;
+}
