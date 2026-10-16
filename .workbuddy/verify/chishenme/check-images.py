@@ -3,9 +3,13 @@
 今天吃啥 · 图片与包体积核对
 
 检查三件事：
-  1. 35 张菜品图：数量、命名、格式、尺寸、单张体积、总体积
+  1. 全部菜品图：数量与菜库一致、命名、格式、尺寸、单张体积、总体积
   2. 10 个 tabBar 图标：数量、PNG 规格、主色是否与 app.json 完全一致、有无抗锯齿
   3. 小程序主包总体积是否安全低于 2MB 上限（微信硬限制，超了传不上去）
+
+★ 菜道数**不写死**。这里原来断言 len(ids) == 35，扩到 80 道之后就必须改代码，
+  而「改了检查才能过」的检查器迟早会被顺手改坏。改成断言
+  「图片数 == 菜库里的菜数」——这是真正的不变量，加多少菜都不用动。
 
 运行： python .workbuddy/verify/chishenme/check-images.py
 """
@@ -24,9 +28,11 @@ APP_DIR = os.path.join(ROOT, 'chishenme')
 DISH_DIR = os.path.join(APP_DIR, 'images', 'dishes')
 ICON_DIR = os.path.join(APP_DIR, 'images')
 
-DISH_SIZE = 320
+# ★ 300x300 / q75 是给 80 道菜定的规格。原规格 320x320 / q82 扩到 80 张要 1.81MB，
+#   贴死主包 2MB 上限；降到 300x300 后 80 张约 1.35MB，留出约 0.5MB 余量。
+DISH_SIZE = 300
 DISH_MIN_KB, DISH_MAX_KB = 8, 60
-DISH_TOTAL_MB_MAX = 1.5
+DISH_TOTAL_MB_MAX = 1.6
 PACKAGE_MB_MAX = 2.0
 
 MAIN_PACKAGE_EXT = {'.js', '.json', '.wxml', '.wxss', '.wxs', '.jpg', '.jpeg',
@@ -67,11 +73,15 @@ ids = sorted(set(ids))
 
 S('A. 菜品图片')
 
-ok('从 dishes.js 解析出 35 道菜', len(ids) == 35, 'actual=%d' % len(ids))
+ok('dishes.js 能解析出菜品（%d 道）' % len(ids), len(ids) >= 30, '解析失败？actual=%d' % len(ids))
 
 files = sorted(f for f in os.listdir(DISH_DIR)) if os.path.isdir(DISH_DIR) else []
 jpgs = [f for f in files if f.lower().endswith('.jpg')]
-ok('dishes 目录下正好 35 个 jpg', len(jpgs) == 35, 'actual=%d' % len(jpgs))
+
+# ★ 真正的不变量：每道菜都得有图，且不允许多余的图。
+#   道数本身不写死 —— 写死的话，以后加菜第一件事是改检查，检查就失去意义了。
+ok('图片数与菜库数量一致（各 %d）' % len(ids), len(jpgs) == len(ids),
+   'jpg=%d dishes=%d' % (len(jpgs), len(ids)))
 
 expected = set(i + '.jpg' for i in ids)
 actual = set(jpgs)

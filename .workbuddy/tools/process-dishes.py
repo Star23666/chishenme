@@ -2,13 +2,18 @@
 """
 菜品图批量处理：原始竖版大图 -> 小程序可直接用的正方形压缩图
 
-输入：chishenme-raw/<dishId>/<dishId>.png        (1024x1536，右下角自带 AI 水印)
-输出：chishenme/images/dishes/<dishId>.jpg       (320x320, JPEG q82)
+输入：chishenme-raw/<dishId>/*.png | *.jpg | *.jpeg   (竖版大图，AI 图右下角带水印)
+输出：chishenme/images/dishes/<dishId>.jpg            (300x300, JPEG q75)
 
-两个关键设计：
+三个关键设计：
   1) 居中裁成正方形 —— 竖版图的水印在底部条带，居中裁切后正好被裁掉，成品无水印。
-  2) 用 JPEG 而非 PNG —— 320px 照片型 PNG 约 100KB+，35 张会顶爆小程序主包 2MB 上限；
-     JPEG q82 同尺寸约 20~30KB，35 张约 0.9MB，留足余量。
+     从网上（维基共享资源）来的图也走同一条路：构图不统一的，裁方之后统一。
+  2) 用 JPEG 而非 PNG —— 300px 照片型 PNG 约 100KB+，80 张会顶爆小程序主包 2MB 上限。
+  3) ★ 300x300 / q75 是为「80 道菜」重新定的规格。
+     原来是 320x320 / q82：35 张 837KB，平均 23.9KB。
+     按原规格扩到 80 张要 1.9MB，贴死 2MB 上限、一点余量都没有。
+     降到 300x300 / q75 后平均约 16KB，80 张约 1.3MB，主包落在 1.4MB 上下。
+     菜卡在手机上的显示宽度约 165px，300px 仍有余量，肉眼几乎看不出差别。
 
 用法：python process-dishes.py
 """
@@ -19,18 +24,20 @@ ROOT = r"D:/新建文件夹/小程序"
 RAW = os.path.join(ROOT, "chishenme-raw")
 OUT_DIR = os.path.join(ROOT, "chishenme/images/dishes")
 
-OUT_SIZE = 320
-QUALITY = 82
+OUT_SIZE = 300
+QUALITY = 75
+
+EXTS = (".png", ".jpg", ".jpeg", ".webp")
 
 
 def find_raw(dish_id):
+    """取第一个可用原图。★ 优先 png —— AI 生成的大图是 png，通常是首选素材。"""
     d = os.path.join(RAW, dish_id)
     if not os.path.isdir(d):
         return None
-    for fn in sorted(os.listdir(d)):
-        if fn.lower().endswith(".png"):
-            return os.path.join(d, fn)
-    return None
+    files = [f for f in sorted(os.listdir(d)) if f.lower().endswith(EXTS)]
+    files.sort(key=lambda f: (not f.lower().endswith(".png"), f))
+    return os.path.join(d, files[0]) if files else None
 
 
 def process_one(dish_id):

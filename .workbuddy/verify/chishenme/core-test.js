@@ -118,8 +118,8 @@ for (var i = 0; i < PAGES.length; i++) {
 
 S('A. 菜品数据')
 
-eq('菜品总数 35 道', D.DISHES.length, 35)
-eq('D.TOTAL 与数组长度一致', D.TOTAL, D.DISHES.length)
+eq('菜品总数与 DISHES 一致（当前 ' + D.DISHES.length + ' 道）', D.DISHES.length, D.TOTAL)
+eq('菜库规模在合理区间（30~200）', D.DISHES.length >= 30 && D.DISHES.length <= 200, true)
 
 var idSet = {}
 var dupIds = []
@@ -141,12 +141,33 @@ for (var b = 0; b < D.DISHES.length; b++) {
 eq('分类值全部合法', badCat.length, 0)
 eq('id/名称/主料/要点 均非空', emptyField.length, 0)
 
-eq('荤菜 12 道', D.byCat('meat').length, 12)
-eq('素菜 9 道', D.byCat('veg').length, 9)
-eq('汤羹 5 道', D.byCat('soup').length, 5)
-eq('主食 5 道', D.byCat('staple').length, 5)
-eq('凉菜 4 道', D.byCat('cold').length, 4)
-eq('分类相加 = 35', D.byCat('meat').length + D.byCat('veg').length + D.byCat('soup').length + D.byCat('staple').length + D.byCat('cold').length, 35)
+/**
+ * ★ 菜道数**不写死**。
+ * 这里原来断言「荤菜 12 / 素菜 9 / 汤羹 5 / 主食 5 / 凉菜 4 / 合计 35」。
+ * 2026-10 把菜库扩到 80 道之后，这 7 条集体挂掉 —— 而「改了检查才能过」的
+ * 检查器，迟早会在某次赶时间时被顺手改成新数字，从此失去意义。
+ * 改成断言真正的不变量：分类计数与 DISHES 一致、各类相加等于总数、每个分类都非空。
+ * 这样加菜不用动检查，但「某道菜的 cat 拼错了」「byCat 漏了一类」依然会被抓到。
+ */
+var catCount = {}
+for (var cc = 0; cc < D.DISHES.length; cc++) {
+  var ck0 = D.DISHES[cc].cat
+  catCount[ck0] = (catCount[ck0] || 0) + 1
+}
+eq('TOTAL 与 DISHES.length 一致', D.TOTAL, D.DISHES.length)
+eq('菜库规模合理（当前 ' + D.TOTAL + ' 道）', D.TOTAL >= 30, true)
+
+var sumCat = 0
+var emptyCat = []
+for (var ci = 1; ci < D.CATS.length; ci++) {
+  var ckey = D.CATS[ci].key
+  var cnum = D.byCat(ckey).length
+  sumCat += cnum
+  eq('分类 ' + ckey + ' 计数与 DISHES 一致（' + cnum + ' 道）', cnum, catCount[ckey] || 0)
+  if (cnum === 0) emptyCat.push(ckey)
+}
+eq('每个分类都有菜（没有空分类）', emptyCat.length, 0)
+eq('各分类相加 = 菜库总数', sumCat, D.TOTAL)
 
 eq('CATS 含 6 项（全部+5 类）', D.CATS.length, 6)
 eq('CATS 第一项是「全部」', D.CATS[0].key, 'all')
@@ -154,22 +175,22 @@ eq('catName(meat) = 荤菜', D.catName('meat'), '荤菜')
 eq('catName(soup) = 汤羹', D.catName('soup'), '汤羹')
 eq('catName(未知) 有兜底', D.catName('zzz'), '其他')
 
-eq('byCat("all") 返回全部', D.byCat('all').length, 35)
-eq('byCat(undefined) 返回全部', D.byCat(undefined).length, 35)
+eq('byCat("all") 返回全部', D.byCat('all').length, D.TOTAL)
+eq('byCat(undefined) 返回全部', D.byCat(undefined).length, D.TOTAL)
 eq('byId 命中', D.byId('hongshaorou').name, '红烧肉')
 eq('byId 未命中返回 null', D.byId('no_such_dish'), null)
 eq('imageOf 路径格式', D.imageOf('hongshaorou'), '/images/dishes/hongshaorou.jpg')
 
 var tmp = D.byCat('meat')
 tmp.push({ id: 'fake' })
-eq('byCat 返回的是副本', D.byCat('meat').length, 12)
+eq('byCat 返回的是副本', D.byCat('meat').length, catCount['meat'])
 
 var missImg = []
 for (var c = 0; c < D.DISHES.length; c++) {
   var p = path.join(APP_DIR, 'images', 'dishes', D.DISHES[c].id + '.jpg')
   if (!fs.existsSync(p)) missImg.push(D.DISHES[c].id)
 }
-eq('35 张菜品图文件都存在', missImg.length, 0)
+eq('每道菜都有对应的图片文件（' + D.DISHES.length + ' 张）', missImg.length, 0)
 
 /* ==================== B. 菜单增删改 ==================== */
 

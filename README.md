@@ -5,7 +5,7 @@
 
 | 目录 | 是什么 |
 |---|---|
-| `chishenme/` | **今天吃啥** — 家庭点菜。35 道家常菜、摇一摇配「三菜一汤」、家人共用一个房间实时同步 |
+| `chishenme/` | **今天吃啥** — 家庭点菜。80 道菜（含两广特色菜）、摇一摇配「三菜一汤」、家人共用一个房间实时同步 |
 | `yimuzhang/` | **一目账** — 个人记账。明细 / 记一笔 / 统计 / 我的 四个 tab |
 | `vibe-coding-SOP.html` | 五阶段流程与上线检查清单（写这两个项目时总结的） |
 | `CHANGELOG.md` | 两个项目各自的版本历史 |
@@ -38,20 +38,20 @@ cp chishenme/config.example.js chishenme/config.js
 
 ## 怎么验证
 
-改完代码跑这几个脚本，一共 **457 项**断言。不需要连云环境，
+改完代码跑这几个脚本，一共 **614 项**断言。不需要连云环境，
 云函数那部分是用内存假数据库把真实的云函数代码跑一遍。
 
 ```bash
 NODE=node
 PY=python
 
-# 一目账
+# 一目账（合计 154 项）
 $NODE .workbuddy/verify/core-test.js          # 114 项
 $NODE .workbuddy/verify/wxml-check.js         #  32 项
 $PY   .workbuddy/tools/check-icon-colors.py   #   8 项
 
-# 今天吃啥（合计 457 项）
-$NODE .workbuddy/verify/chishenme/core-test.js     # 202 项
+# 今天吃啥（合计 460 项）
+$NODE .workbuddy/verify/chishenme/core-test.js     # 205 项
 $NODE .workbuddy/verify/chishenme/wxml-check.js    #  71 项
 $NODE .workbuddy/verify/chishenme/cloud-test.js    # 164 项
 $PY   .workbuddy/verify/chishenme/check-images.py  #  20 项
@@ -66,6 +66,11 @@ $PY   .workbuddy/verify/chishenme/check-images.py  #  20 项
 - **`cloud-test.js`**（云函数离线测试）—— 云函数里跑着这个项目唯一可信的那部分逻辑，
   却偏偏是最难验证的（要连真实云环境、要多个微信号）。这里用 `Module._load`
   拦截 `wx-server-sdk` 塞一个内存假库，跑的是**真实的云函数代码**。
+
+> **检查脚本里不要写死菜道数。** 这几份脚本原来分别断言「35 道菜」「荤菜 12 道」
+> 「320×320」，扩到 80 道时集体挂掉。当时改成断言**真正的不变量**
+> ——「图片数 == 菜库数」「各分类相加 == 总数」—— 之后再加菜就一处都不用动了。
+> 一个「改了检查才能过」的检查器，迟早会被顺手改成新数字然后彻底失去意义。
 
 ---
 
@@ -119,8 +124,29 @@ git push
 
 ---
 
+## 菜图从哪来的
+
+80 道菜的图不是同一种来源，这点得说清楚：
+
+- **35 张**（初版）：AI 生成，竖版出图后居中裁方（把生成器右下角的水印裁掉）。
+- **29 张**：来自**维基共享资源 / 中文维基百科**，CC 或公有领域授权，
+  天然没有水印，可以合法使用。检索时只用文件名里真的含这道菜名的图
+  （`intitle:`）—— 普通全文搜索会把「阳朔啤酒鱼」匹配到啤酒罐、
+  把「恭城油茶」匹配到油茶**树**。
+- **16 张**：上面两条都找不到合格图的地方特色菜，仍然用 AI 生成。
+
+全部统一压成 **300×300 JPEG(q75)**。这个规格是被逼出来的：小程序主包上限
+**2MB**，80 张按原来的 320×320/q82 要 1.81MB，贴死上限没有余量；
+降到 300×300/q75 后约 1.42MB，主包落在 **1.55MB（占上限 77%）**。
+菜卡在手机上显示宽度约 165px，300px 仍有富余，肉眼几乎看不出差别。
+
+---
+
 ## 说明
 
 个人自用项目，代码按现状提供，没做过多打磨。
-`chishenme-raw/` 是菜品图的原始大图（35 张 PNG），成品图已经处理成
-320×320 的 JPEG 放在 `chishenme/images/dishes/`。
+`chishenme-raw/` 是菜品图的**原始大图**（80 道，约 84MB），
+成品图处理在 `chishenme/images/dishes/`，重新出图跑
+`.workbuddy/tools/process-dishes.py` 即可。
+从网上拿到的图在入库时统一降到了长边 1024px —— 成品只有 300px，
+1024 完全够重新出图，而全尺寸存会把仓库白白撑大 30 多兆。

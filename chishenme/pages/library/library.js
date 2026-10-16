@@ -93,8 +93,10 @@ Page({
   },
 
   onShareAppMessage: function () {
+    // ★ 别把道数写死。菜库会一直加菜，写死的数字迟早变成假消息
+    //   （曾经这里是「进来挑 35 道家常菜」）。
     return {
-      title: '今天吃啥？进来挑 35 道家常菜',
+      title: '今天吃啥？进来挑 ' + D.TOTAL + ' 道菜',
       path: '/pages/library/library'
     }
   }
