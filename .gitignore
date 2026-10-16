@@ -19,6 +19,8 @@ project.private.config.json
 # ── AI 工作笔记与临时产物 ────────────────────────────────
 .workbuddy/memory/
 .workbuddy/tmp/
+# 排查问题时随手截的图，散在 .workbuddy/ 根目录下（前缀 tmp-）
+.workbuddy/tmp-*
 
 # ── 系统与编辑器垃圾文件 ─────────────────────────────────
 .DS_Store
