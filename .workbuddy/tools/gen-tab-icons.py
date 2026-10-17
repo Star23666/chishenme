@@ -25,7 +25,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, '..', '..'))
 OUT_DIR = os.path.join(ROOT, 'chishenme', 'images')
 
-NORMAL = (138, 143, 153)   # #8A8F99  与 app.json 的 tabBar.color 一致
+NORMAL = (107, 101, 93)    # #6B655D  与 app.json 的 tabBar.color 一致（1.5.8 加深，原来 2.98:1 太淡）
 ACTIVE = (255, 112, 67)    # #FF7043  与 tabBar.selectedColor 一致
 
 

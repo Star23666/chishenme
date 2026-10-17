@@ -289,8 +289,33 @@ S('E. tabBar 配置与图标')
 
 var tb = appJson.tabBar
 ok('tabBar 有 5 个标签', tb && tb.list.length === 5, tb ? 'actual=' + tb.list.length : 'no tabBar')
-ok('tabBar 颜色与图标生成器一致（#8A8F99）', tb.color === '#8A8F99', tb.color)
-ok('tabBar 选中色与图标生成器一致（#FF7043）', tb.selectedColor === '#FF7043', tb.selectedColor)
+/*
+ * ★ 这里原来把颜色**写死**成 '#8A8F99'，于是改配色要同时改三个地方
+ *   （app.wxss / app.json / 图标生成器），还要再回来改这个检查器 ——
+ *   这正是「改了检查才能过」的检查器，迟早被顺手改坏。
+ *   改成从图标生成器里抠出真值来比：app.json 与 gen-tab-icons.py 必须一致，
+ *   而图标 PNG 与 app.json 是否一致由 check-images.py 负责。
+ *   三处的关系就闭合成一条链，没有第四处需要人工同步。
+ */
+function iconGenColor (varName) {
+  var src = read(path.join(ROOT, '.workbuddy', 'tools', 'gen-tab-icons.py')) || ''
+  var m = src.match(new RegExp(varName + '\\s*=\\s*\\((\\d+),\\s*(\\d+),\\s*(\\d+)\\)'))
+  if (!m) return null
+  var h = function (n) {
+    var s = Number(n).toString(16)
+    return s.length < 2 ? '0' + s : s
+  }
+  return ('#' + h(m[1]) + h(m[2]) + h(m[3])).toUpperCase()
+}
+var genNormal = iconGenColor('NORMAL')
+var genActive = iconGenColor('ACTIVE')
+ok('能读出图标生成器里的颜色（NORMAL/ACTIVE）', !!genNormal && !!genActive,
+  'NORMAL=' + genNormal + ' ACTIVE=' + genActive)
+ok('tabBar 未选中色 = 图标生成器 NORMAL',
+  !!genNormal && String(tb.color).toUpperCase() === genNormal, tb.color + ' vs ' + genNormal)
+ok('tabBar 选中色 = 图标生成器 ACTIVE',
+  !!genActive && String(tb.selectedColor).toUpperCase() === genActive,
+  tb.selectedColor + ' vs ' + genActive)
 
 var badTab = []
 var badSlash = []
@@ -574,6 +599,65 @@ cssFiles.forEach(function (rel) {
   }
 })
 ok('没有任何低于 24rpx 的写死字号', smallLiteral.length === 0, smallLiteral.join('; '))
+
+/*
+ * G4f. ★ 文字对比度下限（WCAG AA：正文 ≥4.5，非正文 ≥3）。
+ *
+ * 为什么要有这条：1.5.8 之前 `--c-ink-3` 是 #8A8F99，对纸底只有 **2.98:1**，
+ * `--c-ink-4` 只有 **1.87:1** —— 而这两档被用了 48 处（分类、主料、几份、说明、占位符）。
+ * 前几轮一直在"调色"，但没人真的**算过**，所以谁也没发现小字根本没达标。
+ *
+ * 这条断言把"改浅一点试试"这种手滑挡在门口：
+ * 想调淡就得先看这里为什么红。
+ */
+function lumOf (hex) {
+  var h = String(hex).replace('#', '')
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
+  var f = function (i) {
+    var v = parseInt(h.substr(i, 2), 16) / 255
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+  }
+  return 0.2126 * f(0) + 0.7152 * f(2) + 0.0722 * f(4)
+}
+function contrastOf (a, b) {
+  var la = lumOf(a), lb = lumOf(b)
+  var hi = Math.max(la, lb), lo = Math.min(la, lb)
+  return (hi + 0.05) / (lo + 0.05)
+}
+function colorToken (name) {
+  var m = appRawCss.match(new RegExp('--c-' + name + ':\\s*(#[0-9A-Fa-f]{3,8})'))
+  return m ? m[1] : null
+}
+var COLOR_PAIRS = [
+  ['ink', 'bg', 4.5, '正文'],
+  ['ink-2', 'bg', 4.5, '次要文字'],
+  ['ink-3', 'bg', 4.5, '弱文字'],
+  ['ink-3', 'surface-sunk', 4.5, '弱文字在暖底上'],
+  ['ink-3', 'surface', 4.5, '弱文字在弹层白底上'],
+  ['ink-2', 'surface', 4.5, '次要文字在弹层白底上'],
+  ['brand-ink', 'bg', 4.5, '灶红（用主色的字）'],
+  ['danger', 'bg', 4.5, '危险文字'],
+  ['ink', 'brand', 4.5, '主按钮（墨压橙）'],
+  // ★ ink-4 有意豁免到 4.5：它只做占位符，必须比真值弱。
+  //   但给个 3.5 的地板，防止被一路改淡回当初的 1.87。
+  ['ink-4', 'bg', 3.5, '占位符（豁免到 3.5）']
+]
+var cFails = []
+COLOR_PAIRS.forEach(function (p) {
+  var fg = colorToken(p[0]), bg = colorToken(p[1])
+  if (!fg || !bg) { cFails.push(p[0] + '/' + p[1] + ' 令牌缺失'); return }
+  var r = contrastOf(fg, bg)
+  if (r < p[2]) cFails.push(p[0] + '/' + p[1] + ' = ' + r.toFixed(2) + ' < ' + p[2])
+})
+ok('★ 全部文字对比度达标（WCAG AA）', cFails.length === 0, cFails.join('; '))
+
+// 把实测值打出来，方便以后改色时直接对照
+var cLine = []
+COLOR_PAIRS.forEach(function (p) {
+  var fg = colorToken(p[0]), bg = colorToken(p[1])
+  if (fg && bg) cLine.push(p[0] + '/' + p[1] + ' ' + contrastOf(fg, bg).toFixed(2))
+})
+console.log('      对比度实测：' + cLine.join('  '))
 
 // G5. ★ 最关键的一条：前端调的每个 action，云函数里都得真的有这个 case
 var cfActions = {}

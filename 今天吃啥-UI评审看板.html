@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>今天吃啥 · UI 评审看板</title>
+<!--
+  评审看板：把「对比度 / 字号阶梯」的实测差距直接摆出来，让人一眼看到，
+  而不是读一段「差 34%」的文字。
+
+  ★ 页面里所有色值、字号都是项目里真实在用的值（rpx ÷ 2 = px），
+    建议值也是算过对比度的，不是随手挑的。
+-->
+<style>
+  :root{
+    --paper:#F6F5F3;
+    --ink:#1C1E21;
+    --ink2:#585F6B;  --ink2-new:#5F5952;
+    --ink3:#8A8F99;  --ink3-new:#6B655D;
+    --ink4:#B0B6C0;  --ink4-new:#7D766C;
+    --danger:#D9483B; --danger-new:#C0392B;
+    --brand:#FF7043;
+    --line:#E6E1DA;
+    --board:#FFFFFF;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;padding:36px 40px 60px;background:#EDEAE5;color:var(--ink);
+    font:14px/1.65 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  .wrap{width:1100px;margin:0 auto}
+  h1{font:700 27px/1.25 "Songti SC","STSong",serif;margin:0 0 6px}
+  .sub{color:#5F5952;font-size:13.5px;margin:0 0 6px}
+  .meta{color:#7D766C;font-size:12px;margin:0 0 30px}
+  h2{font:600 15px/1.4 sans-serif;margin:0 0 4px}
+  .h2n{color:#7D766C;font-size:12.5px;font-weight:400;margin-left:8px}
+  section{background:var(--board);border:1px solid var(--line);padding:24px 26px;margin-bottom:22px}
+  .lead{color:#5F5952;font-size:13px;margin:0 0 18px}
+  .lead b{color:var(--ink)}
+
+  /* ---- 灰阶对比 ---- */
+  .g grid{}
+  .grow{display:flex;align-items:baseline;gap:18px;padding:13px 0;border-bottom:1px dashed var(--line)}
+  .grow:last-child{border-bottom:none}
+  .glabel{flex:0 0 118px;font-size:11.5px;color:#7D766C}
+  .gbad{flex:1;min-width:0}
+  .gbad .t{font-size:13px}
+  .gna{flex:1;min-width:0}
+  .gna .t{font-size:13px}
+  .num{flex:0 0 118px;text-align:right;font-size:11.5px;font-variant-numeric:tabular-nums}
+  .fail{color:#C0392B;font-weight:600}
+  .pass{color:#2E7D4F;font-weight:600}
+  .thin{color:#7D766C;font-size:11px;display:block}
+  .tagline{display:flex;gap:8px;margin-bottom:10px;font-size:11px;color:#7D766C}
+  .tagline i{flex:0 0 118px;font-style:normal}
+  .tagline b{flex:1;font-weight:600}
+  .tagline em{flex:0 0 118px;text-align:right;font-style:normal}
+  .c{color:var(--ink2)} .cn{color:var(--ink2-new)}
+  .w{color:var(--ink3)} .wn{color:var(--ink3-new)}
+  .l{color:var(--ink4)} .ln{color:var(--ink4-new)}
+  .d{color:var(--danger)} .dn{color:var(--danger-new)}
+
+  /* ---- 字号阶梯 ---- */
+  .scale{display:flex;gap:26px}
+  .col{flex:1;min-width:0}
+  .col h3{font-size:12px;margin:0 0 12px;color:#7D766C;font-weight:600;letter-spacing:.02em}
+  .row{display:flex;align-items:baseline;gap:10px;margin-bottom:11px}
+  .row .lg{flex:0 0 62px;font-size:10.5px;color:#7D766C}
+  .row .sp{font-family:"Songti SC",serif;color:var(--ink)}
+  .row .rt{flex:0 0 84px;text-align:right;font-size:10.5px;font-variant-numeric:tabular-nums;color:#7D766C}
+  .row .rt.bad{color:#C0392B;font-weight:600}
+  .row .rt.ok{color:#2E7D4F}
+  .note{font-size:11.5px;color:#7D766C;margin-top:12px;line-height:1.7}
+
+  /* ---- 间距 ---- */
+  .sp-grid{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+  .chip{
+    border:1px solid var(--line);background:var(--paper);padding:6px 9px;font-size:11px;
+    color:#7D766C;font-variant-numeric:tabular-nums;
+  }
+  .chip.off{border-style:dashed;color:#C0392B;background:#FDF6F4}
+  .chip.keep{background:#EFF6F0;border-color:#BFD9C6;color:#2E7D4F}
+
+  /* ---- 结论 ---- */
+  .verdict{display:flex;gap:20px}
+  .verdict div{flex:1}
+  .verdict h3{font-size:13px;margin:0 0 8px}
+  .no{color:#C0392B}
+  .yes{color:#2E7D4F}
+  ul{margin:0;padding-left:19px}
+  li{font-size:12.5px;color:#5F5952;margin-bottom:5px}
+  li b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>今天吃啥 · UI 评审看板</h1>
+  <p class="sub">不看感觉，看数字。下面每一条都是脚本从现有 WXSS 里量出来的。</p>
+  <p class="meta">对象：体验版 1.5.7 ｜ 7 个页面 ｜ 对比度按 WCAG 相对亮度公式计算 ｜ 尺寸为 rpx÷2</p>
+
+  <!-- ============ 1 灰阶 ============ -->
+  <section>
+    <h2>1　灰阶：小字自己就不够深<span class="h2n">覆盖率最大的一项</span></h2>
+    <p class="lead">
+      同一句真话，左边是现在的灰，右边是建议的灰（<b>更暖、更深</b>）。
+      现在的 <b>2.98:1</b> 和 <b>1.87:1</b> 都够不到 WCAG AA 的 4.5 ——
+      而这两档灰在项目里被用了 <b>48 处</b>（分类、主料、几份、说明、占位符）。
+    </p>
+
+    <div class="tagline">
+      <i></i><b>现状</b><b>建议</b><em>对比度 现状→建议</em>
+    </div>
+
+    <div class="grow">
+      <span class="glabel">次要文字</span>
+      <div class="gbad"><span class="t c">两荤、一素、一汤　爸爸 点的</span></div>
+      <div class="gna"><span class="t cn">两荤、一素、一汤　爸爸 点的</span></div>
+      <div class="num"><span class="pass">5.90 → 6.35</span><span class="thin">本来就达标</span></div>
+    </div>
+
+    <div class="grow">
+      <span class="glabel">弱文字<br>（最多的一档）</span>
+      <div class="gbad"><span class="t w">五花肉　备注：少放糖　已收藏 3 道</span></div>
+      <div class="gna"><span class="t wn">五花肉　备注：少放糖　已收藏 3 道</span></div>
+      <div class="num"><span class="fail">2.98 → 5.29</span><span class="thin">差 34%，建议值达标</span></div>
+    </div>
+
+    <div class="grow">
+      <span class="glabel">最淡<br>（占位符）</span>
+      <div class="gbad"><span class="t l">找菜名或主料，比如「鸡」</span></div>
+      <div class="gna"><span class="t ln">找菜名或主料，比如「鸡」</span></div>
+      <div class="num"><span class="fail">1.87 → 4.12</span><span class="thin">差 58%；有意停在 4.1</span></div>
+    </div>
+
+    <div class="grow">
+      <span class="glabel">危险文字</span>
+      <div class="gbad"><span class="t d">清空菜单　解散这个房间</span></div>
+      <div class="gna"><span class="t dn">清空菜单　解散这个房间</span></div>
+      <div class="num"><span class="fail">3.90 → 4.99</span><span class="thin">建议值达标</span></div>
+    </div>
+
+    <p class="note">
+      ★ 两件事一起修：<b>更深</b>（够到 4.5）＋ <b>更暖</b>（现在的灰是冷灰，B 分量最高，
+      挂在暖白纸上略"脏"——和之前把「线」暖化是同一个病，字没跟上）。<br>
+      ★ 「最淡」那档**有意停在 4.12**：它只做占位符，必须比真值（15.33）弱。
+      压到 4.5 就会和已填内容混淆。这个取舍会写进令牌注释。
+    </p>
+  </section>
+
+  <!-- ============ 2 字号 ============ -->
+  <section>
+    <h2>2　字号阶梯：末端四档分不开<span class="h2n">名义 9 档，实际只能辨出 6 档</span></h2>
+    <p class="lead">
+      相邻比值低于 <b>1.1</b> 的两档，肉眼是同一个大小。
+      下面左边 4 档里，只有 2 个视觉尺寸。
+    </p>
+
+    <div class="scale">
+      <div class="col">
+        <h3>现状 · 9 档</h3>
+        <div class="row"><span class="lg">hero 64</span><span class="sp" style="font-size:32px">今天吃这些</span><span class="rt">—</span></div>
+        <div class="row"><span class="lg">big 56</span><span class="sp" style="font-size:28px">XK7M2Q</span><span class="rt">1.14</span></div>
+        <div class="row"><span class="lg">display 44</span><span class="sp" style="font-size:22px">糖醋排骨</span><span class="rt">1.27</span></div>
+        <div class="row"><span class="lg">h1 36</span><span class="sp" style="font-size:18px">家里人（3/15）</span><span class="rt">1.22</span></div>
+        <div class="row"><span class="lg">h2 32</span><span class="sp" style="font-size:16px">蒜蓉西兰花</span><span class="rt">1.12</span></div>
+        <div class="row"><span class="lg">body 29</span><span class="sp" style="font-size:14.5px">一共 5 道菜、6 份</span><span class="rt">1.10</span></div>
+        <div class="row"><span class="lg">sub 28</span><span class="sp" style="font-size:14px">看看今天注定吃哪一道</span><span class="rt bad">1.04 ✗</span></div>
+        <div class="row"><span class="lg">cap 26</span><span class="sp" style="font-size:13px">备注：少放糖，多做一份</span><span class="rt bad">1.08 ✗</span></div>
+        <div class="row"><span class="lg">tag 24</span><span class="sp" style="font-size:12px">五花肉、木耳、胡萝卜</span><span class="rt bad">1.08 ✗</span></div>
+      </div>
+
+      <div class="col">
+        <h3>建议 · 7 档（每档 ≥1.14）</h3>
+        <div class="row"><span class="lg">hero 60</span><span class="sp" style="font-size:30px">今天吃这些</span><span class="rt ok">1.15</span></div>
+        <div class="row"><span class="lg">big 52</span><span class="sp" style="font-size:26px">XK7M2Q</span><span class="rt ok">1.18</span></div>
+        <div class="row"><span class="lg">display 44</span><span class="sp" style="font-size:22px">糖醋排骨</span><span class="rt ok">1.16</span></div>
+        <div class="row"><span class="lg">h1 38</span><span class="sp" style="font-size:19px">家里人（3/15）</span><span class="rt ok">1.19</span></div>
+        <div class="row"><span class="lg">body 32</span><span class="sp" style="font-size:16px">蒜蓉西兰花</span><span class="rt ok">1.14</span></div>
+        <div class="row"><span class="lg">cap 28</span><span class="sp" style="font-size:14px">一共 5 道菜、6 份</span><span class="rt ok">1.17</span></div>
+        <div class="row"><span class="lg">tag 24</span><span class="sp" style="font-size:12px">五花肉、木耳、胡萝卜</span><span class="rt">—</span></div>
+      </div>
+    </div>
+
+    <p class="note">
+      ★ 我是把旧档位<b>合并</b>而不是硬塞：sub(28) 和 cap(26) 差 1rpx，本来就没用，合成一档。<br>
+      ★ <b>风险</b>：body 从 14.5px 涨到 16px（+10%）会改变换行，必须逐页看图。
+      哪一页撑裂就单独把那一页降回去，<b>不要整体回退</b>。
+    </p>
+  </section>
+
+  <!-- ============ 3 间距 ============ -->
+  <section>
+    <h2>3　间距：162 处、28 个取值<span class="h2n">等于没有节奏</span></h2>
+    <p class="lead">
+      虚线红框的是<b>该并掉</b>的取值（和邻居差 2rpx，视觉上分不出）；绿底的是<b>要保留的例外</b>。
+    </p>
+    <div class="sp-grid">
+      <span class="chip keep">30 ×38　页面槽宽，提成语义令牌</span>
+      <span class="chip off">20 ×16</span>
+      <span class="chip off">26 ×14</span>
+      <span class="chip off">22 ×11</span>
+      <span class="chip">24 ×11</span>
+      <span class="chip">12 ×10</span>
+      <span class="chip off">10 ×8</span>
+      <span class="chip off">6 ×7</span>
+      <span class="chip off">28 ×6</span>
+      <span class="chip off">14 ×5</span>
+      <span class="chip off">18 ×5</span>
+      <span class="chip">4 ×5</span>
+      <span class="chip">40 ×3</span>
+      <span class="chip off">60 ×3</span>
+    </div>
+    <p class="note">
+      归到 8rpx（4pt）网格：<b>2 / 4 / 8 / 12 / 16 / 24 / 32 / 40 / 48 / 64</b>，取值种类从 28 降到 10。<br>
+      ★ 唯一例外：<b>30rpx</b> 是页面左右槽宽（决定 750−60=690 的内容宽度），
+      硬归到 32 会让每页窄 4rpx 且所有页都要重看 —— 所以提成 <code>--gutter: 30rpx</code>，语义化地留着。
+    </p>
+  </section>
+
+  <!-- ============ 4 结论 ============ -->
+  <section>
+    <h2>4　结论：不做加法，做减法</h2>
+    <div class="verdict">
+      <div>
+        <h3 class="no">不建议做</h3>
+        <ul>
+          <li><b>加阴影 / 玻璃 / 渐变</b>——这套设计的立身之本是「一张纸 + 照片」，全站零阴影是前几轮刻意保住的</li>
+          <li><b>再加颜色</b>——色板够用，问题是灰不够深，不是缺色</li>
+          <li><b>细化圆角</b>——3 档各司其职，是对的</li>
+          <li><b>换字体</b>——小程序不支持自定义字体，能借的只有系统衬线栈</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="yes">建议做</h3>
+        <ul>
+          <li><b>灰阶 4 个值</b>（零布局风险，收益最大）</li>
+          <li><b>间距归网格 + <code>--gutter</code></b>（细节变整齐）</li>
+          <li><b>字号 9 档 → 7 档</b>（要逐页看图）</li>
+          <li>之后：文字链热区、行高令牌</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note" style="margin-top:16px">
+      现在的问题<b>不是不好看，是不够"稳"</b>：小字看不清、字号分不开、间距没节奏。
+      这三件修完，观感会更干净、更有底气 —— <b>但那是减掉了噪音，不是加了什么。</b>
+    </p>
+  </section>
+
+</div>
+</body>
+</html>
