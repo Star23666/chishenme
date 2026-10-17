@@ -116,6 +116,18 @@ page {
      所以它当加分项用，不当承重结构：任何靠它撑起来的层级都不合格。 */
   --f-serif: "Songti SC", "STSong", "SimSun", serif;
 
+  /* ---- 间距（1.5.9 归网格）----
+     ★ 基准 8rpx = 4pt。间距只用这几档：
+       4 / 8 / 12 / 16 / 24 / 32 / 40 / 48 / 64
+     别再写 22 / 26 / 34 这种 —— 归网格前有 **28 个不同取值**，
+     22/24/26/28 四个几乎分不出，整体看着"哪里都差一点点"。
+     ★ `--gutter` 是**唯一例外**：页面左右槽宽 30rpx。
+       它决定全站内容宽度（750 − 60 = 690），硬归到 32 会让每页窄 4rpx、
+       所有页都要重看，所以单独提成语义令牌 ——
+       它不是"随手写的一个数"，而是「页边距」这件事本身。 */
+
+  --gutter: 30rpx;
+
   background: var(--c-bg);
   color: var(--c-ink);
   font-size: var(--t-body);
@@ -130,13 +142,13 @@ page {
 .cat-bar {
   white-space: nowrap;
   background: transparent;
-  padding: 20rpx 0 0;
+  padding: 24rpx 0 0;
 }
 
 .cat-item {
   display: inline-block;
   padding: 0 0 12rpx;
-  margin-left: 34rpx;
+  margin-left: 32rpx;
   font-size: var(--t-body);
   color: var(--c-ink-2);
   background: transparent;
@@ -144,7 +156,7 @@ page {
 }
 
 .cat-item:last-child {
-  margin-right: 34rpx;
+  margin-right: 32rpx;
 }
 
 .cat-item.on {
@@ -171,7 +183,7 @@ page {
 .section-title {
   display: flex;
   align-items: center;
-  padding: 34rpx 30rpx 12rpx;
+  padding: 32rpx var(--gutter) 12rpx;
   font-family: var(--f-serif);
   font-size: var(--t-h2);
   font-weight: 600;
@@ -183,7 +195,7 @@ page {
   flex-shrink: 0;
   width: 26rpx;
   height: 6rpx;
-  margin-right: 14rpx;
+  margin-right: 16rpx;
   background: var(--c-brand);
 }
 
@@ -195,7 +207,7 @@ page {
   font-size: var(--t-cap);
   color: var(--c-ink-2);
   border-bottom: 1rpx solid var(--c-line-strong);
-  padding-bottom: 3rpx;
+  padding-bottom: 4rpx;
 }
 
 .tx-brand {
@@ -212,7 +224,7 @@ page {
    补充动作专用（「＋ 加菜」这种）。直角描边，不加底。 */
 .ghost {
   display: inline-block;
-  padding: 12rpx 22rpx;
+  padding: 12rpx 24rpx;
   font-size: var(--t-cap);
   color: var(--c-ink-2);
   border: 1rpx solid var(--c-line-strong);
@@ -226,7 +238,7 @@ page {
   flex: 1;
   min-width: 24rpx;
   height: 2rpx;
-  margin-bottom: 10rpx;
+  margin-bottom: 8rpx;
   background-image: radial-gradient(circle, var(--c-brand) 1.8rpx, transparent 2rpx);
   background-size: 10rpx 4rpx;
   background-repeat: repeat-x;
@@ -236,7 +248,7 @@ page {
 /* ---- 空状态 ----
    空屏不是「暂无数据」，是给下一步。 */
 .empty {
-  padding: 170rpx 60rpx;
+  padding: 168rpx 64rpx;
   text-align: center;
 }
 
@@ -259,12 +271,12 @@ page {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 44rpx;
+  margin-top: 40rpx;
 }
 
 /* ★ 一个描边、一个实心：一屏只有一个实心块动作。 */
 .eb {
-  padding: 20rpx 44rpx;
+  padding: 24rpx 40rpx;
   border-radius: var(--r-btn);
   border: 1rpx solid var(--c-line-strong);
   color: var(--c-ink-2);

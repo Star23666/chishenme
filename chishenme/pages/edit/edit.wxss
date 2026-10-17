@@ -8,7 +8,7 @@
      没图时是一块安静的下沉面加一个「＋」，不加边框 —— 避免「卡里套卡」。 */
 .photo {
   position: relative;
-  margin: 26rpx 30rpx 0;
+  margin: 24rpx var(--gutter) 0;
   height: 420rpx;
   border-radius: var(--r-thumb);
   background: var(--c-surface-sunk);
@@ -37,7 +37,7 @@
 }
 
 .photo-hint {
-  margin-top: 18rpx;
+  margin-top: 16rpx;
   font-size: var(--t-cap);
   color: var(--c-ink-3);
 }
@@ -48,7 +48,7 @@
   position: absolute;
   right: 20rpx;
   bottom: 20rpx;
-  padding: 12rpx 26rpx;
+  padding: 12rpx 24rpx;
   border-radius: var(--r-btn);
   background: rgba(0, 0, 0, 0.55);
   color: #FFFFFF;
@@ -60,10 +60,10 @@
      而每一行底下的那根线就是「写字的横格」——
      线已经承担了结构，不需要再给它套一个白盒子。 */
 .form {
-  margin-top: 22rpx;
+  margin-top: 24rpx;
   background: transparent;
   border-top: none;
-  padding: 0 30rpx;
+  padding: 0 var(--gutter);
 }
 
 .row {
@@ -77,8 +77,8 @@
 .row-cat,
 .row-area {
   align-items: flex-start;
-  padding-top: 26rpx;
-  padding-bottom: 26rpx;
+  padding-top: 24rpx;
+  padding-bottom: 24rpx;
 }
 
 .k {
@@ -112,8 +112,8 @@
 }
 
 .chip {
-  margin: 0 14rpx 14rpx 0;
-  padding: 10rpx 26rpx;
+  margin: 0 16rpx 16rpx 0;
+  padding: 8rpx 24rpx;
   border: 1rpx solid var(--c-line-strong);
   border-radius: var(--r-btn);
   background: transparent;
@@ -140,11 +140,11 @@
 
 /* ---------- 底部 ---------- */
 .foot {
-  padding: 46rpx 30rpx 0;
+  padding: 48rpx var(--gutter) 0;
 }
 
 .foot-note {
-  margin-top: 20rpx;
+  margin-top: 24rpx;
   text-align: center;
   font-size: var(--t-cap);
   color: var(--c-ink-3);

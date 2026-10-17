@@ -659,6 +659,54 @@ COLOR_PAIRS.forEach(function (p) {
 })
 console.log('      对比度实测：' + cLine.join('  '))
 
+/*
+ * G4g. ★ 间距必须踩在 8rpx（4pt）网格上。
+ *
+ * 1.5.9 之前有 **28 个不同取值**（22/24/26/28 四个几乎分不出），
+ * 整体看着"哪里都差一点点"却说不清哪不对。归网格之后应当只剩个位数档位。
+ *
+ * 允许的取值：0 / 4 / 8 / 12 / 16 / 24 / 32 / 40 / 48 / 64 / 96 / 112 / 168
+ *   + var(--gutter)（页面槽宽，唯一的语义例外）
+ *   + 负数（-8rpx、-1rpx 这种是刻意做的边缘重合，不算节奏）
+ *
+ * ★★ 另外必须守住 `--gutter` **有定义**：它一没了，所有 `padding: 0 var(--gutter)`
+ *    会退化成 0，整站内容直接贴边 —— 而且不报错、只有真机看得出来。
+ */
+var SPACE_OK = [0, 4, 8, 12, 16, 24, 32, 40, 48, 64, 96, 112, 168]
+var gutterDefined = /--gutter:\s*[\d.]+rpx/.test(appRawCss)
+ok('★ --gutter 有定义（没了会让所有横向内边距退化成 0）', gutterDefined,
+  gutterDefined ? '' : 'app.wxss 的 page{} 里找不到 --gutter')
+
+var spaceVals = {}
+var spaceBad = []
+var cssList = ['app.wxss']
+fs.readdirSync(path.join(APP_DIR, 'pages')).forEach(function (d) {
+  cssList.push(path.join('pages', d, d + '.wxss'))
+})
+cssList.forEach(function (rel) {
+  var src = read(path.join(APP_DIR, rel)) || ''
+  var body = String(src).replace(/\/\*[\s\S]*?\*\//g, '')
+  var re = /(?:padding|margin)(?:-(?:top|right|bottom|left))?\s*:\s*([^;]+);/g
+  var m
+  while ((m = re.exec(body)) !== null) {
+    m[1].split(/\s+/).forEach(function (t) {
+      if (!t) return
+      if (t === 'var(--gutter)') { spaceVals[t] = (spaceVals[t] || 0) + 1; return }
+      var mv = t.match(/^(-?)(\d+)rpx$/)
+      if (!mv) return                      // 0 / auto / calc(...) 之类跳过
+      var n = Number(mv[2])
+      spaceVals[t] = (spaceVals[t] || 0) + 1
+      if (mv[1] === '-') return            // 负值是刻意的边缘重合
+      if (n === 0) return
+      if (SPACE_OK.indexOf(n) < 0) spaceBad.push(rel + ': ' + t)
+    })
+  }
+})
+ok('★ 间距全部踩在 8rpx 网格上', spaceBad.length === 0, spaceBad.slice(0, 6).join('; '))
+var kindCount = Object.keys(spaceVals).length
+ok('间距取值种类 ≤ 16（归网格前是 28）', kindCount <= 16, '现在 ' + kindCount + ' 种')
+console.log('      间距取值：' + Object.keys(spaceVals).sort().join('  '))
+
 // G5. ★ 最关键的一条：前端调的每个 action，云函数里都得真的有这个 case
 var cfActions = {}
 var reCase = /case\s+'([A-Za-z_][A-Za-z0-9_]*)'\s*:/g

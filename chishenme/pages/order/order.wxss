@@ -13,7 +13,7 @@
   display: flex;
   align-items: center;
   height: 76rpx;
-  margin: 26rpx 30rpx 0;
+  margin: 24rpx var(--gutter) 0;
   border-bottom: 3rpx solid var(--c-line-strong);
 }
 
@@ -38,7 +38,7 @@
 
 /* 搜不到：给下一步，不是「暂无数据」 */
 .none {
-  padding: 96rpx 60rpx 0;
+  padding: 96rpx 64rpx 0;
   text-align: center;
 }
 
@@ -50,7 +50,7 @@
 }
 
 .none-d {
-  margin-top: 14rpx;
+  margin-top: 16rpx;
   font-size: var(--t-cap);
   color: var(--c-ink-3);
   line-height: 1.7;
@@ -63,7 +63,7 @@
      主色让位给下面的分组短横和＋号（那才是这一页的内容）。 */
 .head {
   background: transparent;
-  padding: 26rpx 30rpx 6rpx;
+  padding: 24rpx var(--gutter) 8rpx;
   display: flex;
   align-items: baseline;
 }
@@ -78,7 +78,7 @@
 .head-txt {
   font-size: var(--t-cap);
   color: var(--c-ink-2);
-  margin-left: 14rpx;
+  margin-left: 16rpx;
 }
 
 /* ---------- 列表 ----------
@@ -86,7 +86,7 @@
      白盒子一层层套起来，正是「后台」的样子。 */
 .rows {
   background: transparent;
-  margin: 0 30rpx;
+  margin: 0 var(--gutter);
   border-radius: 0;
   overflow: visible;
 }
@@ -94,7 +94,7 @@
 .row {
   display: flex;
   align-items: center;
-  padding: 20rpx 0;
+  padding: 24rpx 0;
   border-bottom: 1rpx solid var(--c-line);
 }
 
@@ -113,7 +113,7 @@
 .row-mid {
   flex: 1;
   min-width: 0;
-  padding: 0 20rpx;
+  padding: 0 24rpx;
 }
 
 .row-name {
@@ -186,14 +186,14 @@
   position: fixed;
   left: 30rpx;
   right: 30rpx;
-  bottom: calc(30rpx + env(safe-area-inset-bottom));
+  bottom: calc(32rpx + env(safe-area-inset-bottom));
   height: 96rpx;
   background: var(--c-brand);
   border-radius: var(--r-btn);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 36rpx;
+  padding: 0 32rpx;
   z-index: 20;
 }
 

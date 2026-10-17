@@ -13,7 +13,7 @@
   display: flex;
   align-items: center;
   background: transparent;
-  padding: 24rpx 30rpx 0;
+  padding: 24rpx var(--gutter) 0;
 }
 
 .mode-item {
@@ -41,7 +41,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40rpx 30rpx;
+  padding: 40rpx var(--gutter);
 }
 
 .rolling-box {
@@ -62,7 +62,7 @@
 .rolling-hint {
   font-size: var(--t-sub);
   color: var(--c-ink-3);
-  margin-top: 20rpx;
+  margin-top: 24rpx;
 }
 
 /* ---------- 单道结果 ----------
@@ -91,7 +91,7 @@
   font-weight: 700;
   color: var(--c-ink);
   text-align: center;
-  margin-top: 26rpx;
+  margin-top: 24rpx;
 }
 
 .rc-cat {
@@ -106,8 +106,8 @@
   color: var(--c-ink-2);
   line-height: 1.7;
   text-align: center;
-  margin: 22rpx 20rpx 0;
-  padding-top: 22rpx;
+  margin: 24rpx 24rpx 0;
+  padding-top: 24rpx;
   border-top: 1rpx solid var(--c-line);
 }
 
@@ -125,7 +125,7 @@
   background: transparent;
   border-radius: 0;
   overflow: visible;
-  margin-bottom: 26rpx;
+  margin-bottom: 24rpx;
 }
 
 .ci-img {
@@ -142,7 +142,7 @@
   font-weight: 600;
   color: var(--c-ink);
   text-align: center;
-  margin-top: 14rpx;
+  margin-top: 16rpx;
 }
 
 .ci-cat {
@@ -181,7 +181,7 @@
 
 /* ---------- 按钮 ---------- */
 .actions {
-  padding: 0 30rpx;
+  padding: 0 var(--gutter);
 }
 
 /* ★ 胶囊 → 直角实色块；白字 → 墨字（2.74:1 → 5.98:1） */
@@ -191,7 +191,7 @@
   font-size: var(--t-h1);
   font-weight: 700;
   text-align: center;
-  padding: 28rpx 0;
+  padding: 32rpx 0;
   border-radius: var(--r-btn);
 }
 
@@ -201,18 +201,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 26rpx;
+  margin-top: 24rpx;
 }
 
 .sub-btn {
   text-align: center;
-  padding: 10rpx 0;
+  padding: 8rpx 0;
   border-radius: 0;
   background: transparent;
   color: var(--c-ink-2);
   font-size: var(--t-cap);
   border-bottom: 1rpx solid var(--c-line-strong);
-  margin-right: 44rpx;
+  margin-right: 40rpx;
 }
 
 .sub-btn:last-child {

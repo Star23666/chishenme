@@ -16,7 +16,7 @@
    现在输入框没有边框了，留白统一到全站的 30rpx 主线。 */
 .pad {
   margin: 0;
-  padding: 34rpx 30rpx;
+  padding: 32rpx var(--gutter);
 }
 
 .t1 {
@@ -59,7 +59,7 @@
    它承载顺序信息，不是「01 / 02 / 03」那种装饰性序号。
    形状从圆点改成方框，跟全站的直角语言一致。 */
 .steps {
-  margin-top: 26rpx;
+  margin-top: 24rpx;
 }
 
 .step {
@@ -68,7 +68,7 @@
   font-size: var(--t-sub);
   color: var(--c-ink-2);
   line-height: 1.7;
-  padding: 14rpx 0;
+  padding: 16rpx 0;
 }
 
 .step-n {
@@ -94,8 +94,8 @@
   background: var(--c-surface-sunk);
   border-left: 6rpx solid var(--c-brand);
   border-radius: var(--r-btn);
-  margin: 20rpx 30rpx 0;
-  padding: 26rpx 26rpx;
+  margin: 24rpx var(--gutter) 0;
+  padding: 24rpx;
 }
 
 .invite-title {
@@ -108,7 +108,7 @@
 .invite-sub {
   font-size: var(--t-sub);
   color: var(--c-ink-2);
-  margin-top: 14rpx;
+  margin-top: 16rpx;
   line-height: 1.7;
 }
 
@@ -116,7 +116,7 @@
   font-size: var(--t-sub);
   color: var(--c-danger);
   line-height: 1.7;
-  margin-top: 14rpx;
+  margin-top: 16rpx;
 }
 
 .warn-inline {
@@ -129,7 +129,7 @@
      全站的胶囊只留在摇一摇那个「随机一道 / 三菜一汤」上。 */
 .tabs {
   display: flex;
-  margin: 26rpx 30rpx 0;
+  margin: 24rpx var(--gutter) 0;
   background: transparent;
   border-radius: 0;
   padding: 0;
@@ -144,7 +144,7 @@
   text-align: center;
   font-size: var(--t-body);
   color: var(--c-ink-2);
-  padding: 20rpx 0;
+  padding: 24rpx 0;
   border-bottom: 6rpx solid transparent;
   margin-bottom: -1rpx;
 }
@@ -161,7 +161,7 @@
 .label {
   font-size: var(--t-sub);
   color: var(--c-ink-3);
-  margin: 30rpx 0 4rpx;
+  margin: 32rpx 0 4rpx;
 }
 
 /* ★★★ height 这一行绝对不要删 —— 这是本项目最隐蔽的一个坑。
@@ -211,7 +211,7 @@
 .pre {
   font-size: var(--t-cap);
   color: var(--c-ink-2);
-  margin-top: 18rpx;
+  margin-top: 16rpx;
   line-height: 1.6;
 }
 
@@ -223,14 +223,14 @@
   font-size: var(--t-cap);
   color: var(--c-ink-3);
   line-height: 1.7;
-  margin-top: 22rpx;
+  margin-top: 24rpx;
 }
 
 /* 表单主按钮：输入框高 52px，按钮也加高到 46px，两边对齐，别头重脚轻。
    只在本页覆盖，不动 app.wxss 的全局按钮。 */
 .card .btn-primary {
-  margin-top: 44rpx;
-  padding: 28rpx 0;
+  margin-top: 40rpx;
+  padding: 32rpx 0;
 }
 
 /* ---------- 房间头 ----------
@@ -242,7 +242,7 @@
 .room {
   background: transparent;
   margin: 0;
-  padding: 36rpx 30rpx 24rpx;
+  padding: 32rpx var(--gutter) 24rpx;
   text-align: left;
 }
 
@@ -256,13 +256,13 @@
 .room-sub {
   font-size: var(--t-cap);
   color: var(--c-ink-2);
-  margin-top: 10rpx;
+  margin-top: 8rpx;
 }
 
 .code-badge {
   display: inline-block;
-  margin: 24rpx 0 6rpx;
-  padding: 18rpx 30rpx 20rpx;
+  margin: 24rpx 0 8rpx;
+  padding: 16rpx var(--gutter) 24rpx;
   border: 3rpx solid var(--c-brand-ink);
   border-radius: 4rpx;
   transform: rotate(-2.5deg);
@@ -277,14 +277,14 @@
 .room-ops {
   display: flex;
   align-items: center;
-  margin-top: 26rpx;
+  margin-top: 24rpx;
 }
 
 /* 次要动作：★ 从「橙色块上的白色描边药丸」改成描边方角小按钮。
    一屏里唯一的实心块留给下面的「去看今天的菜单」。 */
 .op {
-  margin: 0 10rpx 0 0;
-  padding: 18rpx 28rpx;
+  margin: 0 8rpx 0 0;
+  padding: 16rpx 32rpx;
   border-radius: var(--r-btn);
   border: 1rpx solid var(--c-line-strong);
   color: var(--c-ink-2);
@@ -307,7 +307,7 @@
 .me-bar {
   display: flex;
   align-items: center;
-  padding: 28rpx 30rpx;
+  padding: 32rpx var(--gutter);
 }
 
 .me-left {
@@ -325,7 +325,7 @@
   font-size: var(--t-h2);
   font-weight: 600;
   color: var(--c-ink);
-  margin-top: 6rpx;
+  margin-top: 8rpx;
 }
 
 /* ★ 淡橙底药丸 → 文字链 */
@@ -344,7 +344,7 @@
    而这一页是「家里有哪几口人」。 */
 .mems {
   margin: 0;
-  padding: 0 30rpx;
+  padding: 0 var(--gutter);
 }
 
 .mem {
@@ -376,7 +376,7 @@
 .mem-name {
   flex: 1;
   min-width: 0;
-  padding: 0 20rpx;
+  padding: 0 24rpx;
   font-size: var(--t-h2);
   color: var(--c-ink);
   overflow: hidden;
@@ -403,16 +403,16 @@
 
 /* ---------- 房间内操作 ---------- */
 .ops2 {
-  margin: 30rpx 0 0;
-  padding: 10rpx 30rpx 40rpx;
+  margin: 32rpx 0 0;
+  padding: 8rpx var(--gutter) 40rpx;
 }
 
 .btn-ghost {
-  margin-top: 22rpx;
+  margin-top: 24rpx;
   text-align: center;
   font-size: var(--t-body);
   color: var(--c-danger);
-  padding: 20rpx 0;
+  padding: 24rpx 0;
 }
 
 /* 解散房间：不可逆，而且家里其他人什么都没点就被牵连。

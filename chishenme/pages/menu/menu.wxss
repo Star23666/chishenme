@@ -9,7 +9,7 @@
      信息一点没少，但它读起来是「一桌菜」，不是「一张报表」。
      而且主色不再用来刷整块底，只留这一根线（主色的用法收窄到四处之一）。 */
 .hero {
-  padding: 30rpx 30rpx 0;
+  padding: 32rpx var(--gutter) 0;
 }
 
 .hero-date {
@@ -36,7 +36,7 @@
   font-size: var(--t-body);
   font-weight: 600;
   color: var(--c-ink);
-  margin-top: 2rpx;
+  margin-top: 4rpx;
 }
 
 .hero-rule {
@@ -52,7 +52,7 @@
 .fbar {
   display: flex;
   align-items: center;
-  padding: 22rpx 30rpx;
+  padding: 24rpx var(--gutter);
   background: transparent;
   border-bottom: 1rpx solid var(--c-line);
 }
@@ -92,7 +92,7 @@
      客户端还剩几次授权，画一个常亮的开关就是在骗人。
    文字链接的形状和全站一致。 */
 .notify {
-  padding: 20rpx 30rpx;
+  padding: 24rpx var(--gutter);
   font-size: var(--t-cap);
   color: var(--c-brand-ink);
   border-bottom: 1rpx solid var(--c-line);
@@ -102,8 +102,8 @@
    只在过了 22:30 出现。故意不用品牌淡底：它上面紧挨着的家庭状态条已经是
    浅色行了，两条同色叠在一起就分不出哪个是「状态」哪个是「提示」。 */
 .nextbar {
-  margin: 16rpx 30rpx 0;
-  padding: 20rpx 26rpx;
+  margin: 16rpx var(--gutter) 0;
+  padding: 24rpx;
   background: var(--c-surface-sunk);
   border-left: 6rpx solid var(--c-line-strong);
   border-radius: var(--r-btn);
@@ -124,7 +124,7 @@
   display: block;
   font-size: var(--t-cap);
   color: var(--c-ink-3);
-  margin-top: 6rpx;
+  margin-top: 8rpx;
 }
 
 /* ---------- 菜单清单 ----------
@@ -134,7 +134,7 @@
 .mlist {
   background: transparent;
   margin: 0;
-  padding: 0 30rpx;
+  padding: 0 var(--gutter);
   border-radius: 0;
   overflow: visible;
 }
@@ -142,7 +142,7 @@
 .mitem {
   display: flex;
   align-items: flex-start;
-  padding: 22rpx 0;
+  padding: 24rpx 0;
   border-bottom: 1rpx solid var(--c-line);
 }
 
@@ -161,7 +161,7 @@
 .mitem-mid {
   flex: 1;
   min-width: 0;
-  margin-left: 20rpx;
+  margin-left: 24rpx;
 }
 
 /* 菜名 …… 份数 的同一行 */
@@ -189,7 +189,7 @@
 .mitem-cat {
   font-size: var(--t-tag);
   color: var(--c-ink-3);
-  margin-top: 6rpx;
+  margin-top: 8rpx;
 }
 
 /* ★ 「谁点的」分两级：
@@ -198,7 +198,7 @@
 .mitem-by {
   font-size: var(--t-cap);
   color: var(--c-ink-2);
-  margin-top: 6rpx;
+  margin-top: 8rpx;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -236,7 +236,7 @@
 .mo-btn {
   min-width: 136rpx;
   text-align: center;
-  padding: 17rpx 0;
+  padding: 16rpx 0;
   border: 1rpx solid var(--c-line-strong);
   border-radius: var(--r-btn);
   font-size: var(--t-sub);
@@ -245,7 +245,7 @@
 }
 
 .mo-btn + .mo-btn {
-  margin-top: 14rpx;
+  margin-top: 16rpx;
 }
 
 /* 移除：破坏性动作，用淡边 + 红字，不用实心（实心块一屏只留一个） */
@@ -258,8 +258,8 @@
 
 /* 这一页真正的主要动作（转发），一个人占掉「实心块」的名额 */
 .op-share {
-  margin: 30rpx 30rpx 0;
-  padding: 26rpx 0;
+  margin: 32rpx var(--gutter) 0;
+  padding: 24rpx 0;
   background: var(--c-brand);
   color: var(--c-ink);
   border-radius: var(--r-btn);
@@ -278,13 +278,13 @@
 .ops {
   display: flex;
   align-items: center;
-  padding: 24rpx 30rpx 6rpx;
+  padding: 24rpx var(--gutter) 8rpx;
 }
 
 .op-btn {
   flex: 1;
   text-align: center;
-  padding: 6rpx 0;
+  padding: 8rpx 0;
   background: transparent;
   border-radius: 0;
   font-size: var(--t-cap);
@@ -304,6 +304,6 @@
   text-align: center;
   font-size: var(--t-cap);
   color: var(--c-ink-3);
-  padding: 10rpx 40rpx 0;
+  padding: 8rpx 40rpx 0;
   line-height: 1.7;
 }

@@ -11,7 +11,7 @@
      （wxml-check.js 的 F2 把这条锁住了） */
 .topbar {
   background: transparent;
-  padding: 24rpx 30rpx 0;
+  padding: 24rpx var(--gutter) 0;
 }
 
 .search {
@@ -65,8 +65,8 @@
    它是补充动作，不能长得像主按钮（主按钮一屏只有一个）。 */
 .add-dish {
   flex-shrink: 0;
-  margin-right: 30rpx;
-  padding: 12rpx 22rpx;
+  margin-right: var(--gutter);
+  padding: 12rpx 24rpx;
   font-size: var(--t-cap);
   font-weight: 600;
   color: var(--c-brand-ink);
@@ -91,12 +91,12 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  padding: 20rpx 30rpx 0;
+  padding: 24rpx var(--gutter) 0;
 }
 
 .dish-card {
   width: calc((100% - 18rpx) / 2);
-  margin: 0 0 26rpx 0;
+  margin: 0 0 24rpx;
   background: transparent;
   border-radius: 0;
   overflow: visible;
@@ -112,7 +112,7 @@
 }
 
 .dish-meta {
-  padding: 14rpx 2rpx 0;
+  padding: 16rpx 4rpx 0;
 }
 
 .dish-name {
@@ -138,7 +138,7 @@
   position: absolute;
   top: 10rpx;
   left: 10rpx;
-  padding: 5rpx 9rpx;
+  padding: 4rpx 8rpx;
   border-radius: 4rpx;
   background: rgba(246, 245, 243, 0.94);
   color: var(--c-brand-ink);
@@ -152,14 +152,14 @@
   color: var(--c-ink-3);
   font-size: var(--t-sub);
   line-height: 1.7;
-  padding: 110rpx 60rpx 20rpx;
+  padding: 112rpx 64rpx 24rpx;
 }
 
 .tip {
   text-align: center;
   color: var(--c-ink-3);
   font-size: var(--t-cap);
-  padding: 24rpx 0 10rpx;
+  padding: 24rpx 0 8rpx;
 }
 
 /* ---------- 详情弹层 ----------
@@ -191,13 +191,13 @@
 }
 
 .sheet-body {
-  padding: 28rpx 30rpx 6rpx;
+  padding: 32rpx var(--gutter) 8rpx;
 }
 
 .sheet-head {
   display: flex;
   align-items: center;
-  margin-bottom: 22rpx;
+  margin-bottom: 24rpx;
 }
 
 /* 把「编辑 / 删除」推到这一行的最右边 */
@@ -211,7 +211,7 @@
      降级的是「长相」，不是「手指够不够得着」。 */
 .head-link {
   flex-shrink: 0;
-  padding: 20rpx 26rpx;
+  padding: 24rpx;
   margin-left: 12rpx;
   border: 1rpx solid var(--c-line-strong);
   border-radius: var(--r-btn);
@@ -248,7 +248,7 @@
   color: var(--c-brand-ink);
   border: 1rpx solid var(--c-brand-line);
   border-radius: var(--r-btn);
-  padding: 4rpx 14rpx;
+  padding: 4rpx 16rpx;
 }
 
 /* 主料 / 要点：★ 改成点线行 —— 菜名在左、值在右，中间那排点把两者连起来，
@@ -274,15 +274,15 @@
 .sheet-actions {
   display: flex;
   align-items: center;
-  padding: 26rpx 30rpx;
-  padding-bottom: calc(30rpx + env(safe-area-inset-bottom));
+  padding: 24rpx var(--gutter);
+  padding-bottom: calc(32rpx + env(safe-area-inset-bottom));
 }
 
 .act-fav {
   flex: 1;
-  margin-right: 20rpx;
+  margin-right: 24rpx;
   text-align: center;
-  padding: 22rpx 0;
+  padding: 24rpx 0;
   border: 1rpx solid var(--c-line-strong);
   border-radius: var(--r-btn);
   color: var(--c-ink-2);
@@ -292,7 +292,7 @@
 .act-add {
   flex: 2;
   text-align: center;
-  padding: 22rpx 0;
+  padding: 24rpx 0;
   border-radius: var(--r-btn);
   background: var(--c-brand);
   color: var(--c-ink);
@@ -303,7 +303,7 @@
 /* 详情里的「你改过这道菜」。
    刻意做得很轻：它是一句解释，不是一个状态标签。 */
 .edited-note {
-  margin: -8rpx 0 18rpx;
+  margin: -8rpx 0 16rpx;
   font-size: var(--t-cap);
   color: var(--c-ink-3);
 }
@@ -313,8 +313,8 @@
 /* 菜库底部的入口。发丝线框，不用实色块 ——
    它是补充信息，不能长得像「加入今日菜单」那种主要动作。 */
 .hidden-bar {
-  margin: 24rpx 30rpx 0;
-  padding: 22rpx 24rpx;
+  margin: 24rpx var(--gutter) 0;
+  padding: 24rpx;
   border: 1rpx solid var(--c-line-strong);
   border-radius: var(--r-btn);
   text-align: center;
@@ -323,7 +323,7 @@
 }
 
 .restore-head {
-  padding: 32rpx 30rpx 6rpx;
+  padding: 32rpx var(--gutter) 8rpx;
 }
 
 .restore-title {
@@ -343,14 +343,14 @@
 /* scroll-view 必须有个高度上限，否则里面菜一多会把整屏顶满 */
 .restore-list {
   max-height: 620rpx;
-  padding: 10rpx 20rpx;
+  padding: 8rpx 24rpx;
   box-sizing: border-box;
 }
 
 .restore-row {
   display: flex;
   align-items: center;
-  padding: 18rpx 10rpx;
+  padding: 16rpx 8rpx;
   border-bottom: 1rpx solid var(--c-line);
 }
 
@@ -370,7 +370,7 @@
 .restore-info {
   flex: 1;
   min-width: 0;
-  margin-left: 20rpx;
+  margin-left: 24rpx;
 }
 
 .restore-name {
@@ -392,7 +392,7 @@
 .restore-btn {
   flex-shrink: 0;
   margin-left: 16rpx;
-  padding: 16rpx 28rpx;
+  padding: 16rpx 32rpx;
   border: 1rpx solid var(--c-brand-line);
   border-radius: var(--r-btn);
   color: var(--c-brand-ink);
@@ -403,15 +403,15 @@
 .restore-foot {
   display: flex;
   align-items: center;
-  padding: 22rpx 30rpx;
-  padding-bottom: calc(22rpx + env(safe-area-inset-bottom));
+  padding: 24rpx var(--gutter);
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
 }
 
 .restore-all {
   flex: 1;
-  margin-right: 20rpx;
+  margin-right: 24rpx;
   text-align: center;
-  padding: 22rpx 0;
+  padding: 24rpx 0;
   border: 1rpx solid var(--c-line-strong);
   border-radius: var(--r-btn);
   color: var(--c-ink-2);
@@ -421,7 +421,7 @@
 .restore-close {
   flex: 1;
   text-align: center;
-  padding: 22rpx 0;
+  padding: 24rpx 0;
   border-radius: var(--r-btn);
   background: var(--c-brand);
   color: var(--c-ink);
