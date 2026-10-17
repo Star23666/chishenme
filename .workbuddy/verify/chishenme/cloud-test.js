@@ -1414,6 +1414,69 @@ async function run() {
     eq('一个人失败不影响另一个人', subCalls.length, 2)
   }
 
+  /* ---------- 11. 称呼不许重名 ---------- */
+  S('11. 称呼不许重名（服务端拦）')
+  {
+    /*
+     * 为什么这条要单独测：
+     *  - 「加入房间」和「改称呼」是**两个入口**，只在界面提示挡不住；
+     *  - 重名的代价不是看着别扭：菜单里「谁点的」存的是称呼字符串，
+     *    两个「爸爸」会让「我点的」判断出错，而且不报错。
+     *  - 还有一条容易漏：**不能把历史重名的人锁死**（家里本来就有重名是
+     *    老数据），只是不许再改成同一个名字。
+     */
+    resetStore()
+    const made = await call('nk_a', 'createFamily', { name: '称呼家', nickname: '爸爸' })
+    const mk = made.data.code
+    await call('nk_b', 'joinFamily', { code: mk, nickname: '妈妈' })
+
+    // 加入时重名
+    const dup = await call('nk_c', 'joinFamily', { code: mk, nickname: '爸爸' })
+    eq('★ 加入时不能和家人重名', dup.ok, false)
+    ok('  提示里点名了是哪个称呼', /爸爸/.test(dup.msg || ''), dup.msg)
+    ok('  而且说清楚了要换一个', /换/.test(dup.msg || ''), dup.msg)
+
+    // 前后空格不算不同名
+    const dupSpace = await call('nk_c', 'joinFamily', { code: mk, nickname: '  爸爸 ' })
+    eq('★ 带空格也算重名（服务端会 trim）', dupSpace.ok, false)
+
+    // 换个名字就能进
+    const okc = await call('nk_c', 'joinFamily', { code: mk, nickname: '妹妹' })
+    eq('换个称呼就能加入', okc.ok, true)
+
+    // 改称呼时重名
+    const rn = await call('nk_b', 'renameSelf', { nickname: '爸爸' })
+    eq('★ 改称呼也不能重名', rn.ok, false)
+    ok('  同样点名了称呼', /爸爸/.test(rn.msg || ''), rn.msg)
+
+    // 改成自己现在的名字 = 空操作，不该被自己挡住
+    const rnSelf = await call('nk_b', 'renameSelf', { nickname: '妈妈' })
+    eq('改成自己现在的称呼不算重名', rnSelf.ok, true)
+
+    // 改成没被占用的
+    const rnFree = await call('nk_b', 'renameSelf', { nickname: '娘' })
+    eq('改成没被占用的称呼能成功', rnFree.ok, true)
+    eq('  改完称呼真的变了', rnFree.data.myName, '娘')
+
+    // 重名只在「同一个家」里算：别家用同样的称呼不受影响
+    const other = await call('nk_x', 'createFamily', { name: '隔壁家', nickname: '爸爸' })
+    eq('别的家用同一个称呼不受影响', other.ok, true)
+
+    /*
+     * 历史重名不能把人锁死：
+     * 直接造一个「两个成员都叫爸爸」的房间（模拟加校验之前就有的老数据），
+     * 两个人都得能正常用，而且可以把其中一个改走。
+     */
+    col('csm_families').push({
+      _id: 'fam_dup_old', code: 'DUP001', name: '老重名家', owner: 'od1',
+      members: ['od1', 'od2'], nicknames: { od1: '爸爸', od2: '爸爸' }, createdAt: 1
+    })
+    const oldUse = await call('od1', 'addDish', { dishId: 'hongshaorou', dishName: '红烧肉' })
+    eq('★ 历史重名的老数据不会被锁死（还能点菜）', oldUse.ok, true)
+    const oldFix = await call('od1', 'renameSelf', { nickname: '大伯' })
+    eq('  而且能把其中一个改走', oldFix.ok, true)
+  }
+
   /* ---------- 汇总 ---------- */
   console.log('\n' + '='.repeat(56))
   console.log('  通过 ' + pass + ' 项，失败 ' + fail + ' 项')

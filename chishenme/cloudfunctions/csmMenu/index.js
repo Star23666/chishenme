@@ -333,6 +333,28 @@ async function peekFamily(openid, p) {
   })
 }
 
+/**
+ * 这个称呼在家庭里是不是已经有人用了（排除自己）。
+ *
+ * ★ 为什么必须拦在服务端：加入房间和改称呼是**两个入口**，
+ *   只在界面上一处做提示，另一处照样能造出重名。
+ * ★ 为什么重名要管：菜单里「谁点的」存的是**称呼字符串**，
+ *   两个「爸爸」会让「我点的」判断出错 —— A 点的菜在 B 手机上
+ *   也会标成「我点的」，而且不报错。
+ * ★ 只管「新增重名」，不清查历史：如果家里本来就有重名（这是老数据），
+ *   两个人都还能正常用，只是不能再改成同一个名字。
+ */
+function nickTaken(fam, nickname, exceptOpenid) {
+  const nicks = (fam && fam.nicknames) || {}
+  const members = (fam && fam.members instanceof Array) ? fam.members : []
+  for (let i = 0; i < members.length; i++) {
+    const oid = members[i]
+    if (oid === exceptOpenid) continue
+    if (String(nicks[oid] || '') === String(nickname)) return true
+  }
+  return false
+}
+
 async function joinFamily(openid, p) {
   const code = clean(p.code, 8).toUpperCase()
   if (code.length !== 6) throw new Error('房间码是 6 位')
@@ -347,6 +369,11 @@ async function joinFamily(openid, p) {
   if (cur && cur._id === fam._id) return ok(publicFamily(cur, openid))
   if (cur) throw new Error('你已经在一个家庭里了，先退出再加入')
   if ((fam.members || []).length >= MAX_MEMBERS) throw new Error('这个房间人满了')
+
+  // ★ 称呼不许和家里已有的人重名（服务端拦，两个入口都要过这一关）
+  if (nickTaken(fam, nickname, openid)) {
+    throw new Error('已经有家人叫「' + nickname + '」了，换一个称呼')
+  }
 
   const data = { members: _.addToSet(openid) }
   data['nicknames.' + openid] = nickname
@@ -392,6 +419,13 @@ async function renameSelf(openid, p) {
   const fam = await requireFamily(openid)
   const nickname = clean(p.nickname, NICK_MAX)
   if (!nickname) throw new Error('称呼不能为空')
+
+  // ★ 同上：改成别人已经用着的称呼要拦住。排除自己 ——
+  //   否则「改成和我现在一样」会被自己挡掉（虽然是个空操作）。
+  if (nickTaken(fam, nickname, openid)) {
+    throw new Error('已经有家人叫「' + nickname + '」了，换一个称呼')
+  }
+
   const data = {}
   data['nicknames.' + openid] = nickname
   await db.collection(FAM).doc(fam._id).update({ data: data })
