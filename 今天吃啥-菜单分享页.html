@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>今晚吃这些 · 我们家</title>
+<!--
+  今天吃啥 · 菜单分享页
+
+  干什么用的：把「今晚这一桌」做成一张纸，发到家庭群里，家人点开就看得见
+  今晚点了什么、谁点的，以及进房间要用的那串号。
+
+  ── 设计上的几条硬规矩（改样式前先看这段）────────────────────────
+  1. 整页是**一张纸**，不是一页组件。所以不切卡片、不加圆角、不堆阴影；
+     层级靠线、留白和字号，不靠盒子。
+  2. 颜色全部沿用小程序 app.wxss 的令牌，落地页和小程序得是同一个物件。
+     ★ 但主色 #FF7043 对纸底 #F6F5F3 只有 2.45:1 —— **写正文不达标**，
+     所以另派生一个「灶红」#B23A18（5.3:1）专管字。
+     分工：#FF7043 只做「面」（印章框、点线、按钮底）；#B23A18 做「字」。
+  3. 重音只有一个：装满房号的印章。别再加第二个抢眼的东西。
+  4. 菜名用楷体（回退宋体），正文用系统黑体。不要等宽字体做小标签。
+  5. 清单是**点线引导**（菜名 ···· 份数）—— 真饭店水牌的样子，不是列表卡片。
+
+  ── 用之前要改什么 ──────────────────────────────────────────────
+  只改下面 script 里那一个 DATA 块：家庭名、房号、菜。
+  ★ 这里放的是**示例房号**，不是真的。原因：房号 == 进房间的钥匙，
+    而这个仓库是公开的，不能把你的真房号写进去。你实际用的时候换成自己的。
+
+  ── 想看空的样子 ────────────────────────────────────────────────
+  浏览器打开时加 ?empty=1（例：今天吃啥-菜单分享页.html?empty=1）
+-->
+<style>
+  /* ── 令牌（跟小程序 chishenme/app.wxss 对齐）── */
+  :root{
+    --paper:#F6F5F3;          /* 纸：小程序 --c-bg */
+    --wall:#E8E5E0;           /* 纸贴的那面墙，比纸暗一点点才有「一张纸」的错觉 */
+    --ink:#1C1E21;            /* 墨：--c-ink */
+    --ink-2:#585F6B;          /* --c-ink-2 */
+    --ink-3:#8A8F99;          /* --c-ink-3 */
+    --brand:#FF7043;          /* 番茄橙：--c-brand。★ 只做面，不做字 */
+    --brand-ink:#B23A18;      /* 灶红：从主色派生的「能当字用」的深色，5.3:1 */
+    --line:#DFDCD7;           /* 纸上的线 */
+
+    --hand:"Kaiti SC","STKaiti","KaiTi","楷体","Songti SC",STSong,"Noto Serif CJK SC",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+
+  *{box-sizing:border-box}
+
+  html,body{margin:0}
+  body{
+    background:var(--wall);
+    font-family:var(--sans);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    padding:76px 16px 56px;      /* 顶部留白：给探出纸外的那张照片 */
+  }
+
+  /* ── 那张纸 ──────────────────────────────────────────────
+     微微歪 0.35°、纸似的阴影（大而虚、几乎不黑），不加圆角 —— 纸没有圆角。 */
+  .sheet{
+    position:relative;
+    max-width:430px;
+    margin:0 auto;
+    background:var(--paper);
+    transform:rotate(-.35deg);
+    box-shadow:
+      0 1px 0 rgba(28,30,33,.04),
+      0 20px 44px -20px rgba(28,30,33,.26);
+    padding:30px 26px 30px;
+  }
+
+  /* 一次到位的入场：纸「落」下来。不逐块淡入（那是最像套模板的动作）。 */
+  @media (prefers-reduced-motion:no-preference){
+    .sheet{animation:settle .42s cubic-bezier(.2,.7,.3,1) both}
+  }
+  @keyframes settle{
+    from{transform:rotate(-1.8deg) translateY(-12px);opacity:0}
+    to{transform:rotate(-.35deg) translateY(0);opacity:1}
+  }
+
+  /* ── 探出纸外的那张照片 ──────────────────────────────────
+     不铺通栏、不做 hero。就是一张带白边的照片，用一小截胶带贴在纸的上沿外。
+     全页只有这一张图：菜的照片是这页里唯一能勾出食欲的东西。 */
+  .snap{
+    position:relative;
+    width:188px;
+    margin:-58px auto 26px;
+    transform:rotate(-1.7deg);
+    background:#fff;
+    padding:7px;
+    box-shadow:0 10px 22px -12px rgba(28,30,33,.45);
+  }
+  .snap img{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:var(--wall)}
+  .tape{
+    position:absolute;top:-13px;left:-14px;width:62px;height:26px;
+    background:rgba(255,196,163,.62);
+    border-left:1px solid rgba(178,58,24,.16);
+    border-right:1px solid rgba(178,58,24,.16);
+    transform:rotate(-38deg);
+    box-shadow:0 1px 3px rgba(28,30,33,.12);
+  }
+
+  /* ── 抬头 ─────────────────────────────────────────────── */
+  .head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:14px;
+    padding-bottom:14px;
+    border-bottom:2px solid var(--brand);   /* 一根主色的线，压住抬头 */
+  }
+  .head h1{
+    margin:0;
+    font-family:var(--hand);
+    font-size:34px;
+    font-weight:700;
+    letter-spacing:.02em;
+    line-height:1.1;
+  }
+  .head .when{
+    flex:none;
+    font-size:13px;
+    color:var(--ink-2);
+    white-space:nowrap;
+  }
+
+  .who{
+    margin:12px 0 0;
+    font-size:13.5px;
+    color:var(--ink-2);
+  }
+
+  /* ── 清单 ─────────────────────────────────────────────── */
+  .tally{
+    margin:26px 0 12px;
+    font-size:13px;
+    color:var(--brand-ink);
+  }
+  .list{list-style:none;margin:0;padding:0}
+
+  .row{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    margin-bottom:15px;
+  }
+  .row .name{
+    font-family:var(--hand);
+    font-size:21px;
+    line-height:1.25;
+  }
+  /* 点线：让菜名和份数隔着一整行还对得上，像水牌上那排点 */
+  .row .dots{
+    flex:1;
+    min-width:16px;
+    height:1px;
+    margin-bottom:5px;
+    background-image:radial-gradient(circle,var(--brand) 1px,transparent 1.2px);
+    background-size:7px 2px;
+    background-repeat:repeat-x;
+    opacity:.6;
+  }
+  .row .qty{
+    flex:none;
+    font-size:15px;
+    font-variant-numeric:tabular-nums;
+  }
+  .row .mark{
+    display:block;
+    margin-top:3px;
+    font-size:12.5px;
+    color:var(--brand-ink);
+  }
+
+  /* ── 统计：两行话，不做方块 ─────────────────────────────
+     原来写成「两荤、一素、一汤、一主食 —— 一共 5 道菜、6 份。」
+     在 390 宽下会断在「6 份。」上；而且那个空破折号是模板味的来源。
+     拆成两行：上面说配比，下面说总数。 */
+  .sum{
+    margin:22px 0 0;
+    padding-top:16px;
+    border-top:1px dashed var(--line);
+  }
+  .sum .sum-k{display:block;font-size:14.5px;line-height:1.6;color:var(--ink-2)}
+  .sum .sum-n{display:block;margin-top:2px;font-size:15px;font-weight:600;color:var(--ink)}
+
+  /* ── 底部：印章 + 按钮 ───────────────────────────────── */
+  .call{
+    margin-top:26px;
+    padding-top:22px;
+    border-top:1px dashed var(--line);
+  }
+  .call p{margin:0;font-size:15px;line-height:1.65}
+
+  .seal{
+    display:inline-block;
+    margin:16px 0 14px 2px;
+    padding:9px 16px 11px;
+    border:2.5px solid var(--brand-ink);
+    border-radius:2px;                 /* 印章是方的，不是胶囊 */
+    transform:rotate(-2.5deg);
+    color:var(--brand-ink);
+  }
+  .seal .seal-k{display:block;font-size:11px;letter-spacing:.04em}
+  .seal .seal-v{
+    display:block;
+    margin-top:1px;
+    font-family:var(--hand);
+    font-size:25px;
+    font-weight:700;
+    letter-spacing:.13em;
+  }
+
+  .copy{
+    display:block;
+    width:100%;
+    margin-top:2px;
+    padding:14px 16px;
+    border:0;
+    border-radius:3px;                 /* 直角一点，跟印章一路 */
+    background:var(--brand);
+    color:var(--ink);                  /* ★ 墨字压橙底 = 5.98:1；白字只有 2.74:1，不达标 */
+    font-family:var(--sans);
+    font-size:16px;
+    font-weight:700;
+    letter-spacing:.02em;
+    cursor:pointer;
+    transition:background-color .15s ease,transform .1s ease;
+  }
+  .copy:hover{background:#FF835D}
+  .copy:active{transform:translateY(1px)}
+  .copy[data-done="1"]{background:#E8E5E0;color:var(--ink-2);cursor:default}
+
+  .hint{margin:10px 0 0;font-size:12.5px;color:var(--ink-2);line-height:1.6}
+
+  .signoff{
+    margin:26px 0 0;
+    padding-top:14px;
+    border-top:1px solid var(--line);
+    font-size:12.5px;
+    color:var(--ink-2);
+  }
+
+  /* ── 空的样子：不是「暂无数据」，是给下一步 ───────────── */
+  .none{margin:22px 0 0;font-size:15px;line-height:1.75;color:var(--ink-2)}
+  .none strong{
+    display:block;
+    font-family:var(--hand);
+    font-size:22px;
+    font-weight:700;
+    color:var(--ink);
+    margin-bottom:6px;
+  }
+
+  :focus-visible{outline:2px solid var(--brand-ink);outline-offset:2px}
+
+  @media (max-width:360px){
+    /* 窄屏（320 这种老机器）标题和日期挤一行会把「今天吃啥」挤成两行，
+       干脆让日期落到标题下面去，比缩字号好读。 */
+    .head{display:block}
+    .head .when{display:block;margin-top:5px}
+    .head h1{font-size:30px}
+    .row .name{font-size:19px}
+    .seal .seal-v{font-size:22px}
+  }
+
+  /* 打印/截图时别留大片墙色 */
+  @media print{
+    body{background:#fff;padding:0}
+    .sheet{box-shadow:none;transform:none}
+  }
+</style>
+</head>
+<body>
+
+<main class="sheet" id="sheet">
+
+  <figure class="snap" id="snap">
+    <span class="tape" aria-hidden="true"></span>
+    <img id="snapImg" src="" alt="">
+  </figure>
+
+  <header class="head">
+    <h1>今天吃啥</h1>
+    <span class="when" id="when"></span>
+  </header>
+
+  <p class="who" id="who"></p>
+
+  <p class="tally" id="tally"></p>
+  <ul class="list" id="list"></ul>
+
+  <div class="none" id="none" hidden>
+    <strong>今晚还没人开口点菜。</strong>
+    你先进去添两道？想吃什么就往里扔，家里人都看得见。
+  </div>
+
+  <p class="sum" id="sum"></p>
+
+  <section class="call">
+    <p id="callLine">谁还想吃，进来说一声。</p>
+
+    <div class="seal">
+      <span class="seal-k">房间码</span>
+      <span class="seal-v" id="room"></span>
+    </div>
+
+    <button class="copy" id="copy" type="button">复制房号</button>
+    <p class="hint" id="hint">在小程序首页输入这串号，就能进这间屋子一起点。</p>
+  </section>
+
+  <p class="signoff" id="signoff"></p>
+</main>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   ★ 要改的只有这一个块：家庭名、房号、今晚点的菜。
+   房号先写成示例的 —— 真房号等于进房间的钥匙，不能提交进公开仓库。
+   ══════════════════════════════════════════════════════════════ */
+var DATA = {
+  family: '我们家',                 // 家庭名（小程序里建房间时取的）
+  members: 3,                       // 家里几个人在共享
+  room: 'XK7M2Q',                   // ★ 示例房号，用的时候换成自己的
+  date: '2026-10-17',               // 今晚是哪一天
+  hero: { id: 'hongshaorou', name: '红烧肉' },   // 纸上贴的那张照片是哪道菜
+  dishes: [
+    { id: 'hongshaorou',    name: '红烧肉',     cat: 'meat',   qty: 2, by: ['爸爸'] },
+    { id: 'qingzhengluyu',  name: '清蒸鲈鱼',   cat: 'meat',   qty: 1, by: ['妈妈'] },
+    { id: 'suanrongxilanhua', name: '蒜蓉西兰花', cat: 'veg',  qty: 1, by: ['妈妈'] },
+    { id: 'fanqiedantang',  name: '番茄蛋汤',   cat: 'soup',   qty: 1, by: ['妹妹'] },
+    { id: 'danchaofan',     name: '蛋炒饭',     cat: 'staple', qty: 1, by: ['妹妹'] }
+  ]
+}
+
+/* ── 以下不用改 ────────────────────────────────────────────── */
+
+var CAT = { meat: '荤', veg: '素', soup: '汤', staple: '主食', cold: '凉' }
+var CN = { 1: '一', 2: '两', 3: '三', 4: '四', 5: '五', 6: '六', 7: '七', 8: '八' }
+var WEEK = '日一二三四五六'
+
+var $ = function (id) { return document.getElementById(id) }
+var esc = function (s) {
+  return String(s).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+  })
+}
+function dayLabel (s) {
+  var p = String(s).split('-')
+  if (p.length !== 3) return ''
+  var d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]))
+  // 用空格分隔，不用中点 —— 「A · B」那种写法是模板味的来源之一
+  return (+p[1]) + '月' + (+p[2]) + '日 周' + WEEK.charAt(d.getUTCDay())
+}
+
+function render () {
+  var empty = location.search.indexOf('empty=1') > -1
+  var dishes = empty ? [] : DATA.dishes.slice()
+
+  /* 抬头、落款 */
+  $('when').textContent = dayLabel(DATA.date)
+  $('who').textContent = DATA.family + ' ' + DATA.members + ' 个人，一起点今晚这一桌'
+  document.title = dishes.length
+    ? '今晚吃这些 · ' + DATA.family
+    : '今天吃啥 · 进来说一句'
+
+  /* 照片：只用一道菜的那张，照着它的 id 找图 */
+  var heroOn = dishes.some(function (d) { return d.id === DATA.hero.id })
+  var img = $('snapImg')
+  if (!heroOn) {
+    $('snap').remove()
+  } else {
+    img.src = 'chishenme/images/dishes/' + DATA.hero.id + '.jpg'
+    img.alt = DATA.hero.name
+    // 图丢了就干脆不摆那张照片，别留一个碎图框
+    img.onerror = function () { $('snap').remove() }
+  }
+
+  /* 清单 */
+  var list = $('list')
+  var frag = document.createDocumentFragment()
+  dishes.forEach(function (d) {
+    var li = document.createElement('li')
+    li.className = 'row'
+    li.innerHTML =
+      '<span class="name">' + esc(d.name) +
+        (d.by && d.by.length
+          ? '<span class="mark">' + esc(d.by.join('、')) + ' 点的</span>'
+          : '') +
+      '</span>' +
+      '<span class="dots" aria-hidden="true"></span>' +
+      '<span class="qty">' + (CN[d.qty] || d.qty) + '份</span>'
+    frag.appendChild(li)
+  })
+  list.appendChild(frag)
+
+  /* 统计：一句话，不做方块 */
+  var byCat = {}
+  var kinds = 0
+  var portions = 0
+  dishes.forEach(function (d) {
+    byCat[d.cat] = (byCat[d.cat] || 0) + 1
+    kinds++
+    portions += d.qty
+  })
+  var parts = Object.keys(byCat).map(function (k) {
+    return (CN[byCat[k]] || byCat[k]) + (CAT[k] || '菜')
+  })
+  $('sum').innerHTML = empty ? ''
+    : '<span class="sum-k">' + parts.join('、') + '</span>' +
+      '<span class="sum-n">一共 ' + kinds + ' 道菜、' + portions + ' 份</span>'
+  $('sum').hidden = empty
+  $('tally').hidden = empty
+  $('none').hidden = !empty
+  if (!empty) $('tally').textContent = '今晚这一桌'
+  // 空态那句「你先进去添两道？」已经把话说了，这里换成一句往前看的话，别再重复
+  else $('callLine').textContent = '你点第一道，其他人就跟着来了。'
+
+  /* 房号 */
+  $('room').textContent = DATA.room
+  $('signoff').textContent = '这张纸每天 22:30 换新的。过点之后再点，就算明天的菜了。'
+
+  /* 复制房号 —— 按钮说什么就做什么，不写「立即加入」那种话 */
+  var btn = $('copy')
+  btn.addEventListener('click', function () {
+    var text = DATA.room
+    var done = function () {
+      btn.textContent = '已复制房号'
+      btn.setAttribute('data-done', '1')
+      $('hint').textContent = '粘到家庭群里，家人点一下就能照着输。'
+      setTimeout(function () {
+        btn.textContent = '复制房号'
+        btn.removeAttribute('data-done')
+        $('hint').textContent = '在小程序首页输入这串号，就能进这间屋子一起点。'
+      }, 2000)
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback)
+    } else {
+      fallback()
+    }
+    function fallback () {
+      var t = document.createElement('textarea')
+      t.value = text
+      t.style.position = 'fixed'
+      t.style.opacity = '0'
+      document.body.appendChild(t)
+      t.select()
+      try { document.execCommand('copy'); done() } catch (e) { $('hint').textContent = '复制不了的话，手动记住这串号：' + text }
+      document.body.removeChild(t)
+    }
+  })
+}
+
+render()
+</script>
+</body>
+</html>
