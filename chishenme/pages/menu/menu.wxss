@@ -200,29 +200,40 @@
   text-overflow: ellipsis;
 }
 
-/* 行内动作：★ 原来两个实心药丸横在右边（一屏六道菜就是十二个药丸）。
-   改成文字链，横排放在内容下方。 */
+/* 行内动作：★ 放在行尾右侧、竖着排。
+   第一版把它降级成文字链塞在菜名下面，问题是它「不像个动作」——
+   要点的东西得看得见、够得着，所以这里给回按钮的形状和尺寸。 */
 .mitem-ops {
+  flex-shrink: 0;
   display: flex;
-  align-items: center;
-  margin-top: 12rpx;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  margin-left: 16rpx;
 }
 
+/* ★ 尺寸按手指给：高 68rpx（34px）、宽至少 136rpx（68px）。
+   两个按钮都出现时，这一列会比 108rpx 的缩略图还高一点，
+   行高跟着长一点是值得的 —— 难点中比整齐重要。 */
 .mo-btn {
-  font-size: var(--t-tag);
+  min-width: 136rpx;
+  text-align: center;
+  padding: 17rpx 0;
+  border: 1rpx solid var(--c-line-strong);
+  border-radius: var(--r-btn);
+  font-size: var(--t-sub);
   color: var(--c-ink-2);
-  border-bottom: 1rpx solid var(--c-line-strong);
-  padding-bottom: 3rpx;
-  margin-right: 34rpx;
+  background: transparent;
 }
 
-.mo-btn:last-child {
-  margin-right: 0;
+.mo-btn + .mo-btn {
+  margin-top: 14rpx;
 }
 
+/* 移除：破坏性动作，用淡边 + 红字，不用实心（实心块一屏只留一个） */
 .mo-del {
   color: var(--c-danger);
-  border-bottom-color: #F0C3BE;
+  border-color: #F0C3BE;
 }
 
 /* ---------- 操作区 ---------- */

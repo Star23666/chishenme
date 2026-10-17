@@ -58,11 +58,13 @@
           <view class="mitem-by" wx:if="{{item.hasBy}}">{{item.byText}} 点的</view>
           <view class="mitem-cat" wx:else>{{item.catName}}</view>
           <view class="mitem-note" wx:if="{{item.note}}">备注：{{item.note}}</view>
-          <!-- 行内动作降级成文字链：一屏里不该出现一排实心按钮 -->
-          <view class="mitem-ops">
-            <view class="mo-btn" wx:if="{{item.qty > 1}}" data-id="{{item.dishId}}" bindtap="minus">减一份</view>
-            <view class="mo-btn mo-del" data-id="{{item.dishId}}" bindtap="remove">移除</view>
-          </view>
+        </view>
+        <!-- 动作放在**行尾右侧、竖着排**：它是要点的东西，
+             压在文字下面既难点、也不像个动作。
+             按钮尺寸按手指给足（见 .mo-btn），别为了紧凑缩回去。 -->
+        <view class="mitem-ops">
+          <view class="mo-btn" wx:if="{{item.qty > 1}}" data-id="{{item.dishId}}" bindtap="minus">减一份</view>
+          <view class="mo-btn mo-del" data-id="{{item.dishId}}" bindtap="remove">移除</view>
         </view>
       </view>
     </view>
@@ -76,7 +78,7 @@
       <view class="op-btn op-danger" bindtap="clearAll">清空菜单</view>
     </view>
 
-    <view class="foot-tip" wx:if="{{fam}}">家人在自己手机上点的菜，这里会自动出现，不用刷新</view>
+    <view class="foot-tip" wx:if="{{fam}}">10.30清空菜单，请老婆大人注意时间</view>
     <view class="foot-tip" wx:else>转发出去了，家里人点开就能看到这个菜库</view>
   </block>
 
