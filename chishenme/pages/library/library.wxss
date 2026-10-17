@@ -79,24 +79,28 @@
      原来每道菜是一个白底圆角盒子，80 道菜就是 80 个白盒子 ——
      这就是「卡片堆叠」本身。
      现在照片直接印在纸上，菜名写在照片下面。少一层盒子，
-     不但更像菜谱上的一版小图，同一屏还能多看一道菜。 */
+     不但更像菜谱上的一版小图，同一屏还能多看一道菜。
+
+   ★★ 两列的宽度必须用**精确的减法**：`calc((100% - 缝) / 2)`。
+     我第一版写的是「宽 calc(50% - 9rpx) + 奇数项 margin-right: 18rpx」——
+     加起来正好 100%，flex 一取整就越界，结果**每一行只放得下一道菜**，
+     整页变成单列。（截图里其实看得出来，我第一遍验收时看漏了。）
+     现在用 justify-content: space-between 管缝，宽度不再参与凑数，
+     最后一行只剩一道时也会自然靠左。 */
 .grid {
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-between;
   padding: 20rpx 30rpx 0;
 }
 
 .dish-card {
-  width: calc(50% - 9rpx);
+  width: calc((100% - 18rpx) / 2);
   margin: 0 0 26rpx 0;
   background: transparent;
   border-radius: 0;
   overflow: visible;
   position: relative;
-}
-
-.dish-card:nth-child(odd) {
-  margin-right: 18rpx;
 }
 
 .dish-img {
