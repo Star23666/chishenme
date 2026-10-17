@@ -29,7 +29,7 @@
 .t2 {
   font-size: var(--t-cap);
   color: var(--c-ink-2);
-  line-height: 1.75;
+  line-height: var(--lh-loose);
   margin-top: 16rpx;
 }
 
@@ -37,7 +37,7 @@
   font-size: var(--t-cap);
   color: var(--c-ink-3);
   margin-top: 24rpx;
-  line-height: 1.6;
+  line-height: var(--lh-body);
 }
 
 .strong {
@@ -67,7 +67,7 @@
   align-items: flex-start;
   font-size: var(--t-cap);
   color: var(--c-ink-2);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
   padding: 16rpx 0;
 }
 
@@ -109,13 +109,13 @@
   font-size: var(--t-cap);
   color: var(--c-ink-2);
   margin-top: 16rpx;
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 .warn {
   font-size: var(--t-cap);
   color: var(--c-danger);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
   margin-top: 16rpx;
 }
 
@@ -212,7 +212,7 @@
   font-size: var(--t-cap);
   color: var(--c-ink-2);
   margin-top: 16rpx;
-  line-height: 1.6;
+  line-height: var(--lh-body);
 }
 
 .pre-bad {
@@ -222,7 +222,7 @@
 .hint {
   font-size: var(--t-cap);
   color: var(--c-ink-3);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
   margin-top: 24rpx;
 }
 
@@ -290,7 +290,7 @@
   color: var(--c-ink-2);
   font-size: var(--t-cap);
   text-align: center;
-  line-height: 1.4;
+  line-height: var(--lh-tight);
 }
 
 .op-share {
@@ -329,14 +329,9 @@
 }
 
 /* ★ 淡橙底药丸 → 文字链 */
+/* 只留布局职责，视觉全部来自 .tx / .tx-brand */
 .me-op {
   flex-shrink: 0;
-  font-size: var(--t-cap);
-  color: var(--c-brand-ink);
-  background: transparent;
-  border-radius: 0;
-  border-bottom: 1rpx solid var(--c-brand);
-  padding: 0 0 4rpx;
 }
 
 /* ---------- 成员列表 ----------

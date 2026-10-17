@@ -89,7 +89,7 @@
         <view class="me-lbl">我在家里的称呼</view>
         <view class="me-name">{{fam.myName || '还没设置'}}</view>
       </view>
-      <view class="me-op" bindtap="doRename">修改</view>
+      <view class="tx tx-brand me-op" bindtap="doRename">修改</view>
     </view>
 
     <view class="section-title">家里人（{{fam.memberCount}}/{{fam.maxMembers}}）</view>

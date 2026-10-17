@@ -18,8 +18,8 @@
           <view class="fc-name">{{item.name}}</view>
           <view class="fc-sub">{{item.catName}} {{item.main}}</view>
           <view class="fc-ops">
-            <view class="fc-btn" data-id="{{item.id}}" bindtap="unFav">取消收藏</view>
-            <view class="fc-btn fc-add" data-id="{{item.id}}" bindtap="add">
+            <view class="tx" data-id="{{item.id}}" bindtap="unFav">取消收藏</view>
+            <view class="tx tx-brand" data-id="{{item.id}}" bindtap="add">
               {{item.qty > 0 ? '再来一份' : '加入菜单'}}
             </view>
           </view>

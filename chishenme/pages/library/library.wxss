@@ -151,7 +151,7 @@
   text-align: center;
   color: var(--c-ink-3);
   font-size: var(--t-cap);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
   padding: 112rpx 64rpx 24rpx;
 }
 
@@ -258,7 +258,7 @@
   align-items: baseline;
   margin-bottom: 16rpx;
   font-size: var(--t-cap);
-  line-height: 1.6;
+  line-height: var(--lh-body);
 }
 
 .sheet-row .k {
@@ -337,7 +337,7 @@
   margin-top: 12rpx;
   font-size: var(--t-cap);
   color: var(--c-ink-3);
-  line-height: 1.6;
+  line-height: var(--lh-body);
 }
 
 /* scroll-view 必须有个高度上限，否则里面菜一多会把整屏顶满 */

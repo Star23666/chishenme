@@ -133,7 +133,7 @@
   height: 110rpx;
   box-sizing: border-box;
   font-size: var(--t-body);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   color: var(--c-ink);
   background: transparent;
 }

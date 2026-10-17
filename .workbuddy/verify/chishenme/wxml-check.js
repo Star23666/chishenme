@@ -703,7 +703,11 @@ cssList.forEach(function (rel) {
   }
 })
 ok('★ 间距全部踩在 8rpx 网格上', spaceBad.length === 0, spaceBad.slice(0, 6).join('; '))
-var kindCount = Object.keys(spaceVals).length
+// ★ 只数"正数 + var(--gutter)"：负值是刻意的边缘重合（-8rpx / -24rpx），
+//   不算节奏，不该把它们算进"取值种类"里，否则每次加个负偏移都要改阈值。
+var kindCount = Object.keys(spaceVals).filter(function (k) {
+  return k.indexOf('-') !== 0
+}).length
 ok('间距取值种类 ≤ 16（归网格前是 28）', kindCount <= 16, '现在 ' + kindCount + ' 种')
 console.log('      间距取值：' + Object.keys(spaceVals).sort().join('  '))
 
@@ -733,6 +737,31 @@ ok('字号档数 ≤ 8', tScale.length <= 8, '现在 ' + tScale.length + ' 档')
 console.log('      字号阶梯：' + tScale.map(function (x) {
   return x[0] + ' ' + x[1] + 'rpx/' + (x[1] / 2) + 'px'
 }).join('  '))
+
+/*
+ * G4i. ★ 行高只许用 --lh-* 令牌。
+ *
+ * 1.5.11 之前全站散着 1.15 / 1.4 / 1.5 / 1.55 / 1.6 / 1.7 / 1.75 七种写法，
+ * 同一个用途在不同页面用不同行高 —— 读起来有点不齐，但很难指出来。
+ * 两种合法例外：
+ *   · `line-height: 1` —— 把盒子撑成字形高度（角标、图标）
+ *   · `line-height: 60rpx` 这种 rpx 数值 —— 垂直居中手法，不是文字节奏
+ */
+var lhBad = []
+cssList.forEach(function (rel) {
+  var src = read(path.join(APP_DIR, rel)) || ''
+  var body = String(src).replace(/\/\*[\s\S]*?\*\//g, '')
+  var re = /line-height:\s*([^;]+);/g
+  var m
+  while ((m = re.exec(body)) !== null) {
+    var v = m[1].trim()
+    if (v === '1') continue
+    if (/^\d+rpx$/.test(v)) continue
+    if (/^var\(--lh-(display|tight|body|loose)\)$/.test(v)) continue
+    lhBad.push(rel + ': ' + v)
+  }
+})
+ok('★ 行高只用 --lh-* 令牌（1 和 rpx 数值除外）', lhBad.length === 0, lhBad.slice(0, 5).join('; '))
 
 // G5. ★ 最关键的一条：前端调的每个 action，云函数里都得真的有这个 case
 var cfActions = {}

@@ -67,21 +67,9 @@
   padding: 16rpx 0 4rpx;
 }
 
-.fc-btn {
-  font-size: var(--t-cap);
-  color: var(--c-ink-2);
-  border-bottom: 1rpx solid var(--c-line-strong);
-  padding-bottom: 4rpx;
-  margin-right: 40rpx;
-}
-
-.fc-btn:last-child {
-  margin-right: 0;
-}
-
-.fc-add {
-  color: var(--c-brand-ink);
-  border-bottom-color: var(--c-brand);
+/* 两个文字链：视觉全部来自 app.wxss 的 .tx / .tx-brand，这里只管间距 */
+.fc-ops .tx + .tx {
+  margin-left: 40rpx;
 }
 
 /* 计数那行：整句话，不用带短横的分区标题（那个只适合「分组名」） */

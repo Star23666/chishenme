@@ -138,6 +138,21 @@ page {
 
   --gutter: 30rpx;
 
+  /* ---- 行高（1.5.11 收口）----
+     ★ 之前全站散着 1.15 / 1.4 / 1.5 / 1.55 / 1.6 / 1.7 / 1.75 七种写法，
+       同一个用途不同页面用不同行高，读起来会有一点点"不齐"，但很难指出来。
+       现在只留三档 + 一个大标题专用：
+         display 1.15  只给衬线大标题（行距紧了才像"标题"）
+         tight   1.4   单行元素（按钮文字、tab）
+         body    1.6   正文、菜名、表单
+         loose   1.7   成段的说明文字（需要更多呼吸）
+     ★ `line-height: 1` 和 rpx 数值（如 60rpx 垂直居中）不在此列，
+       它们是"把盒子撑成固定高"的手法，不是文字节奏。 */
+  --lh-display: 1.15;
+  --lh-tight:   1.4;
+  --lh-body:    1.6;
+  --lh-loose:   1.7;
+
   background: var(--c-bg);
   color: var(--c-ink);
   font-size: var(--t-body);
@@ -209,15 +224,24 @@ page {
   background: var(--c-brand);
 }
 
-/* ---- 文字动作 ----
-   ★ 原来这些位置全是胶囊按钮（25 处里的大部分），一屏能堆六七个，
-     正是「按钮汤」。改成「带细下划线的文字」：
-     仍然一眼看得出能点（下划线 + 间距），但不再抢实心按钮的位置。 */
+/* ---- 文字动作（带细下划线的文字链）----
+   ★ 原来这些位置全是胶囊按钮，一屏能堆六七个，正是「按钮汤」。
+     改成「带细下划线的文字」：仍然一眼看得出能点，但不再抢实心按钮的位置。
+
+   ★★ 1.5.11 修了可点区域：之前这类文字链实测只有 **23px 高**
+      （收藏页 56×23、家庭页的「修改」28×23），低于 WCAG 2.2 SC 2.5.8
+      要求的 24×24 —— 差 1px，但就是"手指偏一点就点不中"。
+      做法是**上下加透明内边距，再用等量负外边距抵消占位**：
+      视觉位置和下划线一动不动，可点区域却长高了。
+      （不用 44px：那需要 20px 以上的隐形内边距，会盖住上一行的文字。） */
 .tx {
+  display: inline-block;
   font-size: var(--t-cap);
+  line-height: var(--lh-body);
   color: var(--c-ink-2);
   border-bottom: 1rpx solid var(--c-line-strong);
-  padding-bottom: 4rpx;
+  padding: 24rpx 0 4rpx;
+  margin: -24rpx 0 -4rpx;
 }
 
 .tx-brand {
@@ -273,7 +297,7 @@ page {
 .empty-desc {
   font-size: var(--t-cap);
   color: var(--c-ink-3);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 /* 空状态里的按钮（菜单页、收藏页共用，所以放全局） */

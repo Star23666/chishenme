@@ -104,7 +104,7 @@
 .rc-tips {
   font-size: var(--t-cap);
   color: var(--c-ink-2);
-  line-height: 1.7;
+  line-height: var(--lh-loose);
   text-align: center;
   margin: 24rpx 24rpx 0;
   padding-top: 24rpx;
@@ -168,7 +168,7 @@
   font-size: var(--t-cap);
   color: var(--c-ink-2);
   margin-top: 16rpx;
-  line-height: 1.7;
+  line-height: var(--lh-loose);
 }
 
 /* 「摇一摇手机」这句提示：和上面那句同样用 ink-2（ink-3 在纸底上只有 2.9:1，
