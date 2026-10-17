@@ -41,6 +41,8 @@
     <view class="idle" wx:if="{{!rolling && !hasResult}}">
       <view class="idle-title">还没摇</view>
       <view class="idle-desc">{{mode === 'one' ? '看看今天注定吃哪一道' : '自动配好 1 荤 + 1 素 + 1 汤 + 1 任意'}}</view>
+      <!-- 只有真的能感应到摇动时才说这句话，别吹 -->
+      <view class="idle-tip" wx:if="{{shakeReady}}">摇一摇手机，或者点下面的按钮</view>
     </view>
 
   </view>

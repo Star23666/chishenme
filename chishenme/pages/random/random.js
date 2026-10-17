@@ -4,6 +4,16 @@ var D = require('../../data/dishes.js')
 var TICKS = 14      // 滚动次数
 var TICK_MS = 80    // 每次间隔
 
+/* 摇一摇的手感参数
+ * ★ 静止时合加速度 ≈ 1g。走路颠簸一般 1.3~1.6g，真摇手机会冲到 2g 以上，
+ *   所以阈值取 1.75，并且要**连续 2 个采样点**都超过才认 —— 防走路误触。
+ * ★ 这几个数只能靠真机调：iOS 与 Android 的加速度计灵敏度不一样，
+ *   同一个阈值在两边的手感会有差别。
+ */
+var SHAKE_G = 1.75
+var SHAKE_HITS = 2
+var SHAKE_COOLDOWN_MS = 700
+
 Page({
 
   data: {
@@ -14,19 +24,94 @@ Page({
     rollName: '',
     result: null,         // 单道模式结果
     combo: [],            // 组合模式结果
-    hasResult: false
+    hasResult: false,
+    shakeReady: false     // 加速度计可用（不可用就只显示按钮，不吹「摇一摇」）
   },
 
   onLoad: function () {
     this.setData({ cats: D.CATS })
   },
 
+  onShow: function () {
+    this.startShake()
+  },
+
   onHide: function () {
     this.stopRoll()
+    this.stopShake()
   },
 
   onUnload: function () {
     this.stopRoll()
+    this.stopShake()
+  },
+
+  /* ---------- 摇一摇：真的听得见摇动 ----------
+   * 这一页叫「摇一摇」，之前却只能点按钮 —— 名字承诺的和做的不一致。
+   * 这里接加速度计，摇手机等于点「摇一摇」。
+   *
+   * ★ 三件必须做的事：
+   *   1. **只在页面可见时监听**（onShow 开、onHide/onUnload 关），
+   *      否则切走之后还在耗电；
+   *   2. 拿不到加速度计（部分模拟器 / 旧机型）时**静默退回按钮**：
+   *      不弹错、不打断使用，只是不显示「摇一摇手机」那句提示；
+   *   3. 节流 + 连续采样确认，否则走两步路就自己摇起来了。
+   */
+  startShake: function () {
+    if (this._accelOn) return
+    var that = this
+    this._hits = 0
+    this._accelHandler = function (a) { that.onAccel(a) }
+    try {
+      wx.startAccelerometer({
+        interval: 'ui',
+        success: function () {
+          that._accelOn = true
+          wx.onAccelerometerChange(that._accelHandler)
+          if (!that.data.shakeReady) that.setData({ shakeReady: true })
+        },
+        fail: function () {
+          that._accelOn = false
+          that._accelHandler = null
+          if (that.data.shakeReady) that.setData({ shakeReady: false })
+        }
+      })
+    } catch (e) {
+      this._accelOn = false
+      this._accelHandler = null
+    }
+  },
+
+  stopShake: function () {
+    if (!this._accelOn) return
+    this._accelOn = false
+    if (this._accelHandler && wx.offAccelerometerChange) {
+      wx.offAccelerometerChange(this._accelHandler)
+    }
+    this._accelHandler = null
+    wx.stopAccelerometer({ fail: function () {} })
+  },
+
+  /** 加速度回调：够猛、而且连续够猛，才算「摇了一下」 */
+  onAccel: function (a) {
+    if (this.data.rolling) return
+
+    var mag = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z)
+    if (mag <= SHAKE_G) {
+      this._hits = 0
+      return
+    }
+    this._hits = (this._hits || 0) + 1
+    if (this._hits < SHAKE_HITS) return
+    this._hits = 0
+
+    var now = Date.now()
+    if (now - (this._lastShakeAt || 0) < SHAKE_COOLDOWN_MS) return
+    this._lastShakeAt = now
+
+    // 短震一下：手上有回应，才知道「摇到了」
+    wx.vibrateShort({ type: 'medium', fail: function () {} })
+    this.shake()
   },
 
   /** 定时器必须清掉，否则切页后还在跑，白白耗电 */

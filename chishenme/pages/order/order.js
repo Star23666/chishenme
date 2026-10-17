@@ -9,10 +9,24 @@ Page({
   data: {
     groups: [],
     kinds: 0,
-    total: 0
+    total: 0,
+    kw: '',          // 搜索关键词（空 = 不筛）
+    hitCount: 0      // 当前筛出来多少道（搜索无结果时用它出空状态）
   },
 
   onShow: function () {
+    this.refresh()
+  },
+
+  /** 搜索框输入 */
+  onSearch: function (e) {
+    // setData 会**同步**更新 this.data，所以紧接着的 refresh() 能读到新的 kw
+    this.setData({ kw: String((e.detail && e.detail.value) || '') })
+    this.refresh()
+  },
+
+  clearSearch: function () {
+    this.setData({ kw: '' })
     this.refresh()
   },
 
@@ -22,12 +36,18 @@ Page({
     var noteMap = {}
     for (var m = 0; m < menu.length; m++) noteMap[menu[m].dishId] = menu[m].note
 
+    // ★ 命中规则用 D.match（和菜库共用同一套），不在这里另写一遍 ——
+    //   两边各写一遍就会出现「菜库搜得到、点菜页搜不到」，而且不报错。
+    var kw = this.data.kw
     var groups = []
+    var hitCount = 0
+
     for (var i = 0; i < ORDER_CATS.length; i++) {
       var cat = ORDER_CATS[i]
       var src = D.byCat(cat)
       var rows = []
       for (var j = 0; j < src.length; j++) {
+        if (!D.match(src[j], kw)) continue
         rows.push({
           id: src[j].id,
           name: src[j].name,
@@ -36,11 +56,15 @@ Page({
           qty: app.qtyOf(src[j].id)
         })
       }
+      // 搜空了的分组整段不显示，免得留一串空标题
+      if (!rows.length) continue
       groups.push({ key: cat, name: D.catName(cat), rows: rows })
+      hitCount += rows.length
     }
 
     this.setData({
       groups: groups,
+      hitCount: hitCount,
       kinds: app.menuKinds(),
       total: app.menuCount()
     })

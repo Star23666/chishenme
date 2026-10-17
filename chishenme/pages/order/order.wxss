@@ -2,6 +2,60 @@
   min-height: 100vh;
 }
 
+/* ---------- 搜索 ----------
+   和菜库同一个形状：纸上一根线。
+   点菜页有 80 道菜，按分类一路滑太累 —— 这个框补的就是「找菜」这条路。
+   ★ 高度 76rpx 必须显式给：微信 <input> 基层默认 height:1.4rem，
+     这里写了 box-sizing 就必须显式 height，否则再加上下 padding 会把
+     内容区算成负值 —— 真机上整行字被裁掉，模拟器和浏览器都看不出来。
+     （wxml-check.js 的 F2 锁着这条） */
+.search {
+  display: flex;
+  align-items: center;
+  height: 76rpx;
+  margin: 26rpx 30rpx 0;
+  border-bottom: 3rpx solid var(--c-line-strong);
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 76rpx;
+  font-size: var(--t-body);
+  color: var(--c-ink);
+}
+
+.search-clear {
+  flex-shrink: 0;
+  width: 60rpx;
+  height: 60rpx;
+  line-height: 60rpx;
+  text-align: center;
+  font-size: var(--t-sub);
+  color: var(--c-ink-3);
+}
+
+/* 搜不到：给下一步，不是「暂无数据」 */
+.none {
+  padding: 96rpx 60rpx 0;
+  text-align: center;
+}
+
+.none-t {
+  font-family: var(--f-serif);
+  font-size: var(--t-h2);
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.none-d {
+  margin-top: 14rpx;
+  font-size: var(--t-cap);
+  color: var(--c-ink-3);
+  line-height: 1.7;
+}
+
 /* ---------- 顶部统计 ----------
    ★ 原来是一整块主色（`background: var(--c-brand)`）压着大数字 + 白字。
      主色块是「一屏里最响的东西」，用在这里等于把「页面标题」做成了填充色。

@@ -180,15 +180,21 @@
   margin-top: 6rpx;
 }
 
-/* ★ 「谁点的」原来是绿色（跟「在线」状态撞色）。改用灶红：它属于主色家族的
-   暖色，既和菜名分得开，又不会让人误以为是个状态灯。 */
+/* ★ 「谁点的」分两级：
+   别人点的用中性色（它是次要信息）；**自己点的**用灶红 + 加粗，
+   一眼能扫到 —— 家人想改自己那行，不用先找一遍。 */
 .mitem-by {
   font-size: var(--t-cap);
-  color: var(--c-brand-ink);
+  color: var(--c-ink-2);
   margin-top: 6rpx;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.mitem-by-me {
+  color: var(--c-brand-ink);
+  font-weight: 600;
 }
 
 .mitem-note {

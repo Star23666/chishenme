@@ -536,6 +536,48 @@ app.addToMenu('hongshaorou')       // 最后才是荤菜
 eq('分类按固定顺序说，不跟加入顺序走',
   app.menuMixText(), '一荤、一主食、一凉菜')
 
+/* ==================== G3. 「我点的」判定 ==================== */
+
+S('G3. 「我点的」判定（菜单页标自己那几道）')
+
+/*
+ * ★ byNames 存的是**称呼字符串**，所以「是不是我点的」得拿我的称呼去比。
+ *   本地模式没有房间，myName() 会退回 csm_nick（预填输入框用的那个键）。
+ *   这里直接造数据，把四种情况都走一遍：
+ *   只有我 / 我和别人 / 只有别人 / 没设称呼。
+ * ★ 这个判断错了**不会报错**，只会「高亮到别人头上」——
+ *   所以它放在数据层，由这条断言长期守着。
+ */
+function seedMenuBy (byNames) {
+  store['csm_menu'] = [{ dishId: 'hongshaorou', qty: 1, byNames: byNames, addedAt: 1 }]
+  store['csm_menu_date'] = fmt.menuDayStr()
+}
+
+store['csm_nick'] = '爸爸'
+
+seedMenuBy(['爸爸'])
+eq('只有我点的 → mine 成立', app.menu()[0].mine, true)
+eq('  文案是「我点的」', app.menu()[0].mineText, '我点的')
+
+seedMenuBy(['爸爸', '妈妈'])
+eq('我和别人都点了 → mine 仍然成立', app.menu()[0].mine, true)
+eq('  文案带上别人', app.menu()[0].mineText, '我点的，妈妈 也点了')
+
+seedMenuBy(['妈妈'])
+eq('只有别人点的 → 不算我的', app.menu()[0].mine, false)
+eq('  文案为空（页面走 byText 那条分支）', app.menu()[0].mineText, '')
+
+store['csm_nick'] = ''
+seedMenuBy(['爸爸'])
+eq('没设称呼时不会把自己算进去', app.menu()[0].mine, false)
+
+store['csm_nick'] = '爸爸'
+seedMenuBy([])
+eq('谁都没记 → 不算我的', app.menu()[0].mine, false)
+eq('  hasBy 也是 false', app.menu()[0].hasBy, false)
+
+reset()   // 收尾：别把这份造的数据留给后面的测试段
+
 /* ==================== H. 菜单文本 ==================== */
 
 S('H. 菜单文本')
@@ -880,6 +922,41 @@ var hitXi = D.search('西葫')
 eq('搜自建菜独有的词只返回那一道', hitXi.length, 1)
 
 D.setCustom([])   // 收尾，别把这个状态留给后面的测试段
+
+/* ============ M2b. 点菜页搜索：和菜库必须同一套规则 ============ */
+
+S('M2b. D.match（点菜页复用菜库的命中规则）')
+
+/*
+ * ★ 点菜页是「先按分类分组、再筛」，用不了 D.search 的扁平结果，
+ *   所以单独给了个 D.match。两边各写一套判断的话，就会出现
+ *   「菜库搜得到、点菜页搜不到」——不报错，只有人觉得「这搜索怎么时灵时不灵」。
+ *   下面这一条就是拿两边的结论**逐道菜对撞**，比单点断言更能挡住跑偏。
+ */
+var KW_SET = ['鸡', '五花肉', '汤', 'zzzzqqq', '', '   ', 'ABC']
+var mismatch = []
+for (var ki = 0; ki < KW_SET.length; ki++) {
+  var kwv = KW_SET[ki]
+  var found = D.search(kwv)
+  var inSearch = {}
+  for (var fi = 0; fi < found.length; fi++) inSearch[found[fi].id] = true
+  var allDishes = D.byCat('all')
+  for (var ai = 0; ai < allDishes.length; ai++) {
+    var mv = D.match(allDishes[ai], kwv)
+    var sv = !!inSearch[allDishes[ai].id]
+    if (mv !== sv) mismatch.push(kwv + ':' + allDishes[ai].name + '(match=' + mv + '/search=' + sv + ')')
+  }
+}
+ok('D.match 与 D.search 对每一道菜的结论一致', mismatch.length === 0, mismatch.slice(0, 3).join('；'))
+
+ok('match：菜名命中', D.match(D.byId('gongbaojiding'), '鸡') === true)
+ok('match：主料命中', D.match(D.byId('hongshaorou'), '五花肉') === true)
+ok('match：不相关的不命中', D.match(D.byId('hongshaorou'), '鸡') === false)
+ok('match：空关键词一律命中', D.match(D.byId('hongshaorou'), '') === true)
+ok('match：只有空格也算空', D.match(D.byId('hongshaorou'), '   ') === true)
+ok('match：忽略大小写', D.match({ name: 'ABC菜', main: '' }, 'abc') === true)
+ok('match：传 null 不炸', D.match(null, '鸡') === false)
+ok('match：传 undefined 不炸', D.match(undefined, '鸡') === false)
 
 /* ==================== M3. 房主对内置菜的改动 / 隐藏 ==================== */
 

@@ -54,8 +54,10 @@
             <view class="dots"></view>
             <text class="mitem-qty">{{item.qtyText}}</text>
           </view>
-          <!-- 「谁点的」比「它是荤菜」更值得占这一行；没人认领时才退回显示分类 -->
-          <view class="mitem-by" wx:if="{{item.hasBy}}">{{item.byText}} 点的</view>
+          <!-- 自己点的单独标出来：家人看菜单时，「我要不要减一份」得先找到自己那行。
+               有别人也点了才带上「某某也点了」。 -->
+          <view class="mitem-by mitem-by-me" wx:if="{{item.mine}}">{{item.mineText}}</view>
+          <view class="mitem-by" wx:elif="{{item.hasBy}}">{{item.byText}} 点的</view>
           <view class="mitem-cat" wx:else>{{item.catName}}</view>
           <view class="mitem-note" wx:if="{{item.note}}">备注：{{item.note}}</view>
         </view>

@@ -910,10 +910,19 @@ App({
   menu: function () {
     var raw = this._rawMenu()
     var out = []
+    // ★ 「我」的称呼：byNames 存的就是称呼字符串，所以和它比。
+    //   本地模式没有房间、也没有称呼，byNames 本来就是空的，这里自然判 false。
+    var me = this.myName()
     for (var i = 0; i < raw.length; i++) {
       var d = D.byId(raw[i].dishId)
       if (!d) continue // 菜品被删掉了，忽略脏数据
       var by = this._byOf(raw[i])
+      // 除我之外还有谁点了（顺序照 by 的原顺序）
+      var others = []
+      for (var k = 0; k < by.length; k++) {
+        if (by[k] !== me) others.push(by[k])
+      }
+      var mine = !!me && by.indexOf(me) >= 0
       out.push({
         dishId: d.id,
         name: d.name,
@@ -931,6 +940,13 @@ App({
         // WXML 里不能调数组方法，所以这里就把文本拼好
         byText: by.join('、'),
         hasBy: by.length > 0,
+        // ★ 哪些是自己点的：菜单页要把它标出来，否则家人想改自己那行得先找一遍。
+        //   ★ 这个判断必须留在数据层 —— 写错了只会表现成「高亮了别人」，
+        //     不报错，页面里也没法用单测覆盖。
+        mine: mine,
+        mineText: mine
+          ? (others.length ? ('我点的，' + others.join('、') + ' 也点了') : '我点的')
+          : '',
         addedAt: raw[i].addedAt || 0
       })
     }

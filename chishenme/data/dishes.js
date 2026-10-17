@@ -312,6 +312,27 @@ function tempUrlCount() {
   return n
 }
 
+/* ==================== 搜索：命中规则 ====================
+ *
+ * ★ 为什么单独抽出来：
+ *   菜库是「扁平列表 + 菜名优先排序」，点菜页是「按分类分组后再筛」——
+ *   两者不能共用一个返回值，但**命中规则必须是同一套**。
+ *   规则复制一份到页面里，就会出现「菜库搜得到、点菜页搜不到」这种
+ *   谁也不报错的怪现象。所以规则只写在这里，search() 和页面都调它。
+ */
+
+/** 关键词归一：去首尾空格、转小写；空串 = 不筛选 */
+function keywordOf(kw) {
+  return String(kw || '').trim().toLowerCase()
+}
+
+/** 这道菜算不算命中（菜名或主料含关键词）。空关键词一律算命中。 */
+function hits(d, k) {
+  if (!k) return true
+  return String((d && d.name) || '').toLowerCase().indexOf(k) >= 0 ||
+    String((d && d.main) || '').toLowerCase().indexOf(k) >= 0
+}
+
 module.exports = {
   CATS: CATS,
   DISHES: DISHES,
@@ -369,7 +390,7 @@ module.exports = {
    *   core-test 的断言长期守住。
    */
   search: function (kw) {
-    var k = String(kw || '').trim().toLowerCase()
+    var k = keywordOf(kw)
     var all = builtinList('all').concat(CUSTOM)
     if (!k) return all        // 空关键词 = 没有筛选条件
 
@@ -377,13 +398,21 @@ module.exports = {
     var byMain = []
     for (var i = 0; i < all.length; i++) {
       var d = all[i]
-      if (String(d.name || '').toLowerCase().indexOf(k) >= 0) {
-        byName.push(d)
-      } else if (String(d.main || '').toLowerCase().indexOf(k) >= 0) {
-        byMain.push(d)
-      }
+      if (!hits(d, k)) continue
+      // 菜名命中的排前面，只有主料命中的排后面
+      if (String((d && d.name) || '').toLowerCase().indexOf(k) >= 0) byName.push(d)
+      else byMain.push(d)
     }
     return byName.concat(byMain)
+  },
+
+  /**
+   * 这道菜是否命中关键词 —— 给「先按分类分组、再筛」的页面用（点菜页）。
+   * ★ 和 search() 共用同一个 hits()，所以两边结论永远一致：
+   *   不会出现「菜库能搜到、点菜页搜不到」。
+   */
+  match: function (dish, kw) {
+    return hits(dish, keywordOf(kw))
   },
 
   /* ---------- 自建菜 ---------- */

@@ -1,9 +1,29 @@
 <!-- 点菜：按分类分组，每行加减份数 -->
 <view class="page">
 
+  <!-- 搜索：80 道菜按分类一路滑太累了。规则和菜库共用 D.match，
+       搜空了的分组整段不显示。 -->
+  <view class="search">
+    <input
+      class="search-input"
+      value="{{kw}}"
+      placeholder="找菜名或主料，比如「鸡」"
+      placeholder-class="ph"
+      confirm-type="search"
+      bindinput="onSearch"
+    />
+    <view wx:if="{{kw}}" class="search-clear" bindtap="clearSearch">✕</view>
+  </view>
+
   <view class="head">
     <text class="head-num">{{kinds}}</text>
     <text class="head-txt">道菜已选，共 {{total}} 份</text>
+  </view>
+
+  <!-- 搜不到：给下一步，不是「暂无数据」 -->
+  <view class="none" wx:if="{{kw && !hitCount}}">
+    <view class="none-t">没找到「{{kw}}」</view>
+    <view class="none-d">换个说法试试。菜库里能搜到的，这里也能搜到。</view>
   </view>
 
   <block wx:for="{{groups}}" wx:key="key" wx:for-item="g">
