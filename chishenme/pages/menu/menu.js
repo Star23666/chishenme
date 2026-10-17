@@ -7,6 +7,8 @@ Page({
     list: [],
     stats: { kinds: 0, total: 0, meat: 0, veg: 0, soup: 0, staple: 0, cold: 0 },
     dateText: '',
+    mixText: '',     // 「两荤、一素、一汤、一主食」（数据层算好）
+    totalText: '',   // 「一共 5 道菜、6 份」
     nextDay: false,  // 已过 22:30：这一页显示的是「明天」那份菜单
     cutoff: '',      // 分界点文本（'22:30'），提示条用
     empty: true,
@@ -39,7 +41,11 @@ Page({
     this.setData({
       list: list,
       stats: app.menuStats(),
-      dateText: fmt.dateLabel(day) + ' · ' + fmt.weekday(day),
+      // 配比和总数都从数据层拿（那里有单测）。用空格分隔，不用中点 ——
+      // 「A · B」那种写法是模板味的来源之一。
+      mixText: app.menuMixText(),
+      totalText: app.menuTotalText(),
+      dateText: fmt.dateLabel(day) + ' ' + fmt.weekday(day),
       nextDay: fmt.menuIsNextDay(),
       cutoff: fmt.cutoffText(),
       empty: list.length === 0,

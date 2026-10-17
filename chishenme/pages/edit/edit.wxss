@@ -2,11 +2,15 @@
   min-height: 100vh;
 }
 
-/* ---------- 照片 ---------- */
+/* ---------- 照片 ----------
+   ★ 原来是「通栏灰底块」。现在留出边距 + 走全站的缩略图圆角，
+     读起来是「纸上贴了一张照片的位置」，而不是一条横幅。
+     没图时是一块安静的下沉面加一个「＋」，不加边框 —— 避免「卡里套卡」。 */
 .photo {
   position: relative;
-  width: 100%;
-  height: 470rpx;
+  margin: 26rpx 30rpx 0;
+  height: 420rpx;
+  border-radius: var(--r-thumb);
   background: var(--c-surface-sunk);
   overflow: hidden;
 }
@@ -42,27 +46,31 @@
    用纯黑 + 透明度而不是主色，免得跟主按钮抢注意力。 */
 .photo-redo {
   position: absolute;
-  right: 24rpx;
-  bottom: 24rpx;
-  padding: 10rpx 26rpx;
-  border-radius: var(--r-pill);
+  right: 20rpx;
+  bottom: 20rpx;
+  padding: 12rpx 26rpx;
+  border-radius: var(--r-btn);
   background: rgba(0, 0, 0, 0.55);
   color: #FFFFFF;
   font-size: var(--t-cap);
 }
 
-/* ---------- 表单 ---------- */
+/* ---------- 表单 ----------
+   ★ 去掉白底和上边框。填表本来就是「在纸上写字」，
+     而每一行底下的那根线就是「写字的横格」——
+     线已经承担了结构，不需要再给它套一个白盒子。 */
 .form {
-  margin-top: 20rpx;
-  background: var(--c-surface);
-  border-top: 1rpx solid var(--c-line);
+  margin-top: 22rpx;
+  background: transparent;
+  border-top: none;
+  padding: 0 30rpx;
 }
 
 .row {
   display: flex;
   align-items: center;
-  min-height: 100rpx;
-  padding: 0 30rpx;
+  min-height: 104rpx;
+  padding: 0;
   border-bottom: 1rpx solid var(--c-line);
 }
 
@@ -93,8 +101,10 @@
   box-sizing: border-box;
   font-size: var(--t-body);
   color: var(--c-ink);
+  background: transparent;
 }
 
+/* ★ 分类 chip：药丸 → 方角描边；选中是主色实心 + 墨字（白字压橙 2.74:1 不达标）。 */
 .chips {
   flex: 1;
   display: flex;
@@ -104,15 +114,17 @@
 .chip {
   margin: 0 14rpx 14rpx 0;
   padding: 10rpx 26rpx;
-  border-radius: var(--r-pill);
-  background: var(--c-surface-sunk);
+  border: 1rpx solid var(--c-line-strong);
+  border-radius: var(--r-btn);
+  background: transparent;
   color: var(--c-ink-2);
   font-size: var(--t-cap);
 }
 
 .chip.on {
   background: var(--c-brand);
-  color: #FFFFFF;
+  border-color: var(--c-brand);
+  color: var(--c-ink);
   font-weight: 600;
 }
 
@@ -123,6 +135,7 @@
   font-size: var(--t-body);
   line-height: 1.5;
   color: var(--c-ink);
+  background: transparent;
 }
 
 /* ---------- 底部 ---------- */
@@ -134,5 +147,5 @@
   margin-top: 20rpx;
   text-align: center;
   font-size: var(--t-cap);
-  color: var(--c-ink-4);
+  color: var(--c-ink-3);
 }

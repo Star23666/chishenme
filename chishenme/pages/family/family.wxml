@@ -29,7 +29,7 @@
         <view class="warn">{{inviteErr}}</view>
       </block>
       <block wx:else>
-        <view class="invite-sub">房间：<text class="strong">{{inviteName || '加载中…'}}</text> · 房间码 <text class="mono">{{inviteCode}}</text></view>
+        <view class="invite-sub">房间：<text class="strong">{{inviteName || '加载中…'}}</text>，房间码 <text class="mono">{{inviteCode}}</text></view>
       </block>
     </view>
 
@@ -56,7 +56,7 @@
       <input class="inp code-input" value="{{jCode}}" data-field="jCode" bindinput="onInput" maxlength="6" placeholder="6 位字母数字" />
 
       <view class="pre" wx:if="{{jPre}}">
-        找到房间「<text class="strong">{{jPre.name}}</text>」 · 已有 {{jPre.memberCount}} 人
+        找到房间「<text class="strong">{{jPre.name}}</text>」，已有 {{jPre.memberCount}} 人
         <text class="warn-inline" wx:if="{{jPre.full}}">（人满了）</text>
       </view>
       <view class="pre pre-bad" wx:elif="{{jCode.length == 6}}">没找到这个房间，检查一下字母有没有输错</view>

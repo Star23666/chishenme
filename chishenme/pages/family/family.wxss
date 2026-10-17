@@ -1,18 +1,26 @@
 .page {
   min-height: 100vh;
-  padding: 20rpx 0 0;
+  padding: 0;
 }
 
-/* ---------- 通用内边距卡片 ---------- */
-/* 左右留白收窄过一版（30rpx → 20rpx，外边距 20rpx → 16rpx），
-   目的只有一个：把输入框从 325px 撑到 339px（375px 屏）。
-   原来那套留白让输入框看着比屏幕窄一截。 */
+/* ---------- 分段 ----------
+   ★ 这一页原来是 8 个白底圆角卡片叠在一起，是「卡片堆叠」最集中的地方。
+     .card 的底色和圆角已经在 app.wxss 里去掉了（改成「一段内容」），
+     这里只补一根发丝线收口 —— 分段靠线，不靠盒子。 */
+.card {
+  border-bottom: 1rpx solid var(--c-line);
+}
+
+/* 左右留白收窄过一版（30rpx → 20rpx），目的只有一个：
+   把输入框从 325px 撑到 339px（375px 屏）。
+   现在输入框没有边框了，留白统一到全站的 30rpx 主线。 */
 .pad {
-  margin: 16rpx;
-  padding: 34rpx 20rpx;
+  margin: 0;
+  padding: 34rpx 30rpx;
 }
 
 .t1 {
+  font-family: var(--f-serif);
   font-size: var(--t-h1);
   font-weight: 700;
   color: var(--c-ink);
@@ -37,13 +45,19 @@
   font-weight: 600;
 }
 
+/* 等宽字体留给「要照着敲的标识符」（config.js / csm_menus / 房间码）——
+   这是等宽字体唯一真有用的地方，不做小标签装饰。
+   ★ 颜色从主色改成灶红：主色当字用只有 2.45:1。 */
 .mono {
   font-family: Menlo, Consolas, monospace;
   font-size: var(--t-cap);
-  color: var(--c-brand);
+  color: var(--c-brand-ink);
 }
 
-/* ---------- 未配云开发时的步骤清单 ---------- */
+/* ---------- 未配云开发时的步骤清单 ----------
+   这里是**真的步骤**（1→2→3→4 有先后），所以编号是正当的：
+   它承载顺序信息，不是「01 / 02 / 03」那种装饰性序号。
+   形状从圆点改成方框，跟全站的直角语言一致。 */
 .steps {
   margin-top: 26rpx;
 }
@@ -61,26 +75,34 @@
   flex-shrink: 0;
   width: 36rpx;
   height: 36rpx;
-  line-height: 36rpx;
+  line-height: 34rpx;
   text-align: center;
-  border-radius: 50%;
-  background: var(--c-brand-tint);
-  color: var(--c-brand);
+  border: 1rpx solid var(--c-brand);
+  border-radius: 4rpx;
+  color: var(--c-brand-ink);
+  font-family: var(--f-serif);
   font-size: var(--t-tag);
   font-weight: 700;
   margin-right: 16rpx;
   margin-top: 4rpx;
 }
 
-/* ---------- 邀请提示 ---------- */
+/* ---------- 邀请提示 ----------
+   ★ 一整块淡橙底「卡片」→ 一条带主色左竖线的提示。
+     同一套语言在菜单页的 22:30 提示条上也用（sunk 底 + 左竖线）。 */
 .invite {
-  background: var(--c-brand-tint);
+  background: var(--c-surface-sunk);
+  border-left: 6rpx solid var(--c-brand);
+  border-radius: var(--r-btn);
+  margin: 20rpx 30rpx 0;
+  padding: 26rpx 26rpx;
 }
 
 .invite-title {
+  font-family: var(--f-serif);
   font-size: var(--t-h2);
-  font-weight: 700;
-  color: var(--c-brand);
+  font-weight: 600;
+  color: var(--c-ink);
 }
 
 .invite-sub {
@@ -101,46 +123,45 @@
   color: var(--c-danger);
 }
 
-/* ---------- 两个 tab ---------- */
-/* 分段控件。左右边距跟卡片对齐（都是 16rpx）。
-   选中态用「白底 + 一根细边」立起来，不用投影 ——
-   「每个元素底下垫同一层浅灰投影」正是模板感的配方之一。 */
+/* ---------- 两个 tab ----------
+   ★ 从「灰底胶囊轨道 + 白色浮起的选中块」改成下划线式 ——
+     和菜库的分类条同一套语言。这一页没有别的选择器，不会混淆。
+     全站的胶囊只留在摇一摇那个「随机一道 / 三菜一汤」上。 */
 .tabs {
   display: flex;
-  margin: 20rpx 16rpx 0;
-  background: var(--c-surface-sunk);
-  border-radius: var(--r-pill);
-  padding: 6rpx;
+  margin: 26rpx 30rpx 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  border-bottom: 1rpx solid var(--c-line);
 }
 
-/* box-sizing 不能省：选中态会多一根 2rpx 边框，
-   不写的话选中时整个 tab 会比另一个高 4rpx，切换时看得见跳动。 */
+/* box-sizing 不能省：选中态多一根 6rpx 的下划线，
+   不写的话切换时整行会跳。 */
 .tab {
   flex: 1;
   box-sizing: border-box;
   text-align: center;
   font-size: var(--t-body);
-  font-weight: 500;
   color: var(--c-ink-2);
   padding: 20rpx 0;
-  border-radius: var(--r-pill);
-  transition: color .18s;
+  border-bottom: 6rpx solid transparent;
+  margin-bottom: -1rpx;
 }
 
 .tab.on {
-  background: var(--c-surface);
-  border: 2rpx solid var(--c-line);
-  color: var(--c-brand);
+  background: transparent;
+  border-bottom-color: var(--c-brand);
+  color: var(--c-ink);
   font-weight: 600;
 }
 
 /* ---------- 表单 ---------- */
-/* 标签：加一点字重比单纯加深颜色更「有身份」 */
+
 .label {
   font-size: var(--t-sub);
-  font-weight: 500;
-  color: var(--c-ink-2);
-  margin: 30rpx 0 16rpx;
+  color: var(--c-ink-3);
+  margin: 30rpx 0 4rpx;
 }
 
 /* ★★★ height 这一行绝对不要删 —— 这是本项目最隐蔽的一个坑。
@@ -152,37 +173,39 @@
      24rpx(12px) × 2 = 24px  >  22.4px   →   内容区被挤成负值  →  **输入的文字整行被裁掉**
 
    症状极具迷惑性：**开发者工具模拟器一切正常，只有真机上看不到自己输入的字**
-   （浏览器里 <input> 没有默认高度，所以复刻渲染也量不出来）。412 项自动检查同样查不到。
+   （浏览器里 <input> 没有默认高度，所以复刻渲染也量不出来）。自动检查同样查不到。
 
    正确做法：显式写 height，垂直居中交给组件自身，**不要再写上下 padding**。
    wxml-check.js 里有断言锁住这条。 */
 
-/* 白底 + 一根细边：卡片是白的，灰底其实只有 4 个色阶差，
-   在真机屏幕上几乎看不出边界，加上边框后输入区一眼就能认出「这里能打字」。 */
+/* ★ 灰底圆角输入框 → 纸上一根线。
+   填表本来就是「在纸上写字」，一根线比一个盒子更直接；
+   线也顺便替掉了 18 处白底容器里属于表单的那几个。 */
 .inp {
-  background: var(--c-surface);
-  border: 2rpx solid var(--c-line-strong);
-  border-radius: var(--r-card);
+  background: transparent;
+  border: none;
+  border-bottom: 2rpx solid var(--c-line-strong);
+  border-radius: 0;
   height: 104rpx;
-  padding: 0 28rpx;
+  padding: 0;
   font-size: var(--t-h2);
   color: var(--c-ink);
   width: 100%;
   box-sizing: border-box;
 }
 
-/* 房间码是这一页最需要「被认出来」的输入框，所以单独给它一层暖底：
-   淡橙背景 + 淡橙边框，跟旁边两个中性色的框拉开层次，
-   眼睛先落到这里 —— 这是整页唯一的视觉重点，不靠加大字号硬撑。 */
+/* 房间码是这一页最需要「被认出来」的输入框。
+   ★ 原来是淡橙底 + 淡橙边；现在底没了，改用**一根更粗的主色线** ——
+     主色做线（面），不做填充块，符合全站的主色用法。 */
 .code-input {
+  font-family: var(--f-serif);
   font-size: var(--t-display);
   font-weight: 700;
   letter-spacing: 10rpx;
   text-align: center;
-  color: var(--c-brand);
-  background: #FFF8F5;
-  border-color: var(--c-brand-line);
-  font-family: Menlo, Consolas, monospace;
+  color: var(--c-brand-ink);
+  background: transparent;
+  border-bottom: 6rpx solid var(--c-brand);
 }
 
 .pre {
@@ -204,73 +227,76 @@
 }
 
 /* 表单主按钮：输入框高 52px，按钮也加高到 46px，两边对齐，别头重脚轻。
-   只在本页覆盖，不动 app.wxss 的全局按钮（别的页面不需要变）。 */
+   只在本页覆盖，不动 app.wxss 的全局按钮。 */
 .card .btn-primary {
   margin-top: 44rpx;
   padding: 28rpx 0;
 }
 
-/* ---------- 房间卡 ----------
-   去掉原来的 linear-gradient(160deg,...) —— 渐变在这里没承担任何信息，
-   只是装饰，属于模板感的配方之一。换成一块实色橙，反而更干脆、更像一块牌子。 */
+/* ---------- 房间头 ----------
+   ★ 原来是一整块主色橙 + 白字 + 白色码牌。
+     「整块主色」是全站最重的一种刷法，用在这里等于把页面钉成了一张横幅。
+     现在它回到纸上：宋体的房间名 + 一句小字 + **一枚印章装房间码**。
+     印章是全站唯一的「装饰」，但它带信息（房号就是进房间的钥匙），
+     而且和分享页上的那枚是同一个形状 —— 一眼认得出是同一件东西。 */
 .room {
-  margin: 20rpx;
-  padding: 44rpx 30rpx 30rpx;
-  text-align: center;
-  background: var(--c-brand);
+  background: transparent;
+  margin: 0;
+  padding: 36rpx 30rpx 24rpx;
+  text-align: left;
 }
 
 .room-name {
-  font-size: var(--t-h1);
+  font-family: var(--f-serif);
+  font-size: var(--t-display);
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--c-ink);
 }
 
 .room-sub {
   font-size: var(--t-cap);
-  color: rgba(255, 255, 255, 0.88);
-  margin-top: 12rpx;
+  color: var(--c-ink-2);
+  margin-top: 10rpx;
 }
 
-/* 全页最需要念给别人听的一串字符，所以给它最大的白底反差。
-   原来是「半透明白底 + 白字」，改成「白底 + 主色字」：字本身变成橙色，读起来更清楚。 */
 .code-badge {
   display: inline-block;
-  margin: 30rpx 0 10rpx;
-  padding: 20rpx 46rpx;
-  background: #FFFFFF;
-  border-radius: var(--r-card);
-  font-family: Menlo, Consolas, monospace;
+  margin: 24rpx 0 6rpx;
+  padding: 18rpx 30rpx 20rpx;
+  border: 3rpx solid var(--c-brand-ink);
+  border-radius: 4rpx;
+  transform: rotate(-2.5deg);
+  font-family: var(--f-serif);
   font-size: var(--t-big);
   font-weight: 700;
   letter-spacing: 10rpx;
-  color: var(--c-brand);
+  color: var(--c-brand-ink);
+  background: transparent;
 }
 
 .room-ops {
   display: flex;
+  align-items: center;
   margin-top: 26rpx;
 }
 
-/* 橙色块上的次要按钮：白描边 + 透明底。
-   比原来的「半透明白填充」更利落，也避免「叠半透明当装饰」。 */
+/* 次要动作：★ 从「橙色块上的白色描边药丸」改成描边方角小按钮。
+   一屏里唯一的实心块留给下面的「去看今天的菜单」。 */
 .op {
-  flex: 1;
-  margin: 0 10rpx;
-  padding: 20rpx 0;
-  border-radius: var(--r-pill);
-  border: 2rpx solid rgba(255, 255, 255, 0.55);
-  color: #FFFFFF;
-  font-size: var(--t-sub);
-  font-weight: 600;
+  margin: 0 10rpx 0 0;
+  padding: 18rpx 28rpx;
+  border-radius: var(--r-btn);
+  border: 1rpx solid var(--c-line-strong);
+  color: var(--c-ink-2);
+  font-size: var(--t-cap);
   text-align: center;
   line-height: 1.4;
 }
 
 .op-share {
-  background: #FFFFFF;
-  border-color: #FFFFFF;
-  color: var(--c-brand);
+  background: transparent;
+  border-color: var(--c-brand-line);
+  color: var(--c-brand-ink);
 }
 
 .op-share::after {
@@ -295,30 +321,36 @@
 }
 
 .me-name {
+  font-family: var(--f-serif);
   font-size: var(--t-h2);
   font-weight: 600;
   color: var(--c-ink);
-  margin-top: 8rpx;
+  margin-top: 6rpx;
 }
 
+/* ★ 淡橙底药丸 → 文字链 */
 .me-op {
   flex-shrink: 0;
-  font-size: var(--t-sub);
-  color: var(--c-brand);
-  background: var(--c-brand-tint);
-  border-radius: var(--r-pill);
-  padding: 12rpx 30rpx;
+  font-size: var(--t-cap);
+  color: var(--c-brand-ink);
+  background: transparent;
+  border-radius: 0;
+  border-bottom: 1rpx solid var(--c-brand);
+  padding: 0 0 4rpx;
 }
 
-/* ---------- 成员列表 ---------- */
+/* ---------- 成员列表 ----------
+   名册的样子：方角的格 + 一个字 + 名字。圆头像更像社交产品，
+   而这一页是「家里有哪几口人」。 */
 .mems {
-  margin: 0 20rpx;
+  margin: 0;
+  padding: 0 30rpx;
 }
 
 .mem {
   display: flex;
   align-items: center;
-  padding: 24rpx 30rpx;
+  padding: 24rpx 0;
   border-bottom: 1rpx solid var(--c-line);
 }
 
@@ -327,15 +359,17 @@
 }
 
 .mem-avatar {
-  width: 66rpx;
-  height: 66rpx;
-  line-height: 66rpx;
+  width: 62rpx;
+  height: 62rpx;
+  line-height: 60rpx;
   text-align: center;
-  border-radius: 50%;
-  background: var(--c-brand-tint);
-  color: var(--c-brand);
+  border: 1rpx solid var(--c-line-strong);
+  border-radius: 4rpx;
+  background: transparent;
+  color: var(--c-ink-2);
+  font-family: var(--f-serif);
   font-size: var(--t-body);
-  font-weight: 700;
+  font-weight: 600;
   flex-shrink: 0;
 }
 
@@ -350,24 +384,27 @@
   text-overflow: ellipsis;
 }
 
+/* 小标：药丸 → 方角描边。
+   ★ 「我」原来是白字压橙底（2.74:1，不达标），改成灶红字 + 主色边。 */
 .mem-tag {
   flex-shrink: 0;
   font-size: var(--t-tag);
   color: var(--c-ink-3);
-  background: var(--c-surface-sunk);
-  border-radius: var(--r-pill);
-  padding: 6rpx 18rpx;
+  border: 1rpx solid var(--c-line-strong);
+  border-radius: 4rpx;
+  padding: 4rpx 12rpx;
 }
 
 .mem-tag-me {
-  color: #FFFFFF;
-  background: var(--c-brand);
+  color: var(--c-brand-ink);
+  border-color: var(--c-brand);
+  background: transparent;
 }
 
 /* ---------- 房间内操作 ---------- */
 .ops2 {
-  margin: 30rpx 20rpx 0;
-  padding: 34rpx 30rpx;
+  margin: 30rpx 0 0;
+  padding: 10rpx 30rpx 40rpx;
 }
 
 .btn-ghost {
@@ -379,10 +416,10 @@
 }
 
 /* 解散房间：不可逆，而且家里其他人什么都没点就被牵连。
-   所以让它比旁边那个「退出房间」（纯文字链接）多一层实体，
-   分量上的差别靠**有没有底色**，不靠加粗放大。 */
+   所以让它比旁边那个「退出房间」（纯文字链接）多一层实体。
+   形状跟着全站走直角，不再是药丸。 */
 .btn-danger {
   background: var(--c-danger-tint);
-  border-radius: var(--r-pill);
+  border-radius: var(--r-btn);
   font-weight: 600;
 }

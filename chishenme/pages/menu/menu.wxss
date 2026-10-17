@@ -2,66 +2,59 @@
   min-height: 100vh;
 }
 
-/* ---------- 顶部：全站唯一的视觉高点 ----------
-   一页只允许一个重音，就是这里。原设计在橙色块里又套了一个
-   rgba(255,255,255,.16) 的半透明盒子来装统计数字 —— 那属于「叠一层半透明当装饰」，
-   是模板感来源之一。改成三根发丝分隔线：分隔线本身在说「这是三个并列的数」，
-   是信息，不是装饰。 */
+/* ---------- 抬头 ----------
+   ★ 这一块原来最「模板」：一整块主色 + 5 个数字（共几道/荤/素/汤/主食/凉菜）
+     排成一行 —— 就是设计里最常见的「大数字＋支撑统计」配方。
+     现在换成：日期 + 一句标题 + 两句人话 + 一根主色收口线。
+     信息一点没少，但它读起来是「一桌菜」，不是「一张报表」。
+     而且主色不再用来刷整块底，只留这一根线（主色的用法收窄到四处之一）。 */
 .hero {
-  background: var(--c-brand);
-  padding: 30rpx 30rpx 40rpx;
+  padding: 30rpx 30rpx 0;
 }
 
 .hero-date {
   font-size: var(--t-cap);
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--c-ink-2);
 }
 
 .hero-title {
+  font-family: var(--f-serif);
   font-size: var(--t-display);
   font-weight: 700;
-  color: #FFFFFF;
-  margin: 10rpx 0 30rpx;
+  line-height: 1.15;
+  color: var(--c-ink);
+  margin: 8rpx 0 12rpx;
 }
 
-.hero-stats {
-  display: flex;
+.hero-say {
+  font-size: var(--t-sub);
+  color: var(--c-ink-2);
+  line-height: 1.55;
 }
 
-.hs {
-  flex: 1;
-  text-align: center;
-  border-left: 1rpx solid rgba(255, 255, 255, 0.3);
+.hero-total {
+  font-size: var(--t-body);
+  font-weight: 600;
+  color: var(--c-ink);
+  margin-top: 2rpx;
 }
 
-.hs:first-child {
-  border-left: none;
-}
-
-.hs-n {
-  display: block;
-  font-size: var(--t-h2);
-  font-weight: 700;
-  color: #FFFFFF;
-}
-
-.hs-l {
-  display: block;
-  font-size: var(--t-tag);
-  color: rgba(255, 255, 255, 0.82);
-  margin-top: 6rpx;
+.hero-rule {
+  height: 6rpx;
+  background: var(--c-brand);
+  margin-top: 24rpx;
 }
 
 /* ---------- 家庭状态条 ----------
-   不再做成「白底圆角卡片」—— 全站已经全是卡片了，再多一个就看不出层级。
-   改成通栏状态条：一根主色竖线 + 不做圆角，读起来是「状态」而不是「一张内容卡」。 */
+   ★ 原来是「主色淡底 + 6rpx 主色左竖线」的通栏 —— 这种「淡底 + 左竖线」
+     是中后台里最常见的状态条形状。
+     现在它只是纸上一行：一个绿点 + 一句小字 + 右边的房间码（宋体）。 */
 .fbar {
   display: flex;
   align-items: center;
-  margin: 20rpx 0 0;
-  padding: 24rpx 30rpx;
-  background: var(--c-brand-tint);
-  border-left: 6rpx solid var(--c-brand);
+  padding: 22rpx 30rpx;
+  background: transparent;
+  border-bottom: 1rpx solid var(--c-line);
 }
 
 .fbar-l {
@@ -69,7 +62,7 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink-2);
   overflow: hidden;
   white-space: nowrap;
@@ -78,31 +71,30 @@
 
 .fbar-dot {
   flex-shrink: 0;
-  width: 14rpx;
-  height: 14rpx;
+  width: 12rpx;
+  height: 12rpx;
   border-radius: 50%;
   background: var(--c-ok);
-  margin-right: 14rpx;
+  margin-right: 12rpx;
 }
 
 .fbar-r {
   flex-shrink: 0;
-  font-size: var(--t-cap);
-  color: var(--c-brand);
-  font-weight: 600;
+  font-family: var(--f-serif);
+  font-size: var(--t-sub);
+  color: var(--c-ink);
   margin-left: 16rpx;
 }
 
 /* ---------- 「已经翻篇了」提示条 ----------
-   只在过了 22:30 出现（从那时起这一页装的是明天那份菜单）。
-   故意**不用**品牌淡底：它上面紧挨着的家庭状态条已经是品牌淡底了，
-   两条同色叠在一起就分不出哪个是「状态」、哪个是「提示」。
-   改成下沉面 + 一根中性竖线，只把时间点用品牌色点一下。 */
+   只在过了 22:30 出现。故意不用品牌淡底：它上面紧挨着的家庭状态条已经是
+   浅色行了，两条同色叠在一起就分不出哪个是「状态」哪个是「提示」。 */
 .nextbar {
-  margin: 16rpx 0 0;
-  padding: 20rpx 30rpx;
+  margin: 16rpx 30rpx 0;
+  padding: 20rpx 26rpx;
   background: var(--c-surface-sunk);
   border-left: 6rpx solid var(--c-line-strong);
+  border-radius: var(--r-btn);
 }
 
 .nextbar-t {
@@ -112,7 +104,7 @@
 }
 
 .nextbar-time {
-  color: var(--c-brand);
+  color: var(--c-brand-ink);
   font-weight: 600;
 }
 
@@ -123,18 +115,22 @@
   margin-top: 6rpx;
 }
 
-/* ---------- 菜单列表 ---------- */
+/* ---------- 菜单清单 ----------
+   ★ 去掉白底容器（原来 .mlist 是一整块白卡）。
+     现在一行一道菜，行间一根暖发丝线，菜名和份数之间用点线连起来 ——
+     这是菜单（水牌）的排法，不是列表卡片的排法。 */
 .mlist {
-  background: var(--c-surface);
-  margin: 20rpx;
-  border-radius: var(--r-card);
-  overflow: hidden;
+  background: transparent;
+  margin: 0;
+  padding: 0 30rpx;
+  border-radius: 0;
+  overflow: visible;
 }
 
 .mitem {
   display: flex;
-  align-items: center;
-  padding: 22rpx 24rpx;
+  align-items: flex-start;
+  padding: 22rpx 0;
   border-bottom: 1rpx solid var(--c-line);
 }
 
@@ -143,9 +139,9 @@
 }
 
 .mitem-img {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: var(--r-item);
+  width: 108rpx;
+  height: 108rpx;
+  border-radius: var(--r-thumb);
   background: var(--c-surface-sunk);
   flex-shrink: 0;
 }
@@ -153,31 +149,43 @@
 .mitem-mid {
   flex: 1;
   min-width: 0;
-  padding: 0 20rpx;
+  margin-left: 20rpx;
+}
+
+/* 菜名 …… 份数 的同一行 */
+.mitem-line {
+  display: flex;
+  align-items: baseline;
 }
 
 .mitem-name {
+  font-family: var(--f-serif);
   font-size: var(--t-h2);
   font-weight: 600;
   color: var(--c-ink);
 }
 
+/* ★ 份数原来是主色小字，对纸底只有 2.45:1，不达标。改成墨色：
+   它本来就不该抢眼，菜名才是主。 */
 .mitem-qty {
+  flex-shrink: 0;
+  font-family: var(--f-serif);
   font-size: var(--t-cap);
-  color: var(--c-brand);
-  font-weight: 600;
+  color: var(--c-ink);
 }
 
 .mitem-cat {
   font-size: var(--t-tag);
   color: var(--c-ink-3);
-  margin-top: 8rpx;
+  margin-top: 6rpx;
 }
 
+/* ★ 「谁点的」原来是绿色（跟「在线」状态撞色）。改用灶红：它属于主色家族的
+   暖色，既和菜名分得开，又不会让人误以为是个状态灯。 */
 .mitem-by {
   font-size: var(--t-cap);
-  color: var(--c-ok);
-  margin-top: 8rpx;
+  color: var(--c-brand-ink);
+  margin-top: 6rpx;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -185,60 +193,78 @@
 
 .mitem-note {
   font-size: var(--t-cap);
-  color: var(--c-brand);
-  margin-top: 8rpx;
+  color: var(--c-ink-2);
+  margin-top: 4rpx;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
+/* 行内动作：★ 原来两个实心药丸横在右边（一屏六道菜就是十二个药丸）。
+   改成文字链，横排放在内容下方。 */
 .mitem-ops {
-  flex-shrink: 0;
-  text-align: right;
+  display: flex;
+  align-items: center;
+  margin-top: 12rpx;
 }
 
 .mo-btn {
-  font-size: var(--t-cap);
+  font-size: var(--t-tag);
   color: var(--c-ink-2);
-  background: var(--c-surface-sunk);
-  border-radius: var(--r-pill);
-  padding: 10rpx 24rpx;
-  margin-bottom: 12rpx;
+  border-bottom: 1rpx solid var(--c-line-strong);
+  padding-bottom: 3rpx;
+  margin-right: 34rpx;
 }
 
 .mo-btn:last-child {
-  margin-bottom: 0;
+  margin-right: 0;
 }
 
 .mo-del {
   color: var(--c-danger);
-  background: #FBEDEC;
+  border-bottom-color: #F0C3BE;
 }
 
 /* ---------- 操作区 ---------- */
+
+/* 这一页真正的主要动作（转发），一个人占掉「实心块」的名额 */
+.op-share {
+  margin: 30rpx 30rpx 0;
+  padding: 26rpx 0;
+  background: var(--c-brand);
+  color: var(--c-ink);
+  border-radius: var(--r-btn);
+  font-size: var(--t-body);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* 去掉 <button> 自带的那圈边框和背景 */
+.op-share::after {
+  border: none;
+}
+
+/* 其余两个动作降级成一行文字链，中间一根发丝竖线 */
 .ops {
-  padding: 10rpx 20rpx 0;
+  display: flex;
+  align-items: center;
+  padding: 24rpx 30rpx 6rpx;
 }
 
 .op-btn {
-  background: var(--c-surface);
-  border-radius: var(--r-pill);
-  padding: 24rpx 0;
+  flex: 1;
   text-align: center;
-  font-size: var(--t-body);
+  padding: 6rpx 0;
+  background: transparent;
+  border-radius: 0;
+  font-size: var(--t-cap);
   color: var(--c-ink-2);
-  margin-bottom: 20rpx;
+  margin-bottom: 0;
 }
 
-.op-share {
-  background: var(--c-brand);
-  color: #FFFFFF;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.op-share::after {
-  border: none;
+.op-btn + .op-btn {
+  border-left: 1rpx solid var(--c-line-strong);
 }
 
 .op-danger {

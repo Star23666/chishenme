@@ -3,7 +3,7 @@
 
   <view class="head">
     <text class="head-num">{{kinds}}</text>
-    <text class="head-txt">道菜已选 · 共 {{total}} 份</text>
+    <text class="head-txt">道菜已选，共 {{total}} 份</text>
   </view>
 
   <block wx:for="{{groups}}" wx:key="key" wx:for-item="g">
@@ -31,7 +31,7 @@
   <view class="safe-bottom"></view>
 
   <view class="float-bar" wx:if="{{kinds > 0}}" bindtap="goMenu">
-    <view class="fb-left">已选 {{kinds}} 种 · {{total}} 份</view>
+    <view class="fb-left">已选 {{kinds}} 种，{{total}} 份</view>
     <view class="fb-right">看菜单 →</view>
   </view>
 

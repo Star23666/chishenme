@@ -39,7 +39,7 @@ cp chishenme/config.example.js chishenme/config.js
 
 ## 怎么验证
 
-改完代码跑这几个脚本，一共 **927 项**断言。不需要连云环境，
+改完代码跑这几个脚本，一共 **938 项**断言。不需要连云环境，
 云函数那部分是用内存假数据库把真实的云函数代码跑一遍。
 
 ```bash
@@ -51,8 +51,8 @@ $NODE .workbuddy/verify/core-test.js          # 114 项
 $NODE .workbuddy/verify/wxml-check.js         #  32 项
 $PY   .workbuddy/tools/check-icon-colors.py   #   8 项
 
-# 今天吃啥（合计 773 项）
-$NODE .workbuddy/verify/chishenme/core-test.js     # 370 项
+# 今天吃啥（合计 784 项）
+$NODE .workbuddy/verify/chishenme/core-test.js     # 381 项
 $NODE .workbuddy/verify/chishenme/wxml-check.js    #  82 项
 $NODE .workbuddy/verify/chishenme/cloud-test.js    # 301 项
 $PY   .workbuddy/verify/chishenme/check-images.py  #  20 项

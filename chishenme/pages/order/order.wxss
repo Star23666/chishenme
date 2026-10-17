@@ -3,39 +3,44 @@
 }
 
 /* ---------- 顶部统计 ----------
-   数字压到 --t-display（44rpx，原来 56rpx），让「3 道菜已选」读起来是一句话，
-   而不是「一个大数字 + 一个小标签」—— 后者是模板感的经典配方。 */
+   ★ 原来是一整块主色（`background: var(--c-brand)`）压着大数字 + 白字。
+     主色块是「一屏里最响的东西」，用在这里等于把「页面标题」做成了填充色。
+     现在它只是纸上一行：宋体的数字 + 小字，读起来是一句话，不是一个横幅。
+     主色让位给下面的分组短横和＋号（那才是这一页的内容）。 */
 .head {
-  background: var(--c-brand);
-  padding: 26rpx 30rpx 30rpx;
+  background: transparent;
+  padding: 26rpx 30rpx 6rpx;
   display: flex;
   align-items: baseline;
 }
 
 .head-num {
+  font-family: var(--f-serif);
   font-size: var(--t-display);
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--c-ink);
 }
 
 .head-txt {
-  font-size: var(--t-sub);
-  color: rgba(255, 255, 255, 0.88);
+  font-size: var(--t-cap);
+  color: var(--c-ink-2);
   margin-left: 14rpx;
 }
 
-/* ---------- 列表 ---------- */
+/* ---------- 列表 ----------
+   ★ 去掉白底容器和圆角：行与行之间靠一根暖发丝线分。
+     白盒子一层层套起来，正是「后台」的样子。 */
 .rows {
-  background: var(--c-surface);
-  margin: 0 20rpx;
-  border-radius: var(--r-card);
-  overflow: hidden;
+  background: transparent;
+  margin: 0 30rpx;
+  border-radius: 0;
+  overflow: visible;
 }
 
 .row {
   display: flex;
   align-items: center;
-  padding: 20rpx 24rpx;
+  padding: 20rpx 0;
   border-bottom: 1rpx solid var(--c-line);
 }
 
@@ -44,9 +49,9 @@
 }
 
 .row-img {
-  width: 110rpx;
-  height: 110rpx;
-  border-radius: var(--r-item);
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: var(--r-thumb);
   background: var(--c-surface-sunk);
   flex-shrink: 0;
 }
@@ -58,14 +63,16 @@
 }
 
 .row-name {
+  font-family: var(--f-serif);
   font-size: var(--t-h2);
   font-weight: 600;
   color: var(--c-ink);
 }
 
+/* 备注：★ 主色当字用不达标（2.45:1），换成灶红（5.3:1） */
 .row-note {
   font-size: var(--t-cap);
-  color: var(--c-brand);
+  color: var(--c-brand-ink);
   margin-top: 8rpx;
   overflow: hidden;
   white-space: nowrap;
@@ -78,7 +85,9 @@
   margin-top: 8rpx;
 }
 
-/* ---------- 步进器 ---------- */
+/* ---------- 步进器 ----------
+   ★ 圆药丸 → 方形小格。像点菜单上画正字的那几格：
+     减法格是描边的、加法格是实心的，一眼分得出哪个是「加」。 */
 .stepper {
   display: flex;
   align-items: center;
@@ -86,25 +95,27 @@
 }
 
 .st-btn {
-  width: 56rpx;
-  height: 56rpx;
-  line-height: 52rpx;
+  width: 58rpx;
+  height: 58rpx;
+  line-height: 56rpx;
   text-align: center;
-  border-radius: 50%;
-  border: 2rpx solid var(--c-brand);
-  color: var(--c-brand);
+  border-radius: var(--r-btn);
+  border: 1rpx solid var(--c-line-strong);
+  color: var(--c-ink-2);
   font-size: var(--t-h1);
 }
 
 .st-plus {
   background: var(--c-brand);
-  color: #FFFFFF;
+  color: var(--c-ink);
   border-color: var(--c-brand);
+  font-weight: 600;
 }
 
 .st-num {
   min-width: 56rpx;
   text-align: center;
+  font-family: var(--f-serif);
   font-size: var(--t-h2);
   font-weight: 600;
   color: var(--c-ink);
@@ -115,29 +126,31 @@
   height: 150rpx;
 }
 
+/* ★ 深色胶囊 → 主色直角块。圆角跟着全站的圆角层级走，
+   不再是「一个飘在页面上的胶囊」。 */
 .float-bar {
   position: fixed;
   left: 30rpx;
   right: 30rpx;
   bottom: calc(30rpx + env(safe-area-inset-bottom));
   height: 96rpx;
-  background: var(--c-ink);
-  border-radius: var(--r-pill);
+  background: var(--c-brand);
+  border-radius: var(--r-btn);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 40rpx;
+  padding: 0 36rpx;
   z-index: 20;
 }
 
+/* ★ 墨字压橙底 5.98:1（原来是白字，2.74:1 不达标） */
 .fb-left {
-  color: #FFFFFF;
+  color: var(--c-ink);
   font-size: var(--t-sub);
 }
 
-/* 深色胶囊上的一抹暖色，属于主色家族，和左边白字拉开层次 */
 .fb-right {
-  color: #FFAE90;
+  color: var(--c-ink);
   font-size: var(--t-body);
   font-weight: 600;
 }

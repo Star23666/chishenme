@@ -2,31 +2,42 @@
   min-height: 100vh;
 }
 
-/* ---------- 模式切换 ---------- */
+/* ---------- 模式切换 ----------
+   ★ 这里保留胶囊 —— 全站唯一一处。
+     因为「随机一道 / 三菜一汤」是**开关**（两个互斥模式），
+     而它下面紧跟着的分类条是**筛选**（多个里挑一个）。
+     两者如果都做成下划线，上下两排长得一模一样，看不出哪个是哪个；
+     形状分开之后（胶囊 vs 下划线）层级一眼就清楚。
+     这就是「胶囊只留给二选一」的具体理由。 */
 .mode-bar {
   display: flex;
-  background: var(--c-surface);
-  padding: 16rpx 20rpx 0;
+  align-items: center;
+  background: transparent;
+  padding: 24rpx 30rpx 0;
 }
 
 .mode-item {
-  flex: 1;
-  text-align: center;
-  padding: 20rpx 0;
-  font-size: var(--t-body);
-  color: var(--c-ink-3);
-  border-bottom: 4rpx solid transparent;
+  padding: 12rpx 32rpx;
+  margin-right: 16rpx;
+  font-size: var(--t-sub);
+  color: var(--c-ink-2);
+  border: 1rpx solid var(--c-line-strong);
+  border-radius: var(--r-pill);
 }
 
 .mode-item.on {
-  color: var(--c-brand);
-  font-weight: 700;
-  border-bottom-color: var(--c-brand);
+  color: var(--c-ink);
+  background: var(--c-brand);
+  border-color: var(--c-brand);
+  font-weight: 600;
 }
 
-/* ---------- 结果舞台 ---------- */
+/* ---------- 结果舞台 ----------
+   这一页是全站唯一「居中」的页面：它只讲一件事（今晚吃这道），
+   居中读起来是一个「揭晓」，左对齐反而像列表。
+   其余所有页面一律左对齐 —— 这是刻意留的一个例外，不是忘了统一。 */
 .stage {
-  min-height: 640rpx;
+  min-height: 620rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -38,13 +49,14 @@
 }
 
 /* ★ 全站唯一的「大胆」就用在这里。
-   摇一摇是这个 app 最有性格的功能，视觉高点只给它一处，
-   其他地方（页面标题、卡片标题、按钮）一律压低、保持安静。
-   去掉原来的 letter-spacing：中文加字距在这里只是模板感，不是个性。 */
+   摇一摇是这个 app 最有性格的功能，视觉高点只给它一处。
+   ★ 颜色从主色改成灶红：主色对纸底只有 2.45:1，64rpx 加粗也到不了
+     大字号要求的 3:1；灶红 5.3:1，同样是暖橙家族，但它真的看得清。 */
 .rolling-name {
+  font-family: var(--f-serif);
   font-size: var(--t-hero);
   font-weight: 700;
-  color: var(--c-brand);
+  color: var(--c-brand-ink);
 }
 
 .rolling-hint {
@@ -53,35 +65,40 @@
   margin-top: 20rpx;
 }
 
-/* ---------- 单道结果 ---------- */
+/* ---------- 单道结果 ----------
+   ★ 去掉白卡：照片直接落在纸上，菜名写在照片下面。
+     结果卡本来是这个 app 里最像「模板卡片」的东西 ——
+     白底 + 圆角 + 一张图 + 标题 + 副标题，四件套齐了。 */
 .result-card {
   width: 100%;
-  background: var(--c-surface);
-  border-radius: var(--r-panel);
-  overflow: hidden;
-  padding-bottom: 34rpx;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+  padding-bottom: 0;
 }
 
 .rc-img {
   width: 100%;
-  height: 520rpx;
+  height: 480rpx;
   display: block;
+  border-radius: var(--r-thumb);
   background: var(--c-surface-sunk);
 }
 
 .rc-name {
+  font-family: var(--f-serif);
   font-size: var(--t-display);
   font-weight: 700;
   color: var(--c-ink);
   text-align: center;
-  margin-top: 28rpx;
+  margin-top: 26rpx;
 }
 
 .rc-cat {
   font-size: var(--t-cap);
   color: var(--c-ink-3);
   text-align: center;
-  margin-top: 10rpx;
+  margin-top: 8rpx;
 }
 
 .rc-tips {
@@ -89,12 +106,13 @@
   color: var(--c-ink-2);
   line-height: 1.7;
   text-align: center;
-  margin: 22rpx 40rpx 0;
+  margin: 22rpx 20rpx 0;
   padding-top: 22rpx;
   border-top: 1rpx solid var(--c-line);
 }
 
-/* ---------- 组合结果 ---------- */
+/* ---------- 组合结果 ----------
+   同样去掉白卡：四张小图直接印在纸上，中间留着缝。 */
 .combo {
   width: 100%;
   display: flex;
@@ -103,33 +121,35 @@
 }
 
 .combo-item {
-  width: calc(50% - 10rpx);
-  background: var(--c-surface);
-  border-radius: var(--r-card);
-  overflow: hidden;
-  margin-bottom: 20rpx;
+  width: calc(50% - 9rpx);
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+  margin-bottom: 26rpx;
 }
 
 .ci-img {
   width: 100%;
-  height: 260rpx;
+  height: 240rpx;
   display: block;
+  border-radius: var(--r-thumb);
   background: var(--c-surface-sunk);
 }
 
 .ci-name {
+  font-family: var(--f-serif);
   font-size: var(--t-h2);
   font-weight: 600;
   color: var(--c-ink);
   text-align: center;
-  margin-top: 16rpx;
+  margin-top: 14rpx;
 }
 
 .ci-cat {
   font-size: var(--t-tag);
   color: var(--c-ink-3);
   text-align: center;
-  margin: 6rpx 0 20rpx;
+  margin: 4rpx 0 12rpx;
 }
 
 /* ---------- 未摇状态 ---------- */
@@ -138,8 +158,9 @@
 }
 
 .idle-title {
+  font-family: var(--f-serif);
   font-size: var(--t-h1);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--c-ink-4);
 }
 
@@ -152,34 +173,38 @@
 
 /* ---------- 按钮 ---------- */
 .actions {
-  padding: 0 40rpx;
+  padding: 0 30rpx;
 }
 
-/* 去掉原来的 letter-spacing: 6rpx —— 中文按钮加宽字距是模板感的配方之一 */
+/* ★ 胶囊 → 直角实色块；白字 → 墨字（2.74:1 → 5.98:1） */
 .big-btn {
   background: var(--c-brand);
-  color: #FFFFFF;
+  color: var(--c-ink);
   font-size: var(--t-h1);
   font-weight: 700;
   text-align: center;
-  padding: 30rpx 0;
-  border-radius: var(--r-pill);
+  padding: 28rpx 0;
+  border-radius: var(--r-btn);
 }
 
+/* 两个次要动作：★ 从两个药丸（其中一个是深色块）降级成文字链。
+   一屏里只该有一个实心块，就是上面那个「摇一摇」。 */
 .sub-actions {
   display: flex;
-  margin-top: 20rpx;
+  align-items: center;
+  justify-content: center;
+  margin-top: 26rpx;
 }
 
 .sub-btn {
-  flex: 1;
   text-align: center;
-  padding: 22rpx 0;
-  border-radius: var(--r-pill);
-  background: var(--c-surface);
+  padding: 10rpx 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--c-ink-2);
-  font-size: var(--t-body);
-  margin-right: 20rpx;
+  font-size: var(--t-cap);
+  border-bottom: 1rpx solid var(--c-line-strong);
+  margin-right: 44rpx;
 }
 
 .sub-btn:last-child {
@@ -187,6 +212,6 @@
 }
 
 .sub-dark {
-  background: var(--c-ink);
-  color: #FFFFFF;
+  color: var(--c-brand-ink);
+  border-bottom-color: var(--c-brand);
 }

@@ -2,57 +2,77 @@
   min-height: 100vh;
 }
 
+/* ---------- 收藏清单 ----------
+   ★ 原来是「白卡 + 两个药丸按钮」的双列网格 —— 卡片和按钮一起堆，
+     是最像后台的一页。
+     现在改成**一行一道**：小方图 + 菜名/分类主料 + 两个文字链动作。
+     一屏能看到更多道，动作也不再抢眼。 */
 .grid {
-  display: flex;
-  flex-wrap: wrap;
-  padding: 0 20rpx;
+  display: block;
+  padding: 0 30rpx;
 }
 
 .fcard {
-  width: calc(50% - 20rpx);
-  margin: 0 10rpx 20rpx;
-  background: var(--c-surface);
-  border-radius: var(--r-card);
-  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  margin: 0;
+  padding: 24rpx 0;
+  background: transparent;
+  border-radius: 0;
+  border-bottom: 1rpx solid var(--c-line);
+  overflow: visible;
+}
+
+.fcard:last-child {
+  border-bottom: none;
 }
 
 .fc-img {
-  width: 100%;
-  height: 300rpx;
+  width: 118rpx;
+  height: 118rpx;
+  flex-shrink: 0;
   display: block;
+  border-radius: var(--r-thumb);
   background: var(--c-surface-sunk);
 }
 
+.fc-body {
+  flex: 1;
+  min-width: 0;
+  margin-left: 20rpx;
+}
+
 .fc-name {
+  font-family: var(--f-serif);
   font-size: var(--t-h2);
   font-weight: 600;
   color: var(--c-ink);
-  padding: 16rpx 20rpx 0;
+  padding: 0;
 }
 
 .fc-sub {
   font-size: var(--t-tag);
   color: var(--c-ink-3);
-  padding: 6rpx 20rpx 0;
+  margin-top: 5rpx;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
+/* ★ 两个药丸 → 两条文字链。动作降级了，但间距留够，手指照样好点。 */
 .fc-ops {
   display: flex;
-  padding: 18rpx 20rpx 22rpx;
+  align-items: center;
+  padding: 18rpx 0 2rpx;
 }
 
 .fc-btn {
-  flex: 1;
-  text-align: center;
   font-size: var(--t-cap);
   color: var(--c-ink-2);
-  background: var(--c-surface-sunk);
-  border-radius: var(--r-pill);
-  padding: 14rpx 0;
-  margin-right: 12rpx;
+  border-bottom: 1rpx solid var(--c-line-strong);
+  padding-bottom: 3rpx;
+  margin-right: 38rpx;
 }
 
 .fc-btn:last-child {
@@ -60,6 +80,19 @@
 }
 
 .fc-add {
-  background: var(--c-brand);
-  color: #FFFFFF;
+  color: var(--c-brand-ink);
+  border-bottom-color: var(--c-brand);
+}
+
+/* 计数那行：整句话，不用带短横的分区标题（那个只适合「分组名」） */
+.fav-count {
+  padding: 26rpx 30rpx 6rpx;
+  font-size: var(--t-cap);
+  color: var(--c-ink-3);
+}
+
+.fav-count .n {
+  font-family: var(--f-serif);
+  font-size: var(--t-sub);
+  color: var(--c-ink);
 }

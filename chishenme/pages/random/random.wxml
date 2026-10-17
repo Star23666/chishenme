@@ -26,7 +26,7 @@
     <view class="result-card" wx:if="{{!rolling && mode === 'one' && hasResult}}">
       <image class="rc-img" src="{{result.image}}" mode="aspectFill"></image>
       <view class="rc-name">{{result.name}}</view>
-      <view class="rc-cat">{{result.catName}} · {{result.main}}</view>
+      <view class="rc-cat">{{result.catName}} {{result.main}}</view>
       <view class="rc-tips">{{result.tips}}</view>
     </view>
 

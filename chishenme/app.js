@@ -48,6 +48,18 @@ var TAB_MENU = 2
  */
 var TEMP_STALE_MS = 6 * 60 * 60 * 1000
 
+/**
+ * 中文小数字。菜单里最多也就十几份，到这里够用；
+ * 超出范围就退回阿拉伯数字，不至于显示成空白。
+ * ★ 放在数据层：份数的中文写法、菜单配比的分类顺序，都属于
+ *   「容易错又不会报错」的东西 —— 写进页面里错了只表现成「读起来有点怪」，
+ *   几个月都发现不了。数据层有单测盯着，页面没有。
+ */
+var CN_NUM = ['零', '一', '两', '三', '四', '五', '六', '七', '八', '九', '十']
+function cnNum(n) {
+  return CN_NUM[n] || String(n)
+}
+
 App({
 
   globalData: {
@@ -911,6 +923,10 @@ App({
         tips: d.tips,
         image: D.imageOf(d.id),
         qty: raw[i].qty > 0 ? raw[i].qty : 1,
+        // 份数的中文写法（「两份」）。WXML 里算不了，所以在这里拼好 ——
+        // 菜单页是照着「点菜单」做的，阿拉伯数字读起来像表格。
+        // ★ 数字和「份」之间不留空格：中文里「两 份」是错的。
+        qtyText: cnNum(raw[i].qty > 0 ? raw[i].qty : 1) + '份',
         note: raw[i].note || '',
         // WXML 里不能调数组方法，所以这里就把文本拼好
         byText: by.join('、'),
@@ -1076,6 +1092,38 @@ App({
       if (s[list[i].cat] !== undefined) s[list[i].cat] += list[i].qty
     }
     return s
+  },
+
+  /**
+   * 菜单配比的一句话说法：「两荤、一素、一汤、一主食」。
+   * 菜单页原来把「共几道 / 荤 / 素 / 汤 / 主食 / 凉菜」排成一行数字方块 ——
+   * 「大数字＋支撑统计」是最模板的写法。换成一句人话之后，
+   * 同样的信息读起来是「一桌菜」而不是「一张报表」。
+   *
+   * ★ 数的是**道数**，不是份数：「两荤」读起来是「两道荤菜」，
+   *   拿份数去说会变成「一盘肉点了两份就叫两荤」。
+   * ★ 只列点到了的分类；一道都没点时返回空串。
+   */
+  menuMixText: function () {
+    var list = this.menu()
+    var order = [['meat', '荤'], ['veg', '素'], ['soup', '汤'], ['staple', '主食'], ['cold', '凉菜']]
+    var n = {}
+    for (var i = 0; i < list.length; i++) {
+      n[list[i].cat] = (n[list[i].cat] || 0) + 1
+    }
+    var parts = []
+    for (var j = 0; j < order.length; j++) {
+      var c = n[order[j][0]] || 0
+      if (c > 0) parts.push(cnNum(c) + order[j][1])
+    }
+    return parts.join('、')
+  },
+
+  /** 「一共 5 道菜、6 份」；没点菜时返回空串 */
+  menuTotalText: function () {
+    var list = this.menu()
+    if (!list.length) return ''
+    return '一共 ' + list.length + ' 道菜、' + this.menuStats().total + ' 份'
   },
 
   /** 菜单纯文本，用于转发/复制 */

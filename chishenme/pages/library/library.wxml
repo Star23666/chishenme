@@ -42,7 +42,7 @@
         <view class="dish-name">{{item.name}}</view>
         <view class="dish-main">{{item.main}}</view>
       </view>
-      <view class="fav-dot" wx:if="{{item.fav}}">★</view>
+      <view class="fav-dot" wx:if="{{item.fav}}">藏</view>
     </view>
   </view>
 
@@ -70,10 +70,12 @@
         <view class="edited-note" wx:if="{{detail.editedText}}">{{detail.editedText}}</view>
         <view class="sheet-row">
           <text class="k">主料</text>
+          <view class="dots"></view>
           <text class="v">{{detail.main}}</text>
         </view>
         <view class="sheet-row">
           <text class="k">要点</text>
+          <view class="dots"></view>
           <text class="v">{{detail.tips}}</text>
         </view>
       </view>

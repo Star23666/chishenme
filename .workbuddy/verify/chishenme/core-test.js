@@ -493,6 +493,49 @@ eq('staple = 1', st.staple, 1)
 eq('cold = 1', st.cold, 1)
 eq('分类相加 = total', st.meat + st.veg + st.soup + st.staple + st.cold, st.total)
 
+/* ==================== G2. 菜单配比的一句话 ==================== */
+
+S('G2. 菜单配比的一句话（菜单页抬头用）')
+
+/*
+ * ★ 这两句是菜单页抬头的心脏 —— 它替掉了原来「5 个数字排一行」的统计方块。
+ *   要命的地方在于「数的是道数还是份数」：下面这个菜单里荤菜只有 1 道、
+ *   但点了 2 份，说「一荤」才对；说成「两荤」也看不出错，
+ *   只是读起来有点怪 —— 正是「容易错又不会报错」的那一类，所以必须钉住。
+ */
+eq('配比按道数算（荤 1 道 2 份 → 一荤，不是两荤）',
+  app.menuMixText(), '一荤、一素、一汤、一主食、一凉菜')
+eq('总数句 = 道数 + 份数', app.menuTotalText(), '一共 5 道菜、6 份')
+eq('份数写成中文（数据层拼好，WXML 里算不了）', app.menu()[0].qtyText, '两份')
+
+// 只列点到了的分类：只有一道荤菜时，不该冒出「零素」这种话
+reset()
+app.addToMenu('hongshaorou')
+eq('只有荤菜时只列荤', app.menuMixText(), '一荤')
+eq('  总数句跟着走', app.menuTotalText(), '一共 1 道菜、1 份')
+eq('  单份写成「一份」', app.menu()[0].qtyText, '一份')
+
+// 多道同类菜时中文数字也要对
+// ★ 注意：「同一道菜加两次」是 1 道 2 份，不是 2 道 —— 要两道不同的菜才是「两荤」
+reset()
+app.addToMenu('hongshaorou')
+app.addToMenu('gongbaojiding')
+eq('两道荤菜 → 「两荤」', app.menuMixText(), '两荤')
+eq('  总数句 = 2 道 2 份', app.menuTotalText(), '一共 2 道菜、2 份')
+
+// 空菜单：两句话都必须是空串，让页面交给 empty 分支去说话
+reset()
+eq('空菜单没有配比句', app.menuMixText(), '')
+eq('空菜单没有总数句', app.menuTotalText(), '')
+
+// 分类顺序固定按「荤、素、汤、主食、凉菜」，跟加进菜单的先后无关
+reset()
+app.addToMenu('danchaofan')        // 主食先进
+app.addToMenu('liangbanhuanggua')  // 再进凉菜
+app.addToMenu('hongshaorou')       // 最后才是荤菜
+eq('分类按固定顺序说，不跟加入顺序走',
+  app.menuMixText(), '一荤、一主食、一凉菜')
+
 /* ==================== H. 菜单文本 ==================== */
 
 S('H. 菜单文本')

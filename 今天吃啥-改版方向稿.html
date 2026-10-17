@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>今天吃啥 · 改版方向稿</title>
+<!--
+  今天吃啥 · 前端改版方向稿（7 页并排）
+
+  这不是交付物，是**方向确认稿**：先用真实菜名 + 项目里那 80 张菜图，
+  把「烟火气、不卡片堆叠」落到 7 个页面上给你看。确认之后我按同一套
+  形状改写 chishenme/ 下的 WXSS（改的是样式，尽量不动 WXML 和 JS）。
+
+  ── 尺寸口径 ──────────────────────────────────────────────────
+  这一稿是 375px 宽，**所有尺寸都写成「rpx ÷ 2」**。
+  落到 WXSS 就是「×2 + rpx」，一比一，不需要重新裁量。
+
+  ── 字体口径 ──────────────────────────────────────────────────
+  ★ 小程序做不到自定义字体。这里上的是系统衬线栈：
+      "Songti SC","STSong","SimSun",serif
+    iOS 上会真的变成宋体（菜谱印在纸上的那种笔画对比）；
+    Android 多数机型没有中文衬线，会**回退成系统黑体**——
+    回退之后版面不塌，只是少了那点味道。所以它当加分项用，不当承重结构。
+-->
+<style>
+/* ══════════════════════════════════════════════════════════════
+   一、令牌（改了 3 个，新增 1 个）
+   ══════════════════════════════════════════════════════════════ */
+:root{
+  /* 底色与墨 —— 沿用，一个字没改 */
+  --c-bg:#F6F5F3;   --c-ink:#1C1E21;  --c-ink-2:#585F6B; --c-ink-3:#8A8F99;
+
+  /* ★ 改：线原来是冷灰（#E9EAEC / #DCDEE1），挂在暖白纸上发青。
+     暖化成纸的同族，整页才像一张纸而不是一块屏。 */
+  --c-line:#E6E1DA;        /* 原 #E9EAEC */
+  --c-line-strong:#D8D1C7; /* 原 #DCDEE1 */
+  --c-surface-sunk:#EFEBE5;/* 原 #F1F0EE */
+
+  /* 主色 —— 沿用 #FF7043，它仍然是全站唯一的重音 */
+  --c-brand:#FF7043;
+  --c-brand-tint:#FFF1EC;
+
+  /* ★ 新增：主色派生的「能当字用」的深色。
+     #FF7043 对纸底只有 2.45:1，写正文不达标；
+     这个 5.3:1。分工：橙只做「面」，它管「字」。 */
+  --c-brand-ink:#B23A18;
+
+  /* ★ 改：白不再当容器底了（原来 18 处）。
+     只在弹层 / 输入框这种「必须从纸上浮起来」的地方用。 */
+  --c-surface:#FFFFFF;
+
+  /* ★ 新增：系统衬线栈，只给菜名和标题用 */
+  --f-serif:"Songti SC","STSong","SimSun",serif;
+  --f-sans:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+
+  /* ★ 圆角从 4 档（其中 999 被用了 25 次）压到 3 档，且各有各的活 */
+  --r-panel:14px;   /* 弹层顶部，仅此 */
+  --r-item:5px;     /* 小方图，仅此 */
+  --r-pill:999px;   /* 只留给「二选一」的模式开关 */
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;padding:34px 30px 70px;
+  background:#EDEAE5;color:var(--c-ink);
+  font:14px/1.6 var(--f-sans);
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── 说明区 ─────────────────────────────────────────────── */
+.doc{max-width:1180px;margin:0 auto 34px}
+.doc h1{font:700 30px/1.2 var(--f-serif);margin:0 0 6px}
+.doc .sub{color:var(--c-ink-2);font-size:13.5px;margin:0 0 22px}
+.doc h2{
+  font:600 15px/1.4 var(--f-sans);margin:26px 0 10px;
+  padding-left:11px;border-left:4px solid var(--c-brand);
+}
+.dx{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:12px}
+.dx div{border:1px solid var(--c-line-strong);padding:13px 15px;background:#fff}
+.dx b{display:block;font-size:19px;font-family:var(--f-serif);margin-bottom:2px}
+.dx span{color:var(--c-ink-2);font-size:12.5px}
+.sw{display:flex;flex-wrap:wrap;gap:10px}
+.sw i{display:block;width:88px;font-style:normal;font-size:11px;color:var(--c-ink-2)}
+.sw i em{display:block;height:44px;border:1px solid var(--c-line-strong);margin-bottom:4px;font-style:normal}
+.rules{margin:0;padding-left:20px;font-size:13.5px;color:var(--c-ink-2);line-height:1.85}
+.rules b{color:var(--c-ink)}
+table.k{width:100%;border-collapse:collapse;font-size:13px}
+table.k td,table.k th{border-bottom:1px solid var(--c-line-strong);padding:7px 9px;text-align:left;vertical-align:top}
+table.k th{color:var(--c-ink-3);font-weight:400;font-size:12px}
+
+/* ══════════════════════════════════════════════════════════════
+   二、7 个手机框
+   ══════════════════════════════════════════════════════════════ */
+.frames{display:flex;flex-wrap:wrap;gap:22px;max-width:1180px;margin:0 auto;padding-bottom:20px}
+figure{margin:0;flex:0 0 auto}
+figcaption{
+  font:600 13px/1 var(--f-sans);color:var(--c-ink-2);
+  margin-bottom:8px;padding-left:2px;
+}
+.phone{
+  width:375px;background:var(--c-bg);
+  border:1px solid var(--c-line-strong);
+  font-size:14.5px;position:relative;overflow:hidden;
+}
+.pad{padding:0 15px}
+
+/* ── 全站共用形状（7 页都用这几样，它们是「同一套语言」的地方）── */
+
+/* 分组标题：主色短横 + 宋体组名。代替原来那句灰色小字。 */
+.sec{
+  display:flex;align-items:center;gap:8px;
+  margin:22px 0 9px;font:600 16px/1.3 var(--f-serif);
+}
+.sec::before{content:"";width:13px;height:3px;background:var(--c-brand);flex:none}
+
+/* 行：小方图 + 主次两行 + 右侧。行与行之间一根暖发丝线。 */
+.lrow{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid var(--c-line)}
+.lrow:last-child{border-bottom:none}
+.limg{width:48px;height:48px;flex:none;border-radius:var(--r-item);object-fit:cover;background:var(--c-surface-sunk)}
+.lmid{flex:1;min-width:0}
+.lname{font:600 15.5px/1.35 var(--f-serif)}
+.lsub{font-size:11.5px;color:var(--c-ink-3);margin-top:2px}
+
+/* 文字动作：细下划线。原来这些全是药丸，一屏里能有六七个。 */
+.tx{
+  display:inline-block;font-size:12.5px;color:var(--c-ink-2);
+  border-bottom:1px solid var(--c-line-strong);padding-bottom:2px;
+}
+.tx-brand{color:var(--c-brand-ink);border-bottom-color:var(--c-brand)}
+.tx-danger{color:#D9483B;border-bottom-color:#F0C3BE}
+
+/* 主按钮：一屏最多一个。直角实色块，★ 墨字压橙底（5.98:1）。
+   原来是白字（2.74:1，不达标）—— 顺便把对比度修了。 */
+.block{
+  display:block;text-align:center;padding:13px;
+  background:var(--c-brand);color:var(--c-ink);
+  font:600 15.5px/1 var(--f-sans);border-radius:3px;
+}
+.block.off{background:var(--c-line-strong);color:var(--c-ink-3)}
+
+/* 描边小按钮：补充动作。直角，不加底。 */
+.ghost{
+  display:inline-block;padding:7px 12px;font-size:12.5px;color:var(--c-ink-2);
+  border:1px solid var(--c-line-strong);border-radius:3px;
+}
+
+/* 点线：菜名和份数之间的那排点 */
+.dots{flex:1;min-width:12px;height:1px;margin-bottom:5px;
+  background-image:radial-gradient(circle,var(--c-brand) 0.9px,transparent 1px);
+  background-size:5px 2px;background-repeat:repeat-x;opacity:.62}
+
+/* 说明句：一句人话，代替「一排数字」 */
+.say{font-size:13px;color:var(--c-ink-2);line-height:1.65}
+.say b{font-family:var(--f-serif);font-size:15px;color:var(--c-ink)}
+
+/* 分类条：★ 胶囊 → 文字 + 选中时底下一条主色横线。
+   横线只跟文字一样长，像被人用笔圈了一道。 */
+.cats{display:flex;gap:19px;overflow:hidden;padding:13px 15px 0}
+.cats span{font-size:14px;color:var(--c-ink-2);padding-bottom:7px;white-space:nowrap}
+.cats span.on{color:var(--c-ink);font-weight:600;border-bottom:3px solid var(--c-brand)}
+
+/* 输入：灰底圆角 → 纸上一根线 */
+.ul{display:flex;gap:11px;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--c-line)}
+.ul .k{flex:none;width:42px;font-size:14px;color:var(--c-ink-3)}
+.ul .v{flex:1;font-size:14.5px}
+.ul .v.ph{color:var(--c-ink-3)}
+
+/* 弹层底部 */
+.mask{position:absolute;left:0;right:0;bottom:0;top:0;background:rgba(28,30,33,.5);display:flex;align-items:flex-end}
+.sheet{width:100%;background:var(--c-surface);border-radius:var(--r-panel) var(--r-panel) 0 0;overflow:hidden}
+
+/* ══ 1. 菜库 ══════════════════════════════════════════════ */
+/* 顶部原来是一整块白色 topbar。现在它只是纸上的一块，靠一根线收口。 */
+.lib-top{padding:14px 15px 0;border-bottom:1px solid var(--c-line)}
+.lib-search{
+  display:flex;align-items:center;gap:9px;
+  padding-bottom:11px;border-bottom:1px solid var(--c-line-strong);
+  font-size:14px;color:var(--c-ink-3);
+}
+.lib-search .xx{margin-left:auto;font-size:12px;color:var(--c-ink-3)}
+/* ★ 网格去掉白卡：图直接印在纸上，菜名写在图下面。
+   没有盒子 → 同一屏能多看一道菜，也更像菜谱上的小图版。 */
+.lib-grid{display:flex;flex-wrap:wrap;gap:9px;padding:13px 15px 0}
+.lib-i{width:calc(50% - 4.5px)}
+.lib-i img{width:100%;height:117px;object-fit:cover;display:block;border-radius:var(--r-item);background:var(--c-surface-sunk)}
+.lib-n{font:600 15px/1.3 var(--f-serif);margin-top:7px}
+.lib-m{font-size:11px;color:var(--c-ink-3);margin-top:1px}
+/* 收藏标记：原来是主色圆点 + 白星。改成一个方角小印，写一个字。 */
+.lib-fav{
+  position:absolute;top:6px;left:6px;background:rgba(246,245,243,.94);
+  color:var(--c-brand-ink);font-size:10px;line-height:1;padding:4px 5px;border-radius:2px;
+}
+.lib-fig{position:relative}
+.lib-foot{font-size:11.5px;color:var(--c-ink-3);text-align:center;padding:16px 0 18px}
+
+/* ══ 2. 点菜 ══════════════════════════════════════════════ */
+/* 顶部原来是白底 + 大数字 + 灰字。现在只是纸上一行，宋体把数说清楚。 */
+.ord-top{display:flex;align-items:baseline;gap:7px;padding:18px 15px 4px}
+.ord-n{font:700 31px/1 var(--f-serif)}
+.ord-t{font-size:12.5px;color:var(--c-ink-2)}
+/* 步进器：圆形药丸 → 方形小格。像点菜单上画正字的那几格。 */
+.stepper{display:flex;align-items:center;gap:7px;flex:none}
+.stepper i{
+  width:29px;height:29px;line-height:27px;text-align:center;font-style:normal;
+  border:1px solid var(--c-line-strong);border-radius:3px;font-size:15px;color:var(--c-ink-2);
+}
+.stepper i.q{border:none;font-family:var(--f-serif);font-size:16px;color:var(--c-ink);width:17px}
+.stepper i.plus{border-color:var(--c-brand);background:var(--c-brand);color:var(--c-ink);font-weight:600}
+.ord-note{font-size:11px;color:var(--c-ink-3);margin-top:2px}
+/* 浮动条：药丸 → 通栏实色直角块 */
+.ord-float{
+  position:sticky;bottom:0;margin:18px 15px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--c-brand);color:var(--c-ink);padding:14px 16px;border-radius:3px;
+}
+.ord-float b{font-family:var(--f-serif);font-size:16px}
+
+/* ══ 3. 菜单 ══════════════════════════════════════════════ */
+/* ★ 这里改动最大：原来是「橙底大块 + 5 个数字排成一行」——
+   那是「大数字 + 支撑统计」的默认写法。现在换成标题 + 一句人话。 */
+.mnu-hero{padding:22px 15px 0}
+.mnu-date{font-size:12px;color:var(--c-ink-2)}
+.mnu-title{font:700 30px/1.15 var(--f-serif);margin:5px 0 8px}
+.mnu-say{font-size:13px;color:var(--c-ink-2);line-height:1.6}
+.mnu-say b{font-family:var(--f-serif);font-size:15px;color:var(--c-ink)}
+.mnu-rule{height:3px;background:var(--c-brand);margin:14px 0 0}
+/* 家庭状态：原来是淡橙底通栏。现在只是纸上一行字。 */
+.mnu-fam{display:flex;align-items:center;gap:7px;padding:13px 15px;font-size:12.5px;color:var(--c-ink-2);border-bottom:1px solid var(--c-line)}
+.mnu-fam .dot{width:6px;height:6px;border-radius:50%;background:#2E9E5B;flex:none}
+.mnu-fam .code{margin-left:auto;font-family:var(--f-serif);font-size:14px;color:var(--c-ink)}
+.mnu-30{padding:12px 15px;border-left:3px solid var(--c-brand);background:var(--c-surface-sunk);margin:0}
+.mnu-30 b{font-family:var(--f-serif);font-size:14px}
+.mnu-30 span{display:block;font-size:11.5px;color:var(--c-ink-2);margin-top:3px}
+/* 清单：白容器 → 无底 + 点线。菜名 ···· 份数，谁点的写在下面。 */
+.mnu-list{padding:4px 15px 0}
+.mnu-row{display:flex;align-items:baseline;gap:9px;padding:13px 0 4px}
+.mnu-row .nm{font:600 16.5px/1.3 var(--f-serif)}
+.mnu-row .qt{font-size:13px;color:var(--c-ink);flex:none}
+.mnu-by{font-size:11.5px;color:var(--c-brand-ink);padding:0 0 12px 0;border-bottom:1px solid var(--c-line)}
+.mnu-thumb{display:flex;gap:11px;align-items:flex-start}
+.mnu-thumb .lmid{padding-top:1px}
+/* 三个药丸 → 一行三段文字，中间一根发丝竖线 */
+.mnu-ops{display:flex;align-items:center;padding:16px 15px 4px;font-size:12.5px;color:var(--c-ink-2)}
+.mnu-ops span{flex:1;text-align:center}
+.mnu-ops span+span{border-left:1px solid var(--c-line-strong)}
+.mnu-ops .dg{color:#D9483B}
+.mnu-foot{font-size:11.5px;color:var(--c-ink-3);padding:14px 15px 18px}
+
+/* ══ 4. 摇一摇 ══════════════════════════════════════════════ */
+/* 模式切换是真正的「二选一」，胶囊用在这里是正当的 —— 全站仅此一处。 */
+.rnd-mode{display:flex;gap:8px;padding:16px 15px 0}
+.rnd-mode span{
+  font-size:13px;color:var(--c-ink-2);border:1px solid var(--c-line-strong);
+  border-radius:var(--r-pill);padding:6px 15px;
+}
+.rnd-mode span.on{background:var(--c-brand);border-color:var(--c-brand);color:var(--c-ink);font-weight:600}
+/* 结果卡 → 大图直接落在纸上，图下写名字。没有白盒。 */
+.rnd-img{width:100%;height:212px;object-fit:cover;display:block;border-radius:var(--r-item);background:var(--c-surface-sunk)}
+.rnd-name{font:700 32px/1.2 var(--f-serif);margin:14px 0 3px}
+.rnd-cat{font-size:12px;color:var(--c-ink-3)}
+.rnd-tips{font-size:13px;color:var(--c-ink-2);line-height:1.65;margin-top:11px}
+.rnd-roll{font:700 40px/1.2 var(--f-serif);text-align:center;color:var(--c-ink-3);padding:64px 0 8px}
+.rnd-rollh{text-align:center;font-size:12.5px;color:var(--c-ink-3)}
+.rnd-act{padding:0 15px 20px}
+.rnd-sub{display:flex;justify-content:center;gap:26px;padding:15px 0 0}
+
+/* ══ 5. 收藏 ══════════════════════════════════════════════ */
+.fav-top{font-size:12.5px;color:var(--c-ink-3);padding:18px 15px 4px}
+.fav-top b{font-family:var(--f-serif);font-size:15px;color:var(--c-ink)}
+
+/* ══ 6. 家庭 ══════════════════════════════════════════════ */
+/* 房间码：做成印章。全站唯一的「装饰」，但它是信息（进房间的钥匙）。 */
+.fam-seal{
+  display:inline-block;margin:6px 0 14px;padding:8px 13px 10px;
+  border:2.5px solid var(--c-brand-ink);border-radius:2px;transform:rotate(-2.5deg);
+  color:var(--c-brand-ink);
+}
+.fam-seal u{display:block;font-size:10px;text-decoration:none;letter-spacing:.04em}
+.fam-seal b{display:block;font:700 23px/1.15 var(--f-serif);letter-spacing:.13em;margin-top:1px}
+.fam-h{padding:20px 15px 0}
+.fam-name{font:700 26px/1.2 var(--f-serif)}
+.fam-sub{font-size:12.5px;color:var(--c-ink-2);margin-top:4px}
+/* 成员：圆形头像 → 方角名册格 */
+.fam-mem{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid var(--c-line)}
+.fam-mem:last-child{border-bottom:none}
+.fam-av{
+  width:34px;height:34px;flex:none;border:1px solid var(--c-line-strong);border-radius:3px;
+  text-align:center;line-height:32px;font:600 15px/32px var(--f-serif);color:var(--c-ink-2);
+}
+.fam-nm{flex:1;font-size:15px}
+.fam-tag{font-size:10.5px;color:var(--c-brand-ink);border:1px solid var(--c-brand);border-radius:2px;padding:2px 5px}
+.fam-tag.m{color:var(--c-ink-3);border-color:var(--c-line-strong)}
+/* 步骤是真的序列，编号在这里是正当的 */
+.fam-step{display:flex;gap:10px;padding:9px 0;font-size:13px;color:var(--c-ink-2);line-height:1.6}
+.fam-step b{flex:none;width:19px;height:19px;line-height:18px;text-align:center;
+  border:1px solid var(--c-brand);border-radius:2px;font:600 11.5px/18px var(--f-serif);color:var(--c-brand-ink)}
+
+/* ══ 7. 编辑 ══════════════════════════════════════════════ */
+.edt-photo{
+  margin:16px 15px 0;height:190px;background:var(--c-surface-sunk);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:var(--c-ink-3);border-radius:var(--r-item);gap:6px;
+}
+.edt-photo .mk{font-size:27px;line-height:1}
+.edt-chip{
+  font-size:12.5px;color:var(--c-ink-2);border:1px solid var(--c-line-strong);
+  border-radius:3px;padding:5px 11px;
+}
+.edt-chip.on{background:var(--c-brand);border-color:var(--c-brand);color:var(--c-ink);font-weight:600}
+.edt-note{font-size:11.5px;color:var(--c-ink-3);text-align:center;padding:12px 0 20px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ 说明区 ══════════════ -->
+<div class="doc">
+  <h1>今天吃啥 · 改版方向稿</h1>
+  <p class="sub">7 个页面并排。真实菜名 + 项目里那 80 张菜图；尺寸按「rpx ÷ 2」写，落到 WXSS 直接 ×2。确认方向后我改 WXSS，尽量不动 WXML 和 JS。</p>
+
+  <h2>先看诊断：现在的「SaaS 味」是这两条</h2>
+  <div class="dx">
+    <div><b>18 处</b><span>白底容器 <code>background: var(--c-surface)</code> —— 头部、列表、表单、弹层，全是白盒子。这就是「卡片堆叠」的实体。</span></div>
+    <div><b>25 处</b><span><code>border-radius: var(--r-pill)</code> —— 按钮、标签、头像一律药丸。全站同一个圆角＝没有层级。</span></div>
+    <div><b>5 个数字</b><span>菜单页 hero 把「共几道 / 荤 / 素 / 汤 / 主食 / 凉菜」排成一行方块。这是「大数字＋支撑统计」的默认写法。</span></div>
+  </div>
+
+  <h2>色：沿用主色，只暖了线，新增一个「能当字用」的深橙</h2>
+  <div class="sw">
+    <i><em style="background:#F6F5F3"></em>纸 #F6F5F3</i>
+    <i><em style="background:#E6E1DA"></em>暖线 #E6E1DA ★改</i>
+    <i><em style="background:#D8D1C7"></em>暖线深 #D8D1C7 ★改</i>
+    <i><em style="background:#EFEBE5"></em>下沉面 #EFEBE5 ★改</i>
+    <i><em style="background:#FF7043"></em>番茄橙 #FF7043</i>
+    <i><em style="background:#B23A18"></em>灶红 #B23A18 ★新</i>
+    <i><em style="background:#1C1E21"></em>墨 #1C1E21</i>
+    <i><em style="background:#8A8F99"></em>油烟灰 #8A8F99</i>
+  </div>
+  <p class="say" style="margin-top:11px">
+    <b>#FF7043 对纸底只有 2.45:1</b>，当正文用不达标 —— 所以新增 <b>灶红 #B23A18</b>（5.3:1）专管「字」，
+    橙继续管「面」（选中的横线、点线、主按钮底、印章边）。<br>
+    主按钮顺便把字色从白改成墨：白压橙 2.74:1 也不达标，<b>墨压橙 5.98:1</b>。
+  </p>
+
+  <h2>圆角：4 档 → 3 档，每一档只干一件事</h2>
+  <table class="k">
+    <tr><th>档</th><th>原来</th><th>现在</th></tr>
+    <tr><td>弹层顶部</td><td>28rpx</td><td><b>28rpx</b>（只给底部弹层）</td></tr>
+    <tr><td>小方图</td><td>16rpx</td><td><b>10rpx</b>（只给照片缩略图）</td></tr>
+    <tr><td>主按钮 / 输入框</td><td>999rpx 药丸</td><td><b>6rpx 直角</b>（一屏最多一个实心块）</td></tr>
+    <tr><td>标签 / 分类 / 头像 / 步进器</td><td>999rpx 药丸</td><td><b>2–6rpx 直角或描边</b>（不再是药丸）</td></tr>
+    <tr><td>二选一模式开关</td><td>999rpx</td><td><b>999rpx</b>（胶囊只留这一处，它是真正的「切换」）</td></tr>
+  </table>
+
+  <h2>四条不变量（7 个页面都守）</h2>
+  <ol class="rules">
+    <li><b>白不再做容器底。</b>列表、分组、头部全部直接落在纸上；白只留给弹层和输入框。</li>
+    <li><b>一屏最多一个实心块动作。</b>其余动作降级成带细下划线的文字链。</li>
+    <li><b>主色只出现在四处</b>：选中的横线、点线、印章边、主按钮底。不再拿它刷填充块。</li>
+    <li><b>结构靠暖色发丝线和留白</b>，不靠盒子、不靠阴影（项目现在本来就没有阴影，这条要继续守住）。</li>
+  </ol>
+
+  <h2>自觉砍掉的默认套路</h2>
+  <p class="say">
+    这个题目最容易产出的是：白卡网格 + 胶囊 chips + 一堆药丸按钮 + 主色到处填 + 「大数字＋支撑统计」的 hero。
+    这些我一个没留。同时避开了另一个极端（报纸式的「零圆角 + 满屏发丝线」）：
+    这里<b>食物照片仍然是主视觉</b>，菜名用宋体走「印在纸上」的味道，圆角也没归零。
+  </p>
+  <p class="say" style="margin-top:9px;color:var(--c-ink-3);font-size:12.5px">
+    ★ 字体说明：小程序做不到自定义字体。菜名/标题上的是系统衬线栈，iOS 上是真宋体，
+    Android 多数机型回退系统黑体 —— 版面不塌，只是少点味道。所以它当加分项，不当承重结构。
+  </p>
+</div>
+
+<!-- ══════════════ 7 个页面 ══════════════ -->
+<div class="frames">
+
+<!-- 1 菜库 -->
+<figure>
+  <figcaption>1 菜库（现在的白卡网格）</figcaption>
+  <div class="phone">
+    <div class="lib-top">
+      <div class="lib-search">搜菜名或主料，比如「鸡」<span class="xx">✕</span></div>
+    </div>
+    <div class="cats">
+      <span class="on">全部</span><span>荤菜</span><span>素菜</span><span>汤羹</span><span>主食</span><span>凉菜</span>
+    </div>
+    <div class="lib-grid">
+      <div class="lib-i"><div class="lib-fig"><img src="chishenme/images/dishes/hongshaorou.jpg" alt=""><span class="lib-fav">藏</span></div><div class="lib-n">红烧肉</div><div class="lib-m">五花肉</div></div>
+      <div class="lib-i"><div class="lib-fig"><img src="chishenme/images/dishes/tangcupaigu.jpg" alt=""></div><div class="lib-n">糖醋排骨</div><div class="lib-m">猪肋排</div></div>
+      <div class="lib-i"><div class="lib-fig"><img src="chishenme/images/dishes/gongbaojiding.jpg" alt=""></div><div class="lib-n">宫保鸡丁</div><div class="lib-m">鸡腿肉、花生米</div></div>
+      <div class="lib-i"><div class="lib-fig"><img src="chishenme/images/dishes/qingzhengluyu.jpg" alt=""><span class="lib-fav">藏</span></div><div class="lib-n">清蒸鲈鱼</div><div class="lib-m">鲈鱼</div></div>
+      <div class="lib-i"><div class="lib-fig"><img src="chishenme/images/dishes/suanrongxilanhua.jpg" alt=""></div><div class="lib-n">蒜蓉西兰花</div><div class="lib-m">西兰花</div></div>
+      <div class="lib-i"><div class="lib-fig"><img src="chishenme/images/dishes/shousibaocai.jpg" alt=""></div><div class="lib-n">手撕包菜</div><div class="lib-m">圆白菜</div></div>
+    </div>
+    <div class="lib-foot">长按任意菜品可以收藏</div>
+  </div>
+</figure>
+
+<!-- 2 点菜 -->
+<figure>
+  <figcaption>2 点菜（步进器从圆形改成方格）</figcaption>
+  <div class="phone">
+    <div class="ord-top"><span class="ord-n">6</span><span class="ord-t">道菜已选 · 共 8 份</span></div>
+    <div class="pad">
+      <div class="sec">荤菜</div>
+      <div class="lrow">
+        <img class="limg" src="chishenme/images/dishes/hongshaorou.jpg" alt="">
+        <div class="lmid"><div class="lname">红烧肉</div><div class="ord-note">多放点糖</div></div>
+        <div class="stepper"><i>−</i><i class="q">2</i><i class="plus">＋</i></div>
+      </div>
+      <div class="lrow">
+        <img class="limg" src="chishenme/images/dishes/qingzhengluyu.jpg" alt="">
+        <div class="lmid"><div class="lname">清蒸鲈鱼</div><div class="ord-note">加备注</div></div>
+        <div class="stepper"><i>−</i><i class="q">1</i><i class="plus">＋</i></div>
+      </div>
+      <div class="lrow">
+        <img class="limg" src="chishenme/images/dishes/kelejichi.jpg" alt="">
+        <div class="lmid"><div class="lname">可乐鸡翅</div><div class="ord-note">加备注</div></div>
+        <div class="stepper"><i class="plus">＋</i></div>
+      </div>
+      <div class="sec">素菜</div>
+      <div class="lrow">
+        <img class="limg" src="chishenme/images/dishes/suanrongxilanhua.jpg" alt="">
+        <div class="lmid"><div class="lname">蒜蓉西兰花</div><div class="ord-note">加备注</div></div>
+        <div class="stepper"><i>−</i><i class="q">1</i><i class="plus">＋</i></div>
+      </div>
+      <div class="sec">汤羹</div>
+      <div class="lrow">
+        <img class="limg" src="chishenme/images/dishes/fanqiedantang.jpg" alt="">
+        <div class="lmid"><div class="lname">番茄蛋汤</div><div class="ord-note">加备注</div></div>
+        <div class="stepper"><i>−</i><i class="q">1</i><i class="plus">＋</i></div>
+      </div>
+    </div>
+    <div class="ord-float">
+      <span>已选 <b>6</b> 种 · <b>8</b> 份</span>
+      <span>看菜单 →</span>
+    </div>
+  </div>
+</figure>
+
+<!-- 3 菜单 -->
+<figure>
+  <figcaption>3 菜单（拆掉 5 个数字的 hero）</figcaption>
+  <div class="phone">
+    <div class="mnu-hero">
+      <div class="mnu-date">10月17日 周六</div>
+      <div class="mnu-title">今天吃这些</div>
+      <div class="mnu-say"><b>两荤、一素、一汤、一主食</b></div>
+      <div class="mnu-say" style="margin-top:2px">一共 5 道菜、6 份</div>
+      <div class="mnu-rule"></div>
+    </div>
+    <div class="mnu-fam"><span class="dot"></span>我们家 3 人共享<span class="code">XK7M2Q ›</span></div>
+    <div class="mnu-list">
+      <div class="mnu-thumb" style="padding-top:13px">
+        <img class="limg" src="chishenme/images/dishes/hongshaorou.jpg" alt="">
+        <div class="lmid">
+          <div class="mnu-row" style="padding:0"><span class="nm">红烧肉</span><span class="dots"></span><span class="qt">两份</span></div>
+          <div class="mnu-by" style="border:none;padding:3px 0 0">爸爸 点的</div>
+        </div>
+      </div>
+      <div class="mnu-thumb" style="padding-top:13px">
+        <img class="limg" src="chishenme/images/dishes/qingzhengluyu.jpg" alt="">
+        <div class="lmid">
+          <div class="mnu-row" style="padding:0"><span class="nm">清蒸鲈鱼</span><span class="dots"></span><span class="qt">一份</span></div>
+          <div class="mnu-by" style="border:none;padding:3px 0 0">妈妈 点的</div>
+        </div>
+      </div>
+      <div class="mnu-thumb" style="padding-top:13px;border-bottom:1px solid var(--c-line);padding-bottom:13px">
+        <img class="limg" src="chishenme/images/dishes/suanrongxilanhua.jpg" alt="">
+        <div class="lmid">
+          <div class="mnu-row" style="padding:0"><span class="nm">蒜蓉西兰花</span><span class="dots"></span><span class="qt">一份</span></div>
+          <div class="mnu-by" style="border:none;padding:3px 0 0">妈妈 点的</div>
+        </div>
+      </div>
+      <div class="mnu-thumb" style="padding-top:13px">
+        <img class="limg" src="chishenme/images/dishes/fanqiedantang.jpg" alt="">
+        <div class="lmid">
+          <div class="mnu-row" style="padding:0"><span class="nm">番茄蛋汤</span><span class="dots"></span><span class="qt">一份</span></div>
+          <div class="mnu-by" style="border:none;padding:3px 0 0">妹妹 点的</div>
+        </div>
+      </div>
+      <div class="mnu-thumb" style="padding-top:13px">
+        <img class="limg" src="chishenme/images/dishes/danchaofan.jpg" alt="">
+        <div class="lmid">
+          <div class="mnu-row" style="padding:0"><span class="nm">蛋炒饭</span><span class="dots"></span><span class="qt">一份</span></div>
+          <div class="mnu-by" style="border:none;padding:3px 0 0">妹妹 点的</div>
+        </div>
+      </div>
+    </div>
+    <div class="mnu-ops">
+      <span>复制菜单文字</span><span>转发给家人</span><span class="dg">清空菜单</span>
+    </div>
+    <div class="mnu-foot">家人在自己手机上点的菜，这里会自动出现，不用刷新</div>
+  </div>
+</figure>
+
+<!-- 4 摇一摇 -->
+<figure>
+  <figcaption>4 摇一摇（唯一允许大胆的一页）</figcaption>
+  <div class="phone">
+    <div class="rnd-mode"><span class="on">随机一道</span><span>三菜一汤</span></div>
+    <div class="cats" style="padding-top:15px">
+      <span class="on">全部</span><span>荤菜</span><span>素菜</span><span>汤羹</span><span>主食</span>
+    </div>
+    <div style="padding:18px 15px 0">
+      <img class="rnd-img" src="chishenme/images/dishes/tangcupaigu.jpg" alt="">
+      <div class="rnd-name">糖醋排骨</div>
+      <div class="rnd-cat">荤菜 · 猪肋排</div>
+      <div class="rnd-tips">排骨先焯后炸，糖醋汁按 1:2:3 收浓</div>
+    </div>
+    <div class="rnd-act" style="padding-top:20px">
+      <div class="block">再摇一次</div>
+      <div class="rnd-sub"><span class="tx tx-brand">加入菜单</span><span class="tx">看菜单</span></div>
+    </div>
+  </div>
+</figure>
+
+<!-- 5 收藏 -->
+<figure>
+  <figcaption>5 收藏（一行一道，不用卡片）</figcaption>
+  <div class="phone">
+    <div class="fav-top">已收藏 <b>3</b> 道 · 全库共 <b>83</b> 道</div>
+    <div class="pad">
+      <div class="lrow" style="align-items:flex-start;padding:14px 0">
+        <img class="limg" src="chishenme/images/dishes/hongshaorou.jpg" alt="">
+        <div class="lmid">
+          <div class="lname">红烧肉</div>
+          <div class="lsub">荤菜 · 五花肉</div>
+          <div style="margin-top:8px;display:flex;gap:16px">
+            <span class="tx">取消收藏</span><span class="tx tx-brand">加入菜单</span>
+          </div>
+        </div>
+      </div>
+      <div class="lrow" style="align-items:flex-start;padding:14px 0">
+        <img class="limg" src="chishenme/images/dishes/qingzhengluyu.jpg" alt="">
+        <div class="lmid">
+          <div class="lname">清蒸鲈鱼</div>
+          <div class="lsub">荤菜 · 鲈鱼</div>
+          <div style="margin-top:8px;display:flex;gap:16px">
+            <span class="tx">取消收藏</span><span class="tx tx-brand">再来一份</span>
+          </div>
+        </div>
+      </div>
+      <div class="lrow" style="align-items:flex-start;padding:14px 0">
+        <img class="limg" src="chishenme/images/dishes/disanxian.jpg" alt="">
+        <div class="lmid">
+          <div class="lname">地三鲜</div>
+          <div class="lsub">素菜 · 茄子、土豆、青椒</div>
+          <div style="margin-top:8px;display:flex;gap:16px">
+            <span class="tx">取消收藏</span><span class="tx tx-brand">加入菜单</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</figure>
+
+<!-- 6 家庭 -->
+<figure>
+  <figcaption>6 家庭（房间码做成印章）</figcaption>
+  <div class="phone">
+    <div class="fam-h">
+      <div class="fam-name">我们家</div>
+      <div class="fam-sub">把它告诉家人，他们输一次就进来了</div>
+      <div class="fam-seal"><u>房间码</u><b>XK7M2Q</b></div>
+      <div style="display:flex;gap:18px;padding-bottom:18px">
+        <span class="tx tx-brand">复制房间码</span><span class="tx">转发邀请</span>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--c-line)">
+      <div class="pad" style="display:flex;align-items:center;padding-top:13px;padding-bottom:13px">
+        <div class="lmid">
+          <div style="font-size:11.5px;color:var(--c-ink-3)">我在家里的称呼</div>
+          <div style="font:600 16px/1.4 var(--f-serif);margin-top:2px">爸爸</div>
+        </div>
+        <span class="tx">修改</span>
+      </div>
+    </div>
+    <div class="pad">
+      <div class="sec">家里人（3/15）</div>
+      <div class="fam-mem"><div class="fam-av">爸</div><div class="fam-nm">爸爸</div><span class="fam-tag m">我</span><span class="fam-tag m">房主</span></div>
+      <div class="fam-mem"><div class="fam-av">妈</div><div class="fam-nm">妈妈</div></div>
+      <div class="fam-mem"><div class="fam-av">妹</div><div class="fam-nm">妹妹</div></div>
+      <div style="padding:20px 0 6px">
+        <div class="block">去看今天的菜单</div>
+        <div style="text-align:center;padding-top:14px"><span class="tx tx-danger">解散这个房间</span></div>
+        <div class="edt-note" style="text-align:left;padding:11px 0 20px">你是房主，不能单独退出（房间会没人管）。要结束的话就解散房间——房间码会作废，家里其他人的菜单也一起清空，所以会问你两次。</div>
+      </div>
+    </div>
+  </div>
+</figure>
+
+<!-- 7 编辑 -->
+<figure>
+  <figcaption>7 加菜 / 编辑（表单回到下划线）</figcaption>
+  <div class="phone">
+    <div class="edt-photo"><span class="mk">＋</span><span style="font-size:12.5px">拍一张 / 从相册选</span></div>
+    <div class="pad">
+      <div class="ul"><span class="k">菜名</span><span class="v ph">例如：外婆的糖醋排骨</span></div>
+      <div class="ul" style="align-items:center">
+        <span class="k">分类</span>
+        <span class="v" style="display:flex;gap:7px;flex-wrap:wrap">
+          <span class="edt-chip on">荤菜</span><span class="edt-chip">素菜</span><span class="edt-chip">汤羹</span><span class="edt-chip">主食</span><span class="edt-chip">凉菜</span>
+        </span>
+      </div>
+      <div class="ul"><span class="k">主料</span><span class="v ph">选填，例如：排骨</span></div>
+      <div class="ul" style="align-items:flex-start"><span class="k">要点</span><span class="v ph">选填，一句话记住怎么做</span></div>
+      <div style="padding-top:22px"><div class="block">加入菜库</div></div>
+      <div class="edt-note">加好的菜全家人都能看到，也能直接点</div>
+    </div>
+  </div>
+</figure>
+
+</div>
+</body>
+</html>
