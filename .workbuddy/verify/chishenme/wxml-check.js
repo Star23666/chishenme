@@ -546,6 +546,35 @@ var cloudCfg = read(path.join(APP_DIR, 'cloudfunctions', 'csmMenu', 'config.json
 ok('云函数声明了 subscribeMessage.send 权限（漏了会报「无权限调用」）',
   cloudCfg.indexOf('subscribeMessage.send') >= 0)
 
+/*
+ * G4e. ★ 字号下限：小字不许低于 24rpx（375 屏上约 12px）。
+ *
+ * 这个 app 是给家里人用的、包含长辈。1.5.6 把最小两档从 10.5 / 11.5px
+ * 抬到了 12 / 13px —— 这种「默认就看得清」的事，很容易被后来的人
+ * 为了「一屏塞下更多」又改小回去，所以要钉住。
+ */
+var appRawCss = read(path.join(APP_DIR, 'app.wxss')) || ''
+var tagPx = (appRawCss.match(/--t-tag:\s*(\d+)rpx/) || [])[1]
+var capPx = (appRawCss.match(/--t-cap:\s*(\d+)rpx/) || [])[1]
+ok('最小字号档 --t-tag 不低于 24rpx（约 12px）', !!tagPx && Number(tagPx) >= 24, '--t-tag: ' + tagPx)
+ok('--t-cap 不低于 24rpx', !!capPx && Number(capPx) >= 24, '--t-cap: ' + capPx)
+
+// 页面里写死的字号（不走令牌的那些）也不许低于下限
+var smallLiteral = []
+var cssFiles = ['app.wxss']
+fs.readdirSync(path.join(APP_DIR, 'pages')).forEach(function (d) {
+  cssFiles.push(path.join('pages', d, d + '.wxss'))
+})
+cssFiles.forEach(function (rel) {
+  var src = read(path.join(APP_DIR, rel)) || ''
+  var re = /font-size:\s*(\d+)rpx/g
+  var m
+  while ((m = re.exec(src)) !== null) {
+    if (Number(m[1]) < 24) smallLiteral.push(rel + ' → ' + m[1] + 'rpx')
+  }
+})
+ok('没有任何低于 24rpx 的写死字号', smallLiteral.length === 0, smallLiteral.join('; '))
+
 // G5. ★ 最关键的一条：前端调的每个 action，云函数里都得真的有这个 case
 var cfActions = {}
 var reCase = /case\s+'([A-Za-z_][A-Za-z0-9_]*)'\s*:/g
