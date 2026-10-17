@@ -93,6 +93,23 @@ Page({
     })
   },
 
+  /**
+   * 「有人点菜时，提醒我一声」。
+   * ★ 一次性订阅：点一次「允许」只换一条提醒，所以这里只提示「下一次」，
+   *   不说「以后都会提醒你」。
+   */
+  askNotify: function () {
+    app.askMealNotify().then(function (r) {
+      if (r.ok) {
+        wx.showToast({ title: '好，下次有人点菜会提醒你一次', icon: 'none' })
+        return
+      }
+      if (r.reason === 'no_tpl') wx.showToast({ title: '提醒还没配好', icon: 'none' })
+      else if (r.reason === 'no_family') wx.showToast({ title: '先进一个房间', icon: 'none' })
+      else wx.showToast({ title: '没开成，随时可以再点一次', icon: 'none' })
+    })
+  },
+
   /** 把菜单复制成文字，方便粘到家庭群里 */
   copyText: function () {
     wx.setClipboardData({

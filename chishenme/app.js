@@ -87,6 +87,55 @@ App({
       var cached = storage.get(storage.KEY_FAMILY, null)
       if (cached && cached.code) this.globalData.family = cached
     }
+
+    // 新版本下载好了 → 提示重进一次。
+    // ★ 体验版 / 正式版都走这条；开发者工具里不会触发。
+    //   家人手机上最常见的问题就是「一直用着缓存旧版」，
+    //   有了这个提示能省掉一堆「我这儿怎么没变」的问话。
+    if (wx.getUpdateManager) {
+      var um = wx.getUpdateManager()
+      um.onUpdateReady(function () {
+        wx.showModal({
+          title: '有新版本了',
+          content: '已经下载好，重进一下就能用上。',
+          confirmText: '立即重进',
+          success: function (res) {
+            if (res.confirm) um.applyUpdate()
+          }
+        })
+      })
+    }
+  },
+
+  /**
+   * 请求「有人点菜时提醒我」（订阅消息）。
+   *
+   * ★ 这是一次性订阅：用户点一次「允许」只换到一条消息，用完就没了。
+   *   所以界面上不能写「永久提醒」，也不要在客户端标「已开启」——
+   *   平台根本不告诉客户端还剩几次授权，标了就是在骗人。
+   *
+   * 返回 { ok, reason }：ok = 用户答应了；reason 给页面挑提示词用。
+   */
+  askMealNotify: function () {
+    var id = config.SUBSCRIBE_TMPL_ID
+    if (this.mode() !== 'cloud' || !this.family()) {
+      return Promise.resolve({ ok: false, reason: 'no_family' })
+    }
+    if (!id) return Promise.resolve({ ok: false, reason: 'no_tpl' })
+    if (!wx.requestSubscribeMessage) return Promise.resolve({ ok: false, reason: 'unsupported' })
+
+    return new Promise(function (resolve) {
+      wx.requestSubscribeMessage({
+        tmplIds: [id],
+        success: function (res) {
+          // res[id] 可能是 'accept' / 'reject' / 'ban'
+          resolve({ ok: !!(res && res[id] === 'accept'), reason: (res && res[id]) || 'unknown' })
+        },
+        fail: function () {
+          resolve({ ok: false, reason: 'fail' })
+        }
+      })
+    })
   },
 
   onShow: function () {
@@ -1011,7 +1060,12 @@ App({
   /** 加入菜单（已存在则份数 +1） */
   addToMenu: function (dishId, note) {
     if (!this._addLocal(dishId, note)) return false
-    if (this.mode() === 'cloud') this._push('addDish', { dishId: dishId, note: note || '', qty: 1 })
+    // ★ 带上菜名：云端给家人发提醒时要用（云端没有内置菜的名字，
+    //   那 80 道写在客户端 data/dishes.js 里）。
+    if (this.mode() === 'cloud') {
+      var dn = D.byId(dishId)
+      this._push('addDish', { dishId: dishId, note: note || '', qty: 1, dishName: dn ? dn.name : '' })
+    }
     return true
   },
 

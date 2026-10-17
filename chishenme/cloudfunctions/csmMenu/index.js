@@ -101,6 +101,29 @@ const MAX_OVERRIDES = 100           // 内置菜一共 80 道，留点余量防�
 /* getTempFileURL 一次最多换几个（接口硬上限 50） */
 const SIGN_BATCH = 50
 
+/* ==================== 订阅消息（「有人点菜了」） ====================
+ *
+ * 三个必须知道的前提：
+ *  1. **订阅消息是一次性的**：用户点一次「允许」只换到一条消息，发完就没了。
+ *     所以界面上不能说「永久提醒」，那是在骗人。
+ *  2. 云函数里必须 **await** 发送。云函数 return 之后容器可能被冻结，
+ *     fire-and-forget 的请求会**静默丢掉**（日志里什么都看不到，最难查）。
+ *  3. data 里的字段名必须和后台那个模板**一字不差**，对不上报 47003。
+ *
+ * ★ 模板 ID 不是密钥（它会出现在客户端代码里），但两处必须一致：
+ *   这里和 chishenme/config.js 的 SUBSCRIBE_TMPL_ID（wxml-check 有断言比它们）。
+ */
+const SUBSCRIBE_TPL = 'nSZpROQ9bC2B2Uz6jdb42JYbTUKgEdY7U8K8TuOXQVc'
+
+/* ★ 模板字段名集中在这里，换模板只改这张表。
+   默认按最常见的「点菜提醒」模板写：thing1 = 内容、time2 = 时间。
+   如果发送时日志里报 47003，就是这两个名字和你后台的模板对不上。 */
+const TPL_FIELD = {
+  item: 'thing1',
+  time: 'time2'
+}
+
+
 /*
  * 菜单每天几点「翻篇」（22.5 = 22:30）。
  * ★ 必须和客户端 utils/format.js 的 MENU_CUTOFF_H **是同一个值**。
@@ -400,6 +423,53 @@ async function findDish(familyCode, date, dishId) {
   return r.data[0] || null
 }
 
+/** 东八区 'HH:mm' —— 订阅消息里 time 类型字段要的是这种格式 */
+function beijingClock() {
+  const d = new Date(Date.now() + 8 * 3600 * 1000)
+  return pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes())
+}
+
+/**
+ * 有人新点了菜 → 给家里**其他人**发一条提醒。
+ *
+ * ★ 不发给自己：你刚点的菜你最清楚。
+ * ★ 只在新加一道菜时发；加份数不发（同一道菜点三次收三条，很快就烦了）。
+ * ★ 返回值里的 err 只用于排查（调用处只写日志，不进任何界面文案）。
+ */
+async function notifyOthers(fam, fromOpenid, text) {
+  const out = { sent: 0, err: '' }
+  try {
+    const members = (fam && fam.members instanceof Array) ? fam.members : []
+    const targets = members.filter(function (o) { return o && o !== fromOpenid })
+    if (!targets.length) return out
+
+    const data = {}
+    data[TPL_FIELD.item] = { value: String(text || '一道菜').slice(0, 20) }
+    data[TPL_FIELD.time] = { value: beijingClock() }
+
+    // 并行发；单人失败（没授权 / 用完了 / 字段不符）不影响其他人
+    const results = await Promise.all(targets.map(function (to) {
+      return cloud.openapi.subscribeMessage.send({
+        touser: to,
+        templateId: SUBSCRIBE_TPL,
+        data: data,
+        page: 'pages/menu/menu'
+      }).then(function () {
+        return ''
+      }).catch(function (e) {
+        return String((e && (e.errCode || e.message)) || 'fail')
+      })
+    }))
+
+    for (let i = 0; i < results.length; i++) {
+      if (results[i]) { if (!out.err) out.err = results[i] } else out.sent++
+    }
+  } catch (e) {
+    out.err = String((e && e.message) || e)
+  }
+  return out
+}
+
 async function addDish(openid, p) {
   const fam = await requireFamily(openid)
   const dishId = clean(p.dishId, 40)
@@ -443,10 +513,18 @@ async function addDish(openid, p) {
         updatedAt: Date.now()
       }
     })
+    // ★ 只有「新加一道菜」才提醒别人：加份数不提醒。
+    // ★ 必须 await —— 云函数 return 之后容器可能被冻结，
+    //   不 await 的请求会静默丢掉（这段最容易被写成 fire-and-forget）。
+    // ★ 提醒失败绝不能影响点菜本身，notifyOthers 内部已经全兜住了。
+    if (p.notify !== false) {
+      const r = await notifyOthers(fam, openid, clean(p.dishName, 20))
+      if (r.err) console.warn('[notify] 没发出去：' + r.err + '（sent=' + r.sent + '）')
+    }
   }
 
   await maybeCleanupOld(fam.code)
-  return ok({ dishId: dishId, date: date })
+  return ok({ dishId: dishId, date: date, isNew: !exist })
 }
 
 /** 一次加多道（摇一摇的「三菜一汤」用） */
@@ -454,8 +532,17 @@ async function addMany(openid, p) {
   const ids = Array.isArray(p.dishIds) ? p.dishIds : []
   if (!ids.length) throw new Error('没有要加的菜')
   if (ids.length > 10) throw new Error('一次最多加 10 道')
+  // ★ 逐道加的时候关掉单条提醒，最后合并成一条发 ——
+  //   摇一摇「全部加入菜单」一次加四道，逐条发就是四条推送，太吵。
+  let added = 0
   for (let i = 0; i < ids.length; i++) {
-    await addDish(openid, { dishId: ids[i] })
+    const r = await addDish(openid, { dishId: ids[i], notify: false })
+    if (r && r.data && r.data.isNew) added++
+  }
+  if (added) {
+    const fam = await requireFamily(openid)
+    const nr = await notifyOthers(fam, openid, added + ' 道菜')
+    if (nr.err) console.warn('[notify] 没发出去：' + nr.err + '（sent=' + nr.sent + '）')
   }
   return ok({ count: ids.length })
 }

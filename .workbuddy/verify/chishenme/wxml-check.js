@@ -517,6 +517,35 @@ menuFns.forEach(function (fn) {
 })
 ok('云函数的菜单读写没混用 todayStr（一律 menuDayStr）', mixedTz.length === 0, mixedTz.join(', '))
 
+/*
+ * G4c. ★ 订阅消息的模板 ID，客户端和云函数必须**完全一致**。
+ *
+ * 客户端拿它去 requestSubscribeMessage（相当于「订哪个模板」），
+ * 云函数拿它去 subscribeMessage.send（相当于「发哪个模板」）。
+ * 两边不一致的表现是最恶劣的一种：**发送静默失败** ——
+ * 点菜的人毫无感觉，收不到的人也不知道，界面上什么都不报。
+ * 所以这里直接把两边的值抠出来比。
+ *
+ * ★ 这段必须放在 cfNoComment 赋值**之后**（var 提升会让前面读到 undefined，
+ *   结果就是「云函数 null」，看起来像没配）。
+ * config.js 不入库（里面有环境 ID），它不存在时跳过，不算失败。
+ */
+function tmplIdOf (src, key) {
+  var m = String(src).match(new RegExp(key + "\\s*[:=]\\s*'([^']+)'"))
+  return m ? m[1] : null
+}
+var cfgTmpl = tmplIdOf(configSrc, 'SUBSCRIBE_TMPL_ID')
+var cfTmpl = tmplIdOf(cfNoComment, 'SUBSCRIBE_TPL')
+if (cfgTmpl) {
+  ok('★ 订阅消息模板 ID 客户端与云函数一致', cfgTmpl === cfTmpl,
+    '客户端 ' + cfgTmpl + ' / 云函数 ' + cfTmpl)
+} else {
+  ok('config.js 里没有配订阅消息模板 ID（跳过一致性检查）', true)
+}
+var cloudCfg = read(path.join(APP_DIR, 'cloudfunctions', 'csmMenu', 'config.json')) || ''
+ok('云函数声明了 subscribeMessage.send 权限（漏了会报「无权限调用」）',
+  cloudCfg.indexOf('subscribeMessage.send') >= 0)
+
 // G5. ★ 最关键的一条：前端调的每个 action，云函数里都得真的有这个 case
 var cfActions = {}
 var reCase = /case\s+'([A-Za-z_][A-Za-z0-9_]*)'\s*:/g

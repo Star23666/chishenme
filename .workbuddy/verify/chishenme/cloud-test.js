@@ -33,12 +33,22 @@ var deletedFiles = []
 var tempCalls = []
 var tempFail = {}
 
+/* 订阅消息的假账本：
+   - subCalls 记下每次真的发出去了什么（发给谁、哪个模板、填了哪些字段）
+   - subFail 里的人会被模拟成「没授权 / 一次性订阅用完了」
+     ★ 真实世界里这是**最常见的失败**，而且失败是静默的：
+       点菜的人毫无感觉，收不到的人也不知道。所以要能造出来。 */
+var subCalls = []
+var subFail = {}
+
 function resetStore() {
   for (var k in store) delete store[k]
   idSeq = 0
   deletedFiles = []
   tempCalls = []
   tempFail = {}
+  subCalls = []
+  subFail = {}
 }
 
 function col(name) {
@@ -242,6 +252,28 @@ function makeSdk() {
     init: function () {},
     database: database,
     getWXContext: function () { return { OPENID: currentOpenid, APPID: 'wxtest' } },
+    /**
+     * 订阅消息的假实现。
+     * ★ 记下每次发送的完整参数（发给谁 / 模板 / 字段 / 落地页），
+     *   这样「不给自己发」「加份数不发」「一次加多道只发一条」
+     *   这些规则才有办法被断言，不然它们错了也没人知道。
+     */
+    openapi: {
+      subscribeMessage: {
+        send: function (opt) {
+          subCalls.push({
+            touser: opt.touser,
+            templateId: opt.templateId,
+            data: opt.data,
+            page: opt.page
+          })
+          if (subFail[opt.touser]) {
+            return Promise.reject({ errCode: 43101, errMsg: 'user refuse to accept the msg' })
+          }
+          return Promise.resolve({ errCode: 0 })
+        }
+      }
+    },
     // 云存储：只实现删文件（删菜时要顺手把菜图清掉）
     deleteFile: function (opt) {
       var list = (opt && opt.fileList) || []
@@ -1302,6 +1334,84 @@ async function run() {
     eq('★ 每一批都没超接口上限',
       tempCalls.every((c) => c.length <= 50), true)
     eq('  53 张全都换到了', Object.keys(many.temp).length, 53)
+  }
+
+  /* ---------- 10. 「有人点菜了」的提醒 ---------- */
+  S('10. 订阅消息：有人点菜了')
+  {
+    /*
+     * 这一段盯的是四条「错了也不报错」的规则：
+     *   ① 不给自己发（你刚点的菜你最清楚）
+     *   ② 加份数不发（同一道菜点三次收三条会烦死）
+     *   ③ 一次加多道只发一条（摇一摇「全部加入菜单」不该轰炸）
+     *   ④ 某人没授权 / 用完了 → 不影响点菜本身
+     * 失败是**静默**的：点菜的人没感觉，收不到的人也不知道。
+     */
+    resetStore()
+    subCalls = []
+    subFail = {}
+
+    const made = await call('na', 'createFamily', { name: '提醒家', nickname: '爸爸' })
+    const roomCode = made.data.code
+    await call('nb', 'joinFamily', { code: roomCode, nickname: '妈妈' })
+    await call('nc', 'joinFamily', { code: roomCode, nickname: '妹妹' })
+
+    // 爸爸加一道新菜 → 只发给妈妈和妹妹
+    await call('na', 'addDish', { dishId: 'hongshaorou', dishName: '红烧肉' })
+    eq('★ 新加一道菜会发提醒', subCalls.length, 2)
+    ok('★ 不发给操作者自己',
+      subCalls.every((c) => c.touser !== 'na'), subCalls.map((c) => c.touser).join(','))
+    ok('发给的是另外两个成员',
+      subCalls.map((c) => c.touser).sort().join(',') === 'nb,nc',
+      subCalls.map((c) => c.touser).join(','))
+    eq('模板 ID 用的是配置里那个',
+      subCalls[0].templateId, 'nSZpROQ9bC2B2Uz6jdb42JYbTUKgEdY7U8K8TuOXQVc')
+    ok('消息里带了菜名',
+      !!(subCalls[0].data && subCalls[0].data.thing1 && subCalls[0].data.thing1.value === '红烧肉'),
+      JSON.stringify(subCalls[0].data))
+    ok('消息里带了时间（time 字段）',
+      !!(subCalls[0].data && subCalls[0].data.time2 && /^\d{2}:\d{2}$/.test(subCalls[0].data.time2.value)),
+      JSON.stringify(subCalls[0].data))
+    eq('点进去落在菜单页', subCalls[0].page, 'pages/menu/menu')
+
+    // 同一道菜再加一份（已存在）→ 不该发
+    subCalls = []
+    await call('na', 'addDish', { dishId: 'hongshaorou', dishName: '红烧肉' })
+    eq('★ 加份数不发提醒', subCalls.length, 0)
+
+    // 妈妈加一道新菜 → 只发给爸爸和妹妹
+    subCalls = []
+    await call('nb', 'addDish', { dishId: 'qingzhengluyu', dishName: '清蒸鲈鱼' })
+    ok('别人加菜也不发给操作者本人',
+      subCalls.every((c) => c.touser !== 'nb') && subCalls.length === 2,
+      subCalls.map((c) => c.touser).join(','))
+
+    // 一次加多道 → 只发一条（合并成「N 道菜」）
+    subCalls = []
+    await call('na', 'addMany', { dishIds: ['gongbaojiding', 'suanrongxilanhua', 'fanqiedantang'] })
+    eq('★ 一次加多道只发一轮（不按道数轰炸）', subCalls.length, 2)
+    ok('  内容是「3 道菜」而不是某一道的名字',
+      !!(subCalls[0].data && subCalls[0].data.thing1 && /3 道菜/.test(subCalls[0].data.thing1.value)),
+      JSON.stringify(subCalls[0].data))
+
+    // 再加多道但**全都已存在**（全是加份数）→ 一条都不发
+    subCalls = []
+    await call('na', 'addMany', { dishIds: ['gongbaojiding', 'suanrongxilanhua'] })
+    eq('★ 全是加份数时一条都不发', subCalls.length, 0)
+
+    // 收件人没授权 / 一次性订阅用完了 → 点菜照样成功
+    subCalls = []
+    subFail = { nb: true, nc: true }
+    const stillOk = await call('na', 'addDish', { dishId: 'danchaofan', dishName: '蛋炒饭' })
+    eq('★ 发不出去也不影响点菜本身', stillOk.ok, true)
+    eq('  菜确实进了菜单', col('csm_menus').filter((d) => d.dishId === 'danchaofan').length, 1)
+    eq('  还是尝试发了（不是直接跳过）', subCalls.length, 2)
+
+    // 只有部分人失败 → 其他人照样收到
+    subCalls = []
+    subFail = { nb: true }
+    await call('na', 'addDish', { dishId: 'jiaozi', dishName: '白菜猪肉饺子' })
+    eq('一个人失败不影响另一个人', subCalls.length, 2)
   }
 
   /* ---------- 汇总 ---------- */
