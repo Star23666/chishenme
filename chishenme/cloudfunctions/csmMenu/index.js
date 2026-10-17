@@ -44,6 +44,11 @@
  * ★ 时区坑：云函数默认跑在 UTC。晚上 8 点以后，UTC 和东八区不是同一天，
  *   如果直接用 new Date() 算「今天」，北京时间晚上点完菜会存成「明天」。
  *   所以下面严格用 UTC+8 自己算日期。
+ *
+ * ★ 另一个「日」：菜单的日期不是 todayStr()，而是 menuDayStr() ——
+ *   菜单一天只到 **22:30**（到点翻篇 = 今天的菜单自动作废）。
+ *   菜单相关的读写一律用它，用错就会出「点了菜不显示」的沉默故障。
+ *   客户端 `utils/format.js` 有同一套实现，两边的 MENU_CUTOFF_H 必须一致。
  */
 
 const cloud = require('wx-server-sdk')
@@ -96,6 +101,14 @@ const MAX_OVERRIDES = 100           // 内置菜一共 80 道，留点余量防�
 /* getTempFileURL 一次最多换几个（接口硬上限 50） */
 const SIGN_BATCH = 50
 
+/*
+ * 菜单每天几点「翻篇」（22.5 = 22:30）。
+ * ★ 必须和客户端 utils/format.js 的 MENU_CUTOFF_H **是同一个值**。
+ *   两边不一致 = 22:30 之后点菜写进去的日期和读出来的日期对不上，
+ *   菜沉在库里、界面不显示，而且两边都不报错。
+ */
+const MENU_CUTOFF_H = 22.5
+
 /** 这个 id 看起来像不像一道内置菜 */
 function isBuiltinId(id) {
   return BUILTIN_ID.test(id) && !CUSTOM_ID.test(id)
@@ -127,6 +140,23 @@ function todayStr() {
 /** 东八区往前 n 天的日期 */
 function daysAgoStr(n) {
   const d = new Date(Date.now() + 8 * 3600 * 1000 - n * 24 * 3600 * 1000)
+  return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate())
+}
+
+/**
+ * 菜单归属的日期（「菜单日」）—— 菜单一天是 **00:00~22:30**，不是到 0 点。
+ *
+ * 做法：算日期前把时间往后推 24 - 22.5 = 1.5 小时，等价于把一天的分界线
+ * 从 0 点挪到 22:30。于是 22:29 还算今天、22:30 整就翻到明天，
+ * 「今天的菜单」到点自动作废，**不需要真的去删任何文档**。
+ *
+ * ★ 菜单相关的每一个读写都必须用它，不能用 todayStr() ——
+ *   见 MENU_CUTOFF_H 上面那段说明。
+ * ★ 传 now 只为让离线单测能钉死时刻，不传就是此刻。
+ */
+function menuDayStr(now) {
+  const base = typeof now === 'number' ? now : Date.now()
+  const d = new Date(base + 8 * 3600 * 1000 + (24 - MENU_CUTOFF_H) * 3600 * 1000)
   return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate())
 }
 
@@ -375,7 +405,7 @@ async function addDish(openid, p) {
   const dishId = clean(p.dishId, 40)
   if (!dishId) throw new Error('菜名不对')
 
-  const date = todayStr()
+  const date = menuDayStr()
   let qty = parseInt(p.qty, 10)
   if (isNaN(qty) || qty < 1) qty = 1
   if (qty > MAX_QTY) qty = MAX_QTY
@@ -433,7 +463,7 @@ async function addMany(openid, p) {
 async function setQty(openid, p) {
   const fam = await requireFamily(openid)
   const dishId = clean(p.dishId, 40)
-  const date = todayStr()
+  const date = menuDayStr()
   let qty = parseInt(p.qty, 10)
   if (isNaN(qty)) throw new Error('份数不合法')
 
@@ -457,7 +487,7 @@ async function setQty(openid, p) {
 async function setNote(openid, p) {
   const fam = await requireFamily(openid)
   const dishId = clean(p.dishId, 40)
-  const exist = await findDish(fam.code, todayStr(), dishId)
+  const exist = await findDish(fam.code, menuDayStr(), dishId)
   if (!exist) throw new Error('这道菜不在菜单里')
   await db.collection(MENU).doc(exist._id).update({
     data: { note: clean(p.note, NOTE_MAX), updatedAt: Date.now() }
@@ -469,7 +499,9 @@ async function clearMenu(openid) {
   const fam = await requireFamily(openid)
   await db.collection(MENU).where({
     familyCode: fam.code,
-    date: todayStr()
+    // ★ 清的是「当前这一份菜单」。过了 22:30 这一份已经翻到明天，
+    //   这时清空 = 把明天那份清掉，今天的老数据本来就已作废。
+    date: menuDayStr()
   }).remove()
   return ok(null)
 }
@@ -482,7 +514,7 @@ async function clearMenu(openid) {
  */
 async function listMenu(openid) {
   const fam = await requireFamily(openid)
-  const date = todayStr()
+  const date = menuDayStr()
   const r = await db.collection(MENU)
     .where({ familyCode: fam.code, date: date })
     .orderBy('addedAt', 'asc')
@@ -894,4 +926,15 @@ exports.main = async (event) => {
   } catch (e) {
     return err((e && e.message) || String(e))
   }
+}
+
+/*
+ * 给离线单测直接断言日期算法用（cloud-test.js 会 require 本文件）。
+ * ★ 只挂在这里，不参与 main 的分发，线上行为完全不受影响。
+ */
+exports._test = {
+  todayStr: todayStr,
+  menuDayStr: menuDayStr,
+  daysAgoStr: daysAgoStr,
+  MENU_CUTOFF_H: MENU_CUTOFF_H
 }

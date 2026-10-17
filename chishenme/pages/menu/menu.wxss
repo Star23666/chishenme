@@ -93,6 +93,36 @@
   margin-left: 16rpx;
 }
 
+/* ---------- 「已经翻篇了」提示条 ----------
+   只在过了 22:30 出现（从那时起这一页装的是明天那份菜单）。
+   故意**不用**品牌淡底：它上面紧挨着的家庭状态条已经是品牌淡底了，
+   两条同色叠在一起就分不出哪个是「状态」、哪个是「提示」。
+   改成下沉面 + 一根中性竖线，只把时间点用品牌色点一下。 */
+.nextbar {
+  margin: 16rpx 0 0;
+  padding: 20rpx 30rpx;
+  background: var(--c-surface-sunk);
+  border-left: 6rpx solid var(--c-line-strong);
+}
+
+.nextbar-t {
+  display: block;
+  font-size: var(--t-sub);
+  color: var(--c-ink-2);
+}
+
+.nextbar-time {
+  color: var(--c-brand);
+  font-weight: 600;
+}
+
+.nextbar-d {
+  display: block;
+  font-size: var(--t-cap);
+  color: var(--c-ink-3);
+  margin-top: 6rpx;
+}
+
 /* ---------- 菜单列表 ---------- */
 .mlist {
   background: var(--c-surface);

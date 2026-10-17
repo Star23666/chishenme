@@ -3,7 +3,7 @@
 
   <view class="hero">
     <view class="hero-date">{{dateText}}</view>
-    <view class="hero-title">今天吃这些</view>
+    <view class="hero-title">{{nextDay ? '明天吃这些' : '今天吃这些'}}</view>
     <view class="hero-stats">
       <view class="hs">
         <text class="hs-n">{{stats.total}}</text>
@@ -42,8 +42,16 @@
     <view class="fbar-r">{{fam ? fam.code : '去建房间'}} ›</view>
   </view>
 
+  <!-- 过了 22:30：今天那份菜单已经清空，这一页装的是「明天」那份。
+       不加这条的话，隔天早上看到昨晚点的菜还在（或者晚上看到菜单突然空了）
+       都会以为是丢了数据 —— 这正是必须解释一句的地方。 -->
+  <view class="nextbar" wx:if="{{nextDay}}">
+    <text class="nextbar-t">已经过了 <text class="nextbar-time">{{cutoff}}</text>，今天那份菜单已清空</text>
+    <text class="nextbar-d">现在点的是「明天」的菜，明早打开还在</text>
+  </view>
+
   <view class="empty" wx:if="{{empty}}">
-    <view class="empty-title">今天还没点菜</view>
+    <view class="empty-title">{{nextDay ? '明天的菜单还是空的' : '今天还没点菜'}}</view>
     <view class="empty-desc">去「点菜」挑几道，<br />或者去「摇一摇」让天意决定</view>
     <view class="empty-btns">
       <view class="eb" bindtap="goLibrary">去点菜</view>

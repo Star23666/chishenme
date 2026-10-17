@@ -289,24 +289,100 @@ app.addToMenu('hongshaorou')
 var rawMenu = app.menu()
 eq('qty 恒为正数', rawMenu[0].qty > 0, true)
 
-/* ==================== D. 跨天清空 ==================== */
+/* ==================== D. 菜单作废 ==================== */
 
-S('D. 跨天自动清空')
+S('D. 菜单作废（跨天 / 过了 22:30）')
 
 reset()
 app.addToMenu('hongshaorou')
 app.addToMenu('danchaofan')
 eq('今天有 2 种', app.menuKinds(), 2)
 
+// 模拟「上一份菜单留下的日期戳」：只要戳不是当前菜单日，整份就作废
 store['csm_menu_date'] = '2000-01-01'
-eq('跨天后 menu() 为空', app.menu().length, 0)
-eq('跨天后 kinds 为 0', app.menuKinds(), 0)
-eq('跨天后份数为 0', app.menuCount(), 0)
-eq('跨天后 qtyOf 归零', app.qtyOf('hongshaorou'), 0)
+eq('日期戳一对不上 menu() 就为空', app.menu().length, 0)
+eq('  份数为 0', app.menuCount(), 0)
+eq('  统计口径为 0', app.menuStats().total, 0)
+eq('  qtyOf 归零', app.qtyOf('hongshaorou'), 0)
+ok('  但原始数据没被删掉（只是不再属于当前这份）',
+  (store['csm_menu'] || []).length === 2)
 
 app.addToMenu('jiaozi')
-eq('跨天后重新点菜只有新菜', app.menuKinds(), 1)
-eq('跨天后新菜正确', app.menu()[0].dishId, 'jiaozi')
+eq('日期戳过期后重新点菜只有新菜', app.menuKinds(), 1)
+eq('  新菜正确', app.menu()[0].dishId, 'jiaozi')
+eq('  日期戳被打回当前菜单日', store['csm_menu_date'], fmt.menuDayStr())
+
+/* ============ D2. 菜单日：每天 22:30 翻篇 ============ */
+
+S('D2. 菜单日（每天 22:30 翻篇）')
+
+/* 北京时间的某个时刻 → 绝对时间戳（不动本机时区） */
+function bjTime(y, m, d, H, M) {
+  return Date.UTC(y, m - 1, d, H - 8, M || 0, 0)
+}
+
+eq('分界点常量是 22.5（= 22:30）', fmt.MENU_CUTOFF_H, 22.5)
+eq('界面用的分界点文本', fmt.cutoffText(), '22:30')
+
+eq('北京 22:29 -> 还是今天', fmt.menuDayStr(bjTime(2026, 10, 17, 22, 29)), '2026-10-17')
+eq('★ 北京 22:30 整 -> 翻到明天', fmt.menuDayStr(bjTime(2026, 10, 17, 22, 30)), '2026-10-18')
+eq('北京 23:59 -> 还是明天', fmt.menuDayStr(bjTime(2026, 10, 17, 23, 59)), '2026-10-18')
+eq('次日 00:01 -> 明天', fmt.menuDayStr(bjTime(2026, 10, 18, 0, 1)), '2026-10-18')
+eq('次日 08:00 -> 还是明天（新菜单就属于这一天）', fmt.menuDayStr(bjTime(2026, 10, 18, 8, 0)), '2026-10-18')
+eq('北京 00:00 -> 今天', fmt.menuDayStr(bjTime(2026, 10, 17, 0, 0)), '2026-10-17')
+eq('跨月：10-31 23:00 -> 11-01', fmt.menuDayStr(bjTime(2026, 10, 31, 23, 0)), '2026-11-01')
+eq('跨年：12-31 23:00 -> 次年 01-01', fmt.menuDayStr(bjTime(2026, 12, 31, 23, 0)), '2027-01-01')
+eq('★ 按东八区算、不看 UTC 日期（此刻 UTC 还停在 10-16）',
+  fmt.menuDayStr(Date.UTC(2026, 9, 16, 23, 0)), '2026-10-17')
+
+eq('22:29 不算翻篇', fmt.menuIsNextDay(bjTime(2026, 10, 17, 22, 29)), false)
+eq('★ 22:30 算翻篇（菜单页要出提示条）', fmt.menuIsNextDay(bjTime(2026, 10, 17, 22, 30)), true)
+eq('次日 08:00 不算翻篇', fmt.menuIsNextDay(bjTime(2026, 10, 18, 8, 0)), false)
+
+eq('翻篇后菜单日显示成「明天」',
+  fmt.dateLabel(fmt.menuDayStr(bjTime(2026, 10, 17, 22, 30)), bjTime(2026, 10, 17, 22, 30)), '明天')
+eq('没翻篇时菜单日显示成「今天」',
+  fmt.dateLabel(fmt.menuDayStr(bjTime(2026, 10, 17, 21, 0)), bjTime(2026, 10, 17, 21, 0)), '今天')
+eq('真实的今天（23:00）仍显示「今天」，不受翻篇影响',
+  fmt.dateLabel(fmt.todayStr(bjTime(2026, 10, 17, 23, 0)), bjTime(2026, 10, 17, 23, 0)), '今天')
+
+/*
+ * 行为验证：把时钟钉死，真跑一遍数据层。
+ * ★ 这一组是本次功能的核心断言 —— 拆掉 menuDayStr 的话它们会立刻红。
+ */
+var REAL_NOW = Date.now
+function freezeAt(ms) { Date.now = function () { return ms } }
+
+reset()
+try {
+  freezeAt(bjTime(2026, 10, 17, 21, 0))
+  app.addToMenu('hongshaorou')
+  eq('21:00 点的菜在菜单里', app.menuKinds(), 1)
+  eq('  日期戳是菜单日 10-17', store['csm_menu_date'], '2026-10-17')
+
+  freezeAt(bjTime(2026, 10, 17, 22, 29))
+  eq('22:29 还在（就差一分钟）', app.menuKinds(), 1)
+
+  freezeAt(bjTime(2026, 10, 17, 22, 30))
+  eq('★ 22:30 整菜单就空了', app.menu().length, 0)
+  eq('  份数归零', app.menuCount(), 0)
+  eq('  统计口径归零', app.menuStats().total, 0)
+  ok('  「菜单自己空了」时原始数据仍在（不是丢数据）',
+    (store['csm_menu'] || []).length === 1)
+
+  freezeAt(bjTime(2026, 10, 17, 22, 35))
+  app.addToMenu('jiaozi')
+  eq('22:35 点的菜进「明天」那一份', app.menuKinds(), 1)
+  eq('  日期戳变成 10-18', store['csm_menu_date'], '2026-10-18')
+
+  freezeAt(bjTime(2026, 10, 18, 8, 0))
+  eq('第二天早上打开，昨晚 22:35 点的还在', app.menu()[0].dishId, 'jiaozi')
+
+  freezeAt(bjTime(2026, 10, 18, 22, 30))
+  eq('第二天 22:30 再翻一篇', app.menu().length, 0)
+} finally {
+  Date.now = REAL_NOW
+}
 
 /* ==================== E. 收藏 ==================== */
 
@@ -619,6 +695,13 @@ S('K. 日期工具')
 
 eq('todayStr 格式 yyyy-mm-dd', /^\d{4}-\d{2}-\d{2}$/.test(fmt.todayStr()), true)
 eq('dateLabel(今天)', fmt.dateLabel(fmt.todayStr()), '今天')
+// 钉死 now（北京 2026-10-17 12:00），把三种相对日期一次测全
+eq('dateLabel 支持「今天」', fmt.dateLabel('2026-10-17', Date.UTC(2026, 9, 17, 4, 0)), '今天')
+eq('dateLabel 支持「明天」', fmt.dateLabel('2026-10-18', Date.UTC(2026, 9, 17, 4, 0)), '明天')
+eq('dateLabel 支持「昨天」', fmt.dateLabel('2026-10-16', Date.UTC(2026, 9, 17, 4, 0)), '昨天')
+eq('dateLabel 更早的日期回落到「10月15日」', fmt.dateLabel('2026-10-15', Date.UTC(2026, 9, 17, 4, 0)), '10月15日')
+eq('menuDayStr 格式 yyyy-mm-dd', /^\d{4}-\d{2}-\d{2}$/.test(fmt.menuDayStr()), true)
+eq('menuIsNextDay 返回布尔', typeof fmt.menuIsNextDay(), 'boolean')
 eq('mdLabel 去掉前导零', fmt.mdLabel('2026-10-05'), '10月5日')
 eq('weekday 2026-10-15 = 周四', fmt.weekday('2026-10-15'), '周四')
 eq('weekday 2026-10-18 = 周日', fmt.weekday('2026-10-18'), '周日')

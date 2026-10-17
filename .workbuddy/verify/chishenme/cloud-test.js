@@ -364,11 +364,13 @@ async function run() {
     eq('北京时间凌晨 1 点下的单，日期是北京的今天', menuDocs[0].date, '2026-10-16')
 
     // 北京时间 2026-10-15 23:00 = UTC 2026-10-15 15:00（两边同一天，不该出错）
+    // ★ 但 23:00 已经过了 22:30 的翻篇点 —— 所以这一单算「明天（10-16）那份菜单」。
+    //   这是 v1.6.2 起的行为（菜单每天 22:30 翻篇），不是时区算错。
     resetStore()
     freeze('2026-10-15T15:00:00Z')
     await call('u_b', 'createFamily', { name: '乙家', nickname: '妈妈' })
     await call('u_b', 'addDish', { dishId: 'fanqiechaodan' })
-    eq('北京时间晚上 11 点下的单，日期还是当天', col('csm_menus')[0].date, '2026-10-15')
+    eq('北京时间 23:00 下的单（已过 22:30）算明天那份', col('csm_menus')[0].date, '2026-10-16')
 
     // 北京 2026-10-16 07:59 = UTC 2026-10-15 23:59，仍然差一天
     resetStore()
@@ -376,6 +378,66 @@ async function run() {
     await call('u_c', 'createFamily', { name: '丙家', nickname: '孩子' })
     await call('u_c', 'addDish', { dishId: 'danchaofan' })
     eq('北京时间早上 7:59 下的单，日期是北京今天', col('csm_menus')[0].date, '2026-10-16')
+
+    unfreeze()
+  }
+
+  /* ---------- A2. 菜单日：每天 22:30 翻篇 ---------- */
+  S('A2. 菜单日（每天 22:30 翻篇）')
+  {
+    var T = cf._test
+    ok('云函数导出了日期算法（没导出这节就没法测）', !!(T && T.menuDayStr))
+    eq('分界点常量是 22.5（= 22:30）', T.MENU_CUTOFF_H, 22.5)
+
+    /* 绝对时刻，跟本机时区无关 */
+    var BJ = function (y, m, d, H, M) { return Date.UTC(y, m - 1, d, H - 8, M || 0, 0) }
+
+    eq('北京 22:29 -> 还是今天', T.menuDayStr(BJ(2026, 10, 17, 22, 29)), '2026-10-17')
+    eq('★ 北京 22:30 整 -> 翻到明天', T.menuDayStr(BJ(2026, 10, 17, 22, 30)), '2026-10-18')
+    eq('北京 23:59 -> 还是明天', T.menuDayStr(BJ(2026, 10, 17, 23, 59)), '2026-10-18')
+    eq('次日 00:01 -> 明天', T.menuDayStr(BJ(2026, 10, 18, 0, 1)), '2026-10-18')
+    eq('次日 08:00 -> 还是明天', T.menuDayStr(BJ(2026, 10, 18, 8, 0)), '2026-10-18')
+    eq('北京 00:00 -> 今天', T.menuDayStr(BJ(2026, 10, 17, 0, 0)), '2026-10-17')
+    eq('跨月：10-31 23:00 -> 11-01', T.menuDayStr(BJ(2026, 10, 31, 23, 0)), '2026-11-01')
+    eq('跨年：12-31 23:00 -> 次年 01-01', T.menuDayStr(BJ(2026, 12, 31, 23, 0)), '2027-01-01')
+    eq('★ 按东八区算（此刻 UTC 还停在 10-16）',
+      T.menuDayStr(Date.UTC(2026, 9, 16, 23, 0)), '2026-10-17')
+
+    /* 行为：真调接口，看写进去的 date 和读出来的结果 */
+    resetStore()
+    freeze(new Date(BJ(2026, 10, 17, 21, 0)).toISOString())
+    await call('m1', 'createFamily', { name: '翻篇家', nickname: '甲' })
+    await call('m1', 'addDish', { dishId: 'hongshaorou' })
+    eq('21:00 点的菜在', (await call('m1', 'listMenu', {})).data.list.length, 1)
+    eq('  存进去的日期是 10-17', col('csm_menus')[0].date, '2026-10-17')
+
+    freeze(new Date(BJ(2026, 10, 17, 22, 29)).toISOString())
+    eq('22:29 还能看到（就差一分钟）', (await call('m1', 'listMenu', {})).data.list.length, 1)
+
+    freeze(new Date(BJ(2026, 10, 17, 22, 30)).toISOString())
+    eq('★ 22:30 整就查不到了 = 菜单被清空', (await call('m1', 'listMenu', {})).data.list.length, 0)
+
+    freeze(new Date(BJ(2026, 10, 17, 22, 35)).toISOString())
+    await call('m1', 'addDish', { dishId: 'jiaozi' })
+    var after = (await call('m1', 'listMenu', {})).data
+    eq('22:35 点的菜落在「明天」那一份', after.date, '2026-10-18')
+    eq('  而且当场就能看到（不是沉在库里）', after.list.length, 1)
+    // ★ 这一条是「区分力」的关键：只断言「能看到一道菜」不够 ——
+    //   日期算法写错时，看到的会是昨天那道（红烧肉）而不是刚点的饺子。
+    eq('  看到的正是刚点的饺子，不是昨天那道',
+      after.list.map(function (x) { return x.dishId }).join(','), 'jiaozi')
+
+    freeze(new Date(BJ(2026, 10, 18, 8, 0)).toISOString())
+    eq('第二天早上打开，昨晚 22:35 点的还在',
+      (await call('m1', 'listMenu', {})).data.list[0].dishId, 'jiaozi')
+
+    ok('老那份只是「不再属于当前」，并没有被删掉',
+      col('csm_menus').filter(function (d) { return d.date === '2026-10-17' }).length === 1)
+
+    await call('m1', 'clearMenu', {})
+    eq('clearMenu 清掉的是当前那一份', (await call('m1', 'listMenu', {})).data.list.length, 0)
+    ok('  没动到老那份',
+      col('csm_menus').filter(function (d) { return d.date === '2026-10-17' }).length === 1)
 
     unfreeze()
   }

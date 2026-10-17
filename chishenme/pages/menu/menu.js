@@ -7,6 +7,8 @@ Page({
     list: [],
     stats: { kinds: 0, total: 0, meat: 0, veg: 0, soup: 0, staple: 0, cold: 0 },
     dateText: '',
+    nextDay: false,  // 已过 22:30：这一页显示的是「明天」那份菜单
+    cutoff: '',      // 分界点文本（'22:30'），提示条用
     empty: true,
     cloud: false,   // 云开发是否可用
     fam: null       // 当前家庭（云模式才有）
@@ -31,11 +33,15 @@ Page({
 
   refresh: function () {
     var list = app.menu()
-    var today = fmt.todayStr()
+    // ★ 标题按「菜单日」走，不是真实的今天：过了 22:30 菜单就翻篇了，
+    //   这一页装的其实是明天那份，写「今天」会让人以为昨天点的菜丢了。
+    var day = fmt.menuDayStr()
     this.setData({
       list: list,
       stats: app.menuStats(),
-      dateText: fmt.dateLabel(today) + ' · ' + fmt.weekday(today),
+      dateText: fmt.dateLabel(day) + ' · ' + fmt.weekday(day),
+      nextDay: fmt.menuIsNextDay(),
+      cutoff: fmt.cutoffText(),
       empty: list.length === 0,
       cloud: app.isCloud(),
       fam: app.family()
@@ -64,10 +70,13 @@ Page({
 
   clearAll: function () {
     var that = this
+    var which = this.data.nextDay ? '明天' : '今日'
     wx.showModal({
-      title: '清空今日菜单',
+      title: '清空' + which + '菜单',
       content: this.data.fam
-        ? '会把这个房间今天点的菜全部清掉，家里其他人也看不到了。确定吗？'
+        ? (this.data.nextDay
+            ? '会把这个房间明天那份菜单全部清掉，家里其他人也看不到了。确定吗？'
+            : '会把这个房间今天点的菜全部清掉，家里其他人也看不到了。确定吗？')
         : '菜单里的菜会全部清掉，确定吗？',
       success: function (res) {
         if (!res.confirm) return

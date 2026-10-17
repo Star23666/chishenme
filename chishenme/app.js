@@ -315,7 +315,10 @@ App({
    * 关键：写的是同一批 storage key，所以下面那些读方法完全不用改。
    */
   _applySnapshot: function (docs) {
-    var today = fmt.todayStr()
+    // ★ 用「菜单日」而不是真实的今天：菜单每天 22:30 翻篇
+    //   （见 utils/format.js 的 menuDayStr）。两边必须一致，否则 22:30 后
+    //   家人写的记录会被这里当成「昨天的」直接丢掉。
+    var today = fmt.menuDayStr()
     var list = []
     for (var i = 0; i < docs.length; i++) {
       var d = docs[i]
@@ -861,18 +864,20 @@ App({
   /* ==================== 今日菜单 ==================== */
 
   /**
-   * 读原始菜单。跨天自动作废 —— 昨天点的菜不该出现在今天。
+   * 读原始菜单。菜单日一过就自动作废 —— 上一份菜单不该留在这一份里。
    * 这里不写存储（只是读），真正清空发生在下次写入时。
+   *
+   * ★ 判的是 fmt.menuDayStr()（每天 22:30 翻篇），不是 todayStr()。
    */
   _rawMenu: function () {
-    if (storage.get(storage.KEY_MENU_DATE, '') !== fmt.todayStr()) return []
+    if (storage.get(storage.KEY_MENU_DATE, '') !== fmt.menuDayStr()) return []
     var list = storage.get(storage.KEY_MENU, [])
     return (list instanceof Array) ? list : []
   },
 
-  /** 保存并打上今天的日期戳 */
+  /** 保存并打上「菜单日」的日期戳 */
   _saveMenu: function (list) {
-    storage.set(storage.KEY_MENU_DATE, fmt.todayStr())
+    storage.set(storage.KEY_MENU_DATE, fmt.menuDayStr())
     storage.set(storage.KEY_MENU, list)
   },
 
@@ -1086,7 +1091,7 @@ App({
       names.push(t)
     }
     var s = this.menuStats()
-    return '今天吃啥 · ' + fmt.mdLabel(fmt.todayStr()) +
+    return '今天吃啥 · ' + fmt.mdLabel(fmt.menuDayStr()) +
       '\n共 ' + s.total + ' 道：' + names.join('、') +
       '\n（荤 ' + s.meat + ' · 素 ' + s.veg + ' · 汤 ' + s.soup + ' · 主食 ' + s.staple + ' · 凉菜 ' + s.cold + '）'
   },

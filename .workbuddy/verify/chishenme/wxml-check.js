@@ -486,6 +486,37 @@ ok('云函数没有裸用本地时区取日期（全部走 getUTC*）', tzBad.le
 
 ok('云函数导出了 main 入口', /exports\.main\s*=/.test(cfSrc))
 
+/*
+ * G4b. ★ 菜单的「翻篇时刻」两边必须一模一样。
+ *
+ * 菜单每天 22:30 作废是靠「日期当键」实现的：写的时候按这个时刻算属于哪天，
+ * 读的时候也按它算当前是哪天。两边只要差一点，22:30 之后点的菜就会被以
+ * 一个日期写进去、以另一个日期读出来 —— 菜沉在库里、界面不显示，
+ * 而且**两边都不报错**（本项目最难查的那一类故障）。
+ *
+ * 所以这里直接把两边的 MENU_CUTOFF_H 抠出来比数值，而不是靠人记得同步改。
+ */
+function cutoffOf(src) {
+  var m = String(src).match(/MENU_CUTOFF_H\s*=\s*([0-9.]+)/)
+  return m ? parseFloat(m[1]) : null
+}
+var cutClient = cutoffOf(stripJsComments(fmtSrc))
+var cutCloud = cutoffOf(cfNoComment)
+ok('客户端定义了菜单翻篇时刻 MENU_CUTOFF_H', cutClient !== null)
+ok('云函数定义了菜单翻篇时刻 MENU_CUTOFF_H', cutCloud !== null)
+ok('★ 两边的翻篇时刻完全一致（差一点就是沉默丢菜单）',
+  cutClient !== null && cutClient === cutCloud,
+  '客户端 ' + cutClient + ' / 云函数 ' + cutCloud)
+
+// 菜单相关的读写必须全部走 menuDayStr，不能混用 todayStr
+var menuFns = ['addDish', 'setQty', 'setNote', 'clearMenu', 'listMenu']
+var mixedTz = []
+menuFns.forEach(function (fn) {
+  var m = cfNoComment.match(new RegExp('(async\\s+)?function\\s+' + fn + '\\s*\\([\\s\\S]*?\\n\\}'))
+  if (m && /todayStr\s*\(/.test(m[0])) mixedTz.push(fn)
+})
+ok('云函数的菜单读写没混用 todayStr（一律 menuDayStr）', mixedTz.length === 0, mixedTz.join(', '))
+
 // G5. ★ 最关键的一条：前端调的每个 action，云函数里都得真的有这个 case
 var cfActions = {}
 var reCase = /case\s+'([A-Za-z_][A-Za-z0-9_]*)'\s*:/g
