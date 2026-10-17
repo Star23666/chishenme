@@ -27,7 +27,7 @@
 }
 
 .hero-say {
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink-2);
   line-height: 1.55;
 }
@@ -81,7 +81,7 @@
 .fbar-r {
   flex-shrink: 0;
   font-family: var(--f-serif);
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink);
   margin-left: 16rpx;
 }
@@ -111,7 +111,7 @@
 
 .nextbar-t {
   display: block;
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink-2);
 }
 
@@ -239,7 +239,7 @@
   padding: 16rpx 0;
   border: 1rpx solid var(--c-line-strong);
   border-radius: var(--r-btn);
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink-2);
   background: transparent;
 }

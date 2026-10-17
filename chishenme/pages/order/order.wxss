@@ -32,7 +32,7 @@
   height: 60rpx;
   line-height: 60rpx;
   text-align: center;
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink-3);
 }
 
@@ -200,7 +200,7 @@
 /* ★ 墨字压橙底 5.98:1（原来是白字，2.74:1 不达标） */
 .fb-left {
   color: var(--c-ink);
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
 }
 
 .fb-right {

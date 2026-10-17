@@ -707,6 +707,33 @@ var kindCount = Object.keys(spaceVals).length
 ok('间距取值种类 ≤ 16（归网格前是 28）', kindCount <= 16, '现在 ' + kindCount + ' 种')
 console.log('      间距取值：' + Object.keys(spaceVals).sort().join('  '))
 
+/*
+ * G4h. ★ 字号阶梯：相邻两档的比值不能太低。
+ *
+ * 1.5.10 之前 `--t-sub`(28rpx) 和 `--t-body`(29rpx) 只差 1rpx = **1.03** ——
+ * 肉眼看是同一个大小，于是"名义 9 档、实际只能辨出 6 档"。
+ * 比值低于 1.10 就等于那一档白设了。
+ */
+var T_ORDER = ['hero', 'big', 'display', 'h1', 'h2', 'body', 'cap', 'tag']
+var tScale = []
+T_ORDER.forEach(function (n) {
+  var m = appRawCss.match(new RegExp('--t-' + n + ':\\s*(\\d+)rpx'))
+  if (m) tScale.push([n, Number(m[1])])
+})
+ok('字号档位都能读到（' + T_ORDER.length + ' 档）', tScale.length === T_ORDER.length,
+  tScale.map(function (x) { return x[0] }).join(','))
+tScale.sort(function (a, b) { return b[1] - a[1] })
+var badRatio = []
+for (var ti = 1; ti < tScale.length; ti++) {
+  var rr = tScale[ti - 1][1] / tScale[ti][1]
+  if (rr < 1.10) badRatio.push(tScale[ti - 1][0] + '/' + tScale[ti][0] + '=' + rr.toFixed(2))
+}
+ok('★ 相邻字号档比值 ≥1.10（低于这个就是"看着一样大"）', badRatio.length === 0, badRatio.join(' '))
+ok('字号档数 ≤ 8', tScale.length <= 8, '现在 ' + tScale.length + ' 档')
+console.log('      字号阶梯：' + tScale.map(function (x) {
+  return x[0] + ' ' + x[1] + 'rpx/' + (x[1] / 2) + 'px'
+}).join('  '))
+
 // G5. ★ 最关键的一条：前端调的每个 action，云函数里都得真的有这个 case
 var cfActions = {}
 var reCase = /case\s+'([A-Za-z_][A-Za-z0-9_]*)'\s*:/g

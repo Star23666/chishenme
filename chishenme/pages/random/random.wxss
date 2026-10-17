@@ -19,7 +19,7 @@
 .mode-item {
   padding: 12rpx 32rpx;
   margin-right: 16rpx;
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink-2);
   border: 1rpx solid var(--c-line-strong);
   border-radius: var(--r-pill);
@@ -60,7 +60,7 @@
 }
 
 .rolling-hint {
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink-3);
   margin-top: 24rpx;
 }
@@ -102,7 +102,7 @@
 }
 
 .rc-tips {
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink-2);
   line-height: 1.7;
   text-align: center;
@@ -165,7 +165,7 @@
 }
 
 .idle-desc {
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink-2);
   margin-top: 16rpx;
   line-height: 1.7;

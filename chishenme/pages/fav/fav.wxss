@@ -93,6 +93,6 @@
 
 .fav-count .n {
   font-family: var(--f-serif);
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink);
 }

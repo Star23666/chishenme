@@ -40,7 +40,7 @@
   height: 60rpx;
   line-height: 60rpx;
   text-align: center;
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink-3);
 }
 
@@ -150,7 +150,7 @@
 .empty {
   text-align: center;
   color: var(--c-ink-3);
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   line-height: 1.7;
   padding: 112rpx 64rpx 24rpx;
 }
@@ -257,7 +257,7 @@
   display: flex;
   align-items: baseline;
   margin-bottom: 16rpx;
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   line-height: 1.6;
 }
 

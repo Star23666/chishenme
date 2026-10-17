@@ -84,7 +84,7 @@
 .k {
   width: 110rpx;
   flex-shrink: 0;
-  font-size: var(--t-sub);
+  font-size: var(--t-cap);
   color: var(--c-ink-3);
 }
 
